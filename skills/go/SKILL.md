@@ -1,6 +1,6 @@
 ---
 name: go
-description: NEVER INVOKE THIS YOURSELF: only the user starts /go. Listed so you know it exists. Builds the agreed work (a spec from /spec, items from the last report, or prose) through subagents, checks it narrowly, and leaves it uncommitted for /cycle.
+description: "NEVER INVOKE THIS YOURSELF: only the user starts /go. Listed so you know it exists. Builds the agreed work (a spec from /spec, items from the last report, or prose) through subagents, checks it narrowly, and leaves it uncommitted for /cycle."
 argument-hint: "[spec path | items | task] [solo]"
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: cycle
-description: NEVER INVOKE THIS YOURSELF: only the user starts /cycle. Listed so you know it exists. Reviews all uncommitted work with fresh subagents, commits, fixes, re-reviews, and commits again; pushes, tags, or publishes only when given as arguments.
+description: "NEVER INVOKE THIS YOURSELF: only the user starts /cycle. Listed so you know it exists. Reviews all uncommitted work with fresh subagents, commits, fixes, re-reviews, and commits again; pushes, tags, or publishes only when given as arguments."
 argument-hint: "[push] [tag <version>] [publish] [review-only] [light | fanout] [diff]"
 ---
 
@@ -31,7 +31,7 @@ Terms used below:
 - **The repo's instructions** means its AGENTS.md, or, when it has none, the agent instructions file in the repo root (such as CLAUDE.md or GEMINI.md). They name the gate, the targeted test, format, and lint commands, the UI skill, and the paths never to commit. When they don't name something a step needs, say so in the report rather than guessing.
 - **`<main checkout>`** is the repo's main working tree, `dirname "$(git rev-parse --path-format=absolute --git-common-dir)"`, even when the cycle runs in a worktree: a worktree can be removed or auto-cleaned, and its git-ignored `.plans/` goes with it. Everything the cycle saves (reviewers' reports, the gate's log, and the final report) goes in `<main checkout>/.plans/`. Before the first write there, run `git check-ignore -q .plans/` in `<main checkout>`; if it fails, add `.plans/` to `<main checkout>/.git/info/exclude`, which ignores it locally without touching the repo's `.gitignore`.
 - **`<base directory>`** is the folder this SKILL.md was loaded from: the skill's base directory, if your agent printed one when the skill loaded, else the folder of the path you read this file at. **`<skills folder>`** holds the sibling skills: it's what `cd -P "<base directory>/.." && pwd` prints, which follows a linked skill back to its repo. Go's file is `<skills folder>/go/SKILL.md`. If you can't tell where this file was loaded from, ask the user for the path rather than guessing.
-- **`<id8>`** is the last 8 characters of this session's id. Run `env | grep -E '^[A-Z0-9_]*(SESSION|THREAD|CONVERSATION)_ID=' | grep -vE '^[A-Z0-9_]*(HOST|PARENT)_'` and take the value (if it prints several, the one whose name ends in `SESSION_ID`). If it prints nothing, use the id this conversation already states; if there is none, generate one once with `openssl rand -hex 4`. Name the cycle's folder, `<main checkout>/.plans/scratch/cycle-<id8>/`, in your first message, so it survives a compaction.
+- **`<id8>`** is the last 8 characters of this session's id. Run `printenv CLAUDE_CODE_SESSION_ID || printenv CODEX_SESSION_ID || printenv OPENCODE_SESSION_ID || printenv COPILOT_AGENT_SESSION_ID || printenv CURSOR_CONVERSATION_ID` and take what it prints: the id your agent sets for this session. Don't take any other `*SESSION_ID` from the environment; terminals set those (`TERM_SESSION_ID`, `XDG_SESSION_ID`), and every session started there shares them. If it prints nothing, use the id this conversation already states; if there is none, generate one once with `openssl rand -hex 4`. Name the cycle's folder, `<main checkout>/.plans/scratch/cycle-<id8>/`, in your first message, so it survives a compaction.
 
 ## 1. Scope
 

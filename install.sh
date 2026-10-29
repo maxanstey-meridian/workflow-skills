@@ -3,7 +3,7 @@
 # Usage: sh install.sh <agent>                        claude-code, codex, cursor, copilot, opencode, gemini, or antigravity
 #        sh install.sh <skills folder> [<rules file>]  any other agent
 #        sh install.sh uninstall [<path>…]              removes every link into this checkout
-# Never replaces a real file, a folder, or a link that points somewhere else, and never edits a config file.
+# Never replaces a real file, a folder, or a link it didn't make (broken or not), and never edits a config file.
 
 repo=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 1
 if [ ! -f "$repo/skills/meridian/SKILL.md" ] || [ ! -f "$repo/AGENTS.md" ]; then
@@ -44,32 +44,82 @@ install_link() { # <source, relative to the repo> <destination> <skill | rules> 
       return 1
     fi
   elif [ -L "$2" ]; then
-    echo "replaced broken link $2 (it pointed to $(readlink "$2"))"
-    ln -sfn "$repo/$1" "$2" || { failed=1; return 1; }
+    case $(readlink "$2") in
+      "$repo"/*)
+        echo "replaced broken link $2 (it pointed to $(readlink "$2"))"
+        ln -sfn "$repo/$1" "$2" || { failed=1; return 1; }
+        ;;
+      *)
+        echo "skipped $2: it's a broken link to $(readlink "$2"), and the install replaces only links into this clone; ${4:-remove it, or restore what it points to, and rerun}"
+        failed=1
+        return 1
+        ;;
+    esac
   else
     ln -s "$repo/$1" "$2" && echo "linked $2" || { failed=1; return 1; }
   fi
 }
 
-link_skills() { # <skills folder> [<another skills folder the agent reads, where a second link would list twice>…]
+noted="
+"
+note_if_linked() { # <folder>; says so, once per folder, when it or a folder above it is a link (a home behind a link doesn't count)
+  real=$(CDPATH= cd -P -- "$1" 2>/dev/null && pwd) || return 0
+  given=$(CDPATH= cd -- "$1" 2>/dev/null && pwd) || return 0
+  case $given in
+    "$HOME"/*) given=$home_real/${given#"$HOME"/} ;;
+  esac
+  [ "$real" != "$given" ] || return 0
+  case $noted in
+    *"
+$1
+"*) return 0 ;;
+  esac
+  noted="$noted$1
+"
+  echo "note: $1 is a link to $real, so these links live there"
+}
+
+link_skills() { # <skills folder> [<another folder an agent reads beside it>…]
   dest=${1%/}
   shift
   mkdir -p "$dest" || { failed=1; return; }
+  note_if_linked "$dest"
+  dest_real=$(CDPATH= cd -P -- "$dest" && pwd)
+  n=$#
+  while [ "$n" -gt 0 ]; do
+    other=${1%/}
+    shift
+    n=$((n - 1))
+    [ "$(CDPATH= cd -P -- "$other" 2>/dev/null && pwd)" = "$dest_real" ] || set -- "$@" "$other"
+  done
   for skill in "$repo"/skills/*/SKILL.md; do
     name=$(basename "$(dirname "$skill")")
-    reached=""
-    if [ ! -e "$dest/$name" ] && [ ! -L "$dest/$name" ]; then
-      for other in "$@"; do
-        if [ "$other/$name" -ef "$repo/skills/$name" ]; then
-          reached="$other/$name"
-          break
-        fi
-      done
+    ours=""
+    if [ -L "$dest/$name" ] && [ "$(readlink "$dest/$name")" = "$repo/skills/$name" ]; then
+      ours=1
     fi
-    if [ -n "$reached" ]; then
-      echo "already installed: $reached reaches this repo, and a second link would list $name twice"
-    else
+    if { [ -e "$dest/$name" ] || [ -L "$dest/$name" ]; } && [ -z "$ours" ] && [ ! "$dest/$name" -ef "$repo/skills/$name" ]; then
       install_link "skills/$name" "$dest/$name" skill
+      continue
+    fi
+    clash=""
+    for other in "$@"; do
+      if [ -e "$other/$name/SKILL.md" ] && [ ! "$other/$name" -ef "$repo/skills/$name" ]; then
+        clash=$other
+        break
+      fi
+    done
+    if [ -n "$clash" ]; then
+      why="a skill of yours called $name is in $clash, and an agent that reads both folders would load one in place of the other; rename yours and rerun"
+      if [ -n "$ours" ]; then
+        rm -- "${dest:?}/${name:?}" && echo "removed $dest/$name: $why"
+      else
+        echo "skipped $dest/$name: $why"
+      fi
+      failed=1
+    elif install_link "skills/$name" "$dest/$name" skill && [ "$dest" = "$HOME/.agents/skills" ] &&
+      [ "$HOME/.gemini/skills/$name" -ef "$repo/skills/$name" ] && [ ! "$HOME/.gemini/skills" -ef "$dest" ]; then
+      echo "note: $HOME/.gemini/skills/$name also links here, so Gemini warns of a skill conflict each time it starts; remove that link to stop it"
     fi
   done
   find "$dest/" -mindepth 1 -maxdepth 1 -type l | while IFS= read -r entry; do
@@ -81,9 +131,15 @@ link_skills() { # <skills folder> [<another skills folder the agent reads, where
   done
 }
 
-link_rules_in_folder() { # <rules folder> <file name> <what to do instead, for a file of yours>
+link_agents_skills() { # ~/.agents/skills, beside the folders Codex, Cursor, Copilot, OpenCode, and Gemini read with it
+  set -- "$codex_home/skills" "$HOME/.cursor/skills" "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.grok/skills"
+  [ -n "${COPILOT_HOME:-}" ] || set -- "$@" "$HOME/.copilot/skills"
+  link_skills "$HOME/.agents/skills" "$@" "$opencode_home/skills" "$opencode_home/skill" "$HOME/.gemini/skills"
+}
+
+link_rules_in_folder() { # <rules folder> <file name> <name pattern the agent loads> <depth it loads: 1 | any> <what to do instead, for a file of yours>
   if [ -d "$1" ]; then
-    found=$(find "$1/" -mindepth 1 -maxdepth 1 -name '*.md' | while IFS= read -r file; do
+    found=$(if [ "$4" = 1 ]; then find "$1/" -mindepth 1 -maxdepth 1 -name "$3"; else find "$1/" -mindepth 1 -name "$3"; fi | while IFS= read -r file; do
       if [ "$file" -ef "$repo/AGENTS.md" ]; then
         echo "$file"
         break
@@ -94,7 +150,13 @@ link_rules_in_folder() { # <rules folder> <file name> <what to do instead, for a
       return
     fi
   fi
-  mkdir -p "$1" && install_link AGENTS.md "$1/$2" rules "$3"
+  mkdir -p "$1" || { failed=1; return 1; }
+  note_if_linked "$1"
+  if [ -e "$1/$2" ] || [ ! -L "$1/$2" ]; then
+    install_link AGENTS.md "$1/$2" rules "$5"
+  else
+    install_link AGENTS.md "$1/$2" rules ""
+  fi
 }
 
 link_only_rules_file() { # <rules file the agent loads> <where your own rules go instead>
@@ -103,7 +165,9 @@ link_only_rules_file() { # <rules file the agent loads> <where your own rules go
     failed=1
     return 1
   fi
-  mkdir -p "$(dirname "$1")" && install_link AGENTS.md "$1" rules
+  mkdir -p "$(dirname "$1")" || { failed=1; return 1; }
+  note_if_linked "$(dirname "$1")"
+  install_link AGENTS.md "$1" rules "if it's yours, move its lines into $2, remove it, and rerun"
 }
 
 unlink_into_repo() { # <path>; fails when it isn't a link into this repo
@@ -116,7 +180,8 @@ unlink_into_repo() { # <path>; fails when it isn't a link into this repo
 
 codex_home=${CODEX_HOME:-$HOME/.codex}
 copilot_home=${COPILOT_HOME:-$HOME/.copilot}
-opencode_home=$HOME/.config/opencode
+opencode_home=${OPENCODE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/opencode}
+home_real=$(CDPATH= cd -P -- "$HOME" 2>/dev/null && pwd) || home_real=$HOME
 repo_from_home=$(printf '%s' "$repo" | sed "s|^$HOME/|~/|")
 
 case $1 in
@@ -124,52 +189,63 @@ case $1 in
     shift
     for target in "$HOME/.claude/skills" "$HOME/.agents/skills" "$codex_home/skills" "$HOME/.cursor/skills" \
       "$copilot_home/skills" "$opencode_home/skills" "$HOME/.gemini/skills" "$HOME/.gemini/antigravity-cli/skills" \
-      "$HOME/.claude/rules" "$codex_home/AGENTS.md" "$HOME/.gemini/AGENTS.md" "$@"; do
+      "$HOME/.claude/rules" "$codex_home/AGENTS.md" "$HOME/.gemini/AGENTS.md" "$HOME/.cursor/rules" "$copilot_home/instructions" \
+      "$HOME/.gemini/antigravity-cli/rules" "$@"; do
       if ! unlink_into_repo "$target" && [ -d "$target" ]; then
         find "$target/" -mindepth 1 -maxdepth 1 -type l | while IFS= read -r entry; do unlink_into_repo "$entry"; done
       fi
     done
     echo "If you installed with CODEX_HOME or COPILOT_HOME set, rerun this with the same values."
-    echo "Remove by hand what you added only for this: Cursor's pasted User Rules, OpenCode's \"instructions\" entry, Gemini's \"AGENTS.md\" in context.fileName, or COPILOT_CUSTOM_INSTRUCTIONS_DIRS in your shell profile."
+    echo "Remove by hand what you added only for this: OpenCode's \"instructions\" entry and Gemini's \"AGENTS.md\" in context.fileName; from an earlier install, Cursor's pasted User Rules and COPILOT_CUSTOM_INSTRUCTIONS_DIRS in your shell profile."
     exit 0
     ;;
   claude-code)
     [ $# -eq 1 ] || usage
-    link_skills "$HOME/.claude/skills"
-    link_rules_in_folder "$HOME/.claude/rules" workflow-skills.md \
+    link_skills "$HOME/.claude/skills" "$HOME/.cursor/skills" "$HOME/.agents/skills" "$HOME/.codex/skills" "$HOME/.grok/skills" \
+      "$opencode_home/skills" "$opencode_home/skill"
+    link_rules_in_folder "$HOME/.claude/rules" workflow-skills.md '*.md' any \
       "rename yours (every .md file in $HOME/.claude/rules loads, whatever its name) and rerun"
     check="start a new session: /skills lists the seven skills, and /context lists the rules file in $HOME/.claude/rules under Memory files, beside your own CLAUDE.md"
     ;;
   codex)
     [ $# -eq 1 ] || usage
-    link_skills "$HOME/.agents/skills" "$codex_home/skills"
-    if [ -s "$codex_home/AGENTS.override.md" ] && [ ! "$codex_home/AGENTS.override.md" -ef "$repo/AGENTS.md" ]; then
+    link_agents_skills
+    if grep -q '[^[:space:]]' "$codex_home/AGENTS.override.md" 2>/dev/null && [ ! "$codex_home/AGENTS.override.md" -ef "$repo/AGENTS.md" ]; then
       echo "skipped the rules: Codex reads $codex_home/AGENTS.override.md in place of AGENTS.md while it exists; move its lines into developer_instructions in $codex_home/config.toml (see the README), remove it, and rerun"
       failed=1
     elif link_only_rules_file "$codex_home/AGENTS.md" "developer_instructions in $codex_home/config.toml (see the README)"; then
       echo "Your own Codex rules go in developer_instructions = '''…''' at the top of $codex_home/config.toml, before any [section] line: $codex_home/AGENTS.md is this repo's file now, so an edit there changes the repo."
     fi
-    check="start a new session: /skills lists the seven skills, and asking \"List the instruction sources you loaded\" names $codex_home/AGENTS.md and your developer_instructions"
+    check="start a new session: /skills lists the seven skills, /status lists $codex_home/AGENTS.md on its Agents.md row, and asking \"List the instruction sources you loaded\" names your developer_instructions"
     ;;
   cursor)
     [ $# -eq 1 ] || usage
-    link_skills "$HOME/.agents/skills"
-    add_todo "Cursor keeps global rules only in its settings: paste $repo/AGENTS.md into Customize → Rules → User Rules, beside your own"
-    add_todo "after each git pull, run git -C $repo diff ORIG_HEAD -- AGENTS.md; if it prints anything, paste the file again"
-    check="type / in Agent chat: the seven skills are listed, and Customize → Rules shows your User Rules"
+    link_agents_skills
+    mdc=$HOME/.cursor/rules/workflow-skills.mdc
+    was_link=""
+    [ ! -L "$mdc" ] || was_link=1
+    link_rules_in_folder "$HOME/.cursor/rules" workflow-skills.mdc '*.mdc' any "rename yours and rerun"
+    if [ -z "$was_link" ] && [ -L "$mdc" ]; then
+      add_todo "if you pasted AGENTS.md into Cursor's Customize → Rules → User Rules for an earlier install, remove it: the rules now load from $mdc"
+    fi
+    check="in a new Agent chat or cursor-agent session, / lists the seven skills; in the IDE, Customize → Rules lists workflow-skills"
     ;;
   copilot)
     [ $# -eq 1 ] || usage
-    link_skills "$copilot_home/skills"
+    if [ -n "${COPILOT_HOME:-}" ]; then
+      link_skills "$copilot_home/skills"
+    else
+      link_skills "$copilot_home/skills" "$HOME/.agents/skills"
+    fi
+    link_rules_in_folder "$copilot_home/instructions" workflow-skills.instructions.md '*.instructions.md' any "rename yours and rerun"
     case ",${COPILOT_CUSTOM_INSTRUCTIONS_DIRS:-}," in
-      *",$repo,"* | *",$repo/,"*) echo "already installed: COPILOT_CUSTOM_INSTRUCTIONS_DIRS loads $repo/AGENTS.md" ;;
-      *) add_todo "add this line to your shell profile (~/.zshrc or ~/.bashrc) and open a new terminal: export COPILOT_CUSTOM_INSTRUCTIONS_DIRS=\"$repo\" (if it's already set, add $repo after a comma)" ;;
+      *",$repo,"* | *",$repo/,"*) add_todo "remove $repo from COPILOT_CUSTOM_INSTRUCTIONS_DIRS in your shell profile and open a new terminal: the rules now load from $copilot_home/instructions/workflow-skills.instructions.md, and with both they load twice" ;;
     esac
-    check="start copilot from a new terminal: /skills list shows the seven skills, and /instructions lists $repo/AGENTS.md beside your $copilot_home/copilot-instructions.md"
+    check="start a new or resumed copilot session: /skills list shows the seven skills, and /instructions lists workflow-skills.instructions.md beside your $copilot_home/copilot-instructions.md"
     ;;
   opencode)
     [ $# -eq 1 ] || usage
-    link_skills "$HOME/.agents/skills"
+    link_agents_skills
     if grep -qF -e "\"$repo/AGENTS.md\"" -e "\"$repo_from_home/AGENTS.md\"" "$opencode_home/opencode.json" "$opencode_home/opencode.jsonc" 2>/dev/null; then
       echo "already installed: $opencode_home's config lists $repo/AGENTS.md in its instructions"
     elif [ -e "$opencode_home/opencode.json" ] || [ -e "$opencode_home/opencode.jsonc" ]; then
@@ -181,8 +257,11 @@ case $1 in
     ;;
   gemini)
     [ $# -eq 1 ] || usage
-    link_skills "$HOME/.agents/skills"
-    link_only_rules_file "$HOME/.gemini/AGENTS.md" "$HOME/.gemini/GEMINI.md"
+    link_agents_skills
+    if link_only_rules_file "$HOME/.gemini/AGENTS.md" "$HOME/.gemini/GEMINI.md" &&
+      unlink_into_repo "$HOME/.gemini/antigravity-cli/rules/workflow-skills.md"; then
+      echo "Antigravity now loads the rules from $HOME/.gemini/AGENTS.md"
+    fi
     if [ -f "$HOME/.gemini/settings.json" ] && tr -d ' \t\r\n' < "$HOME/.gemini/settings.json" | grep -qF '"fileName":["GEMINI.md","AGENTS.md"'; then
       echo "already installed: $HOME/.gemini/settings.json loads GEMINI.md, then AGENTS.md"
     elif [ -e "$HOME/.gemini/settings.json" ]; then
@@ -195,8 +274,15 @@ case $1 in
   antigravity)
     [ $# -eq 1 ] || usage
     link_skills "$HOME/.gemini/antigravity-cli/skills"
-    link_only_rules_file "$HOME/.gemini/AGENTS.md" "$HOME/.gemini/GEMINI.md"
-    check="start a new session and ask which skills and rules files it loaded: it names the seven skills, $HOME/.gemini/AGENTS.md, and your own $HOME/.gemini/GEMINI.md"
+    if [ "$HOME/.gemini/AGENTS.md" -ef "$repo/AGENTS.md" ]; then
+      echo "already installed: Antigravity loads $HOME/.gemini/AGENTS.md, which leads to this repo's AGENTS.md"
+      unlink_into_repo "$HOME/.gemini/antigravity-cli/rules/workflow-skills.md"
+      ag_rules=$HOME/.gemini/AGENTS.md
+    else
+      link_rules_in_folder "$HOME/.gemini/antigravity-cli/rules" workflow-skills.md '*.md' 1 "rename yours and rerun"
+      ag_rules=$HOME/.gemini/antigravity-cli/rules/workflow-skills.md
+    fi
+    check="start a new session: /skills lists the seven skills, and /context lists $ag_rules under System files"
     ;;
   "~"*)
     echo "skipped $1: the shell didn't expand the ~, so write it unquoted or use \$HOME"
@@ -214,7 +300,12 @@ case $1 in
         echo "skipped $rules: it's a folder; name the file to create in it, such as $rules/workflow-skills.md"
         failed=1
       else
-        mkdir -p "$(dirname "$rules")" && install_link AGENTS.md "$rules" rules
+        if mkdir -p "$(dirname "$rules")"; then
+          note_if_linked "$(dirname "$rules")"
+          install_link AGENTS.md "$rules" rules
+        else
+          failed=1
+        fi
       fi
     fi
     ;;

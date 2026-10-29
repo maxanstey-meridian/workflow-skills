@@ -10,7 +10,7 @@ Write one note the next context, or the user tomorrow morning, can rely on witho
 ## Steps
 
 1. **Gather facts. Don't recall them.**
-   - Session id: run `env | grep -E '^[A-Z0-9_]*(SESSION|THREAD|CONVERSATION)_ID=' | grep -vE '^[A-Z0-9_]*(HOST|PARENT)_'` and take the value (if it prints several, the one whose name ends in `SESSION_ID`). If it prints nothing, use the id this conversation already has: one stated earlier, or the `session_id` of this session's own waypoint read back after a compaction. If there is none, generate one once with `openssl rand -hex 4` and say it in your reply ("Session id: <id>, generated"). `<id8>` is the id's last 8 characters.
+   - Session id: run `printenv CLAUDE_CODE_SESSION_ID || printenv CODEX_SESSION_ID || printenv OPENCODE_SESSION_ID || printenv COPILOT_AGENT_SESSION_ID || printenv CURSOR_CONVERSATION_ID` and take what it prints: the id your agent sets for this session. Don't take any other `*SESSION_ID` from the environment; terminals set those (`TERM_SESSION_ID`, `XDG_SESSION_ID`), and every session started there shares them. If it prints nothing, use the id this conversation already has: one stated earlier, or the `session_id` of this session's own waypoint read back after a compaction. If there is none, generate one once with `openssl rand -hex 4` and say it in your reply ("Session id: <id>, generated"). `<id8>` is the id's last 8 characters.
    - Session title: this session's own name, if you can list agent sessions or read this session's details and it has one; otherwise use `<id8>`.
    - Git, from the repo root:
      - `git branch --show-current`

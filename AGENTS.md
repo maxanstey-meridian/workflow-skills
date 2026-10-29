@@ -1,3 +1,6 @@
+---
+alwaysApply: true
+---
 # Global agent rules
 
 These rules apply in every repo. House engineering doctrine lives in the `meridian` skill; repo facts (commands, the gate, what never gets committed) live in each repo's AGENTS.md, or, when it has none, the agent instructions file in the repo root (such as CLAUDE.md or GEMINI.md), and win where they're more specific. While one of the workflow routines (`/spec`, `/go`, `/cycle`, `/waypoint`, `/where`, or `/slop-hunt`) runs, its own steps and report format win over this file.
