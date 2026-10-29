@@ -66,6 +66,7 @@ note_if_linked() { # <folder>; says so, once per folder, when it or a folder abo
   real=$(CDPATH= cd -P -- "$1" 2>/dev/null && pwd) || return 0
   given=$(CDPATH= cd -- "$1" 2>/dev/null && pwd) || return 0
   case $given in
+    "$HOME") given=$home_real ;;
     "$HOME"/*) given=$home_real/${given#"$HOME"/} ;;
   esac
   [ "$real" != "$given" ] || return 0
@@ -97,6 +98,8 @@ link_skills() { # <skills folder> [<another folder an agent reads beside it>…]
     ours=""
     if [ -L "$dest/$name" ] && [ "$(readlink "$dest/$name")" = "$repo/skills/$name" ]; then
       ours=1
+    elif [ -L "$dest/$name" ] && [ ! -e "$dest/$name" ]; then
+      case $(readlink "$dest/$name") in "$repo"/*) ours=1 ;; esac   # a dead link into this clone is ours too, so the same-name check still runs
     fi
     if { [ -e "$dest/$name" ] || [ -L "$dest/$name" ]; } && [ -z "$ours" ] && [ ! "$dest/$name" -ef "$repo/skills/$name" ]; then
       install_link "skills/$name" "$dest/$name" skill
@@ -211,7 +214,7 @@ case $1 in
     [ $# -eq 1 ] || usage
     link_agents_skills
     if grep -q '[^[:space:]]' "$codex_home/AGENTS.override.md" 2>/dev/null && [ ! "$codex_home/AGENTS.override.md" -ef "$repo/AGENTS.md" ]; then
-      echo "skipped the rules: Codex reads $codex_home/AGENTS.override.md in place of AGENTS.md while it exists; move its lines into developer_instructions in $codex_home/config.toml (see the README), remove it, and rerun"
+      echo "skipped the rules: Codex reads $codex_home/AGENTS.override.md in place of AGENTS.md while it holds anything but blank lines; move its lines into developer_instructions in $codex_home/config.toml (see the README), remove it, and rerun"
       failed=1
     elif link_only_rules_file "$codex_home/AGENTS.md" "developer_instructions in $codex_home/config.toml (see the README)"; then
       echo "Your own Codex rules go in developer_instructions = '''…''' at the top of $codex_home/config.toml, before any [section] line: $codex_home/AGENTS.md is this repo's file now, so an edit there changes the repo."
@@ -238,7 +241,8 @@ case $1 in
       link_skills "$copilot_home/skills" "$HOME/.agents/skills"
     fi
     link_rules_in_folder "$copilot_home/instructions" workflow-skills.instructions.md '*.instructions.md' any "rename yours and rerun"
-    case ",${COPILOT_CUSTOM_INSTRUCTIONS_DIRS:-}," in
+    dirs=,$(printf '%s' "${COPILOT_CUSTOM_INSTRUCTIONS_DIRS:-}" | sed 's/[[:space:]]*,[[:space:]]*/,/g; s/^[[:space:]]*//; s/[[:space:]]*$//'),   # Copilot trims each entry
+    case $dirs in
       *",$repo,"* | *",$repo/,"*) add_todo "remove $repo from COPILOT_CUSTOM_INSTRUCTIONS_DIRS in your shell profile and open a new terminal: the rules now load from $copilot_home/instructions/workflow-skills.instructions.md, and with both they load twice" ;;
     esac
     check="start a new or resumed copilot session: /skills list shows the seven skills, and /instructions lists workflow-skills.instructions.md beside your $copilot_home/copilot-instructions.md"

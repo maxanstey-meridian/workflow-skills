@@ -226,6 +226,18 @@ cases() {
   skills_in .agents/skills spec; is_missing .agents/skills/spec; says removed "$H/.codex/skills"
   verdict
 
+  scenario x10
+  make_skill .codex/skills/spec; make_link "$r/skills/spec-old" .agents/skills/spec
+  run codex; exits 1
+  skills_in .agents/skills spec; is_missing .agents/skills/spec; says removed "$H/.codex/skills"; says_no replaced
+  verdict
+
+  scenario x10b
+  make_link "$r/skills/spec-old" .agents/skills/spec
+  run codex; exits 0
+  skills_in .agents/skills; says replaced "$H/.agents/skills/spec"
+  verdict
+
   scenario o1
   clone; mkdir -p "$H/.config/opencode"
   echo '{ "instructions": ["~/clone/AGENTS.md"] }' > "$H/.config/opencode/opencode.json"
@@ -286,6 +298,11 @@ cases() {
   rules_at .copilot/instructions/workflow-skills.instructions.md; says - COPILOT_CUSTOM_INSTRUCTIONS_DIRS
   verdict
 
+  scenario p1b
+  run COPILOT_CUSTOM_INSTRUCTIONS_DIRS="/x, $r" copilot; exits 0
+  rules_at .copilot/instructions/workflow-skills.instructions.md; says - COPILOT_CUSTOM_INSTRUCTIONS_DIRS
+  verdict
+
   scenario p2
   make_skill .agents/skills/spec
   run COPILOT_HOME="$H/cp" copilot; exits 0
@@ -336,6 +353,8 @@ cases() {
   skills_in .myagent/skills; says skipped "$H/.myagent/rules"
   run .myagent/skills2 .myagent/rules/ws.md; exits 0
   skills_in .myagent/skills2; rules_at .myagent/rules/ws.md; says_no note:
+  run .myagent/skills2 "$H/AGENTS.md"; exits 0
+  rules_at AGENTS.md; says_no note:
   verdict
 
   scenario a2
@@ -403,6 +422,12 @@ cases() {
   rm -rf "$H/clone/skills/where"
   run codex; exits 0
   skills_in .agents/skills where; is_missing .agents/skills/where; says removed "$H/.agents/skills/where"
+  verdict
+
+  scenario u6
+  run antigravity; rules_at .gemini/antigravity-cli/rules/workflow-skills.md
+  run uninstall; exits 0
+  no_links_into_clone
   verdict
 }
 
