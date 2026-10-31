@@ -88,7 +88,7 @@ public static class RecordLifecycle
   caller re-derives the rule.
 - Formalise the decision only. The state change stays a plain transform (`with`,
   spread) in the use case unless the transform is itself a rule.
-- **The decider explains; the database enforces.** It sits in front of, and never
+- The decider explains; the database enforces. It sits in front of, and never
   replaces, the constraint, conditional write, concurrency token or transaction
   that arbitrates races (Persisted relational state below). A rule SQL must also
   express, such as a list filter by derived status, keeps its SQL copy, held to
@@ -193,7 +193,7 @@ Before adding concurrency machinery:
 5. Explain why every earlier applicable rung is insufficient.
 6. Test the interleaving against the production persistence or runtime substrate.
 
-More than approximately 30 lines of custom coordination machinery requires an
+More than 30 lines of custom coordination machinery requires an
 explicit explanation of why constraints, atomic SQL, optimistic concurrency, and
 a short transaction cannot satisfy the invariant. This is a review trigger, not
 a design metric. Ordinary SQL, adapter wiring, and tests do not count; custom
@@ -249,27 +249,7 @@ generation, or a release policy, does not belong in any `INVARIANTS.md`. If such
 decision keeps being relitigated, record it once in `docs/decisions/` with
 Context, Decision, Accepts, and Rejected alternatives.
 
-**Tooling:** Plumb's MER-CP-002 checks every INVARIANTS.md outside
-`node_modules`, fenced code aside. An ID is upper-case words joined by hyphens,
-then a hyphen and three digits (`FORM-RULES-001`). It reads a rule from every
-level-2 heading that starts with an ID: write `## FORM-RULES-001: Title`, though
-a dash or a space after the ID also heads a rule. An ID-shaped word
-with SHA, AES, RFC, ISO, MER, D, ADR, or HTTP before its number (`SHA-256`,
-`HMAC-SHA-256`, `D-012`, `HTTP-409`) is prose, not a rule ID, unless a rule
-defines it; a level-2 heading whose ID starts with one of those words is an
-ordinary heading (`## SHA-256 Hashes`) unless a colon follows the ID, so `## ISO-001: Title`
-still defines a rule. It reads the backticked names after an `**Owner:**` or
-`**Proof:**` label at the start of a line. It fails on a rule with no Owner,
-Proof, or title, an ID defined twice, any other ID-shaped word in an
-INVARIANTS.md that no rule defines, a heading at another level that starts with
-such an ID, a `## ID: Title` heading whose number isn't three digits
-(`## FORM-RULES-01: Title`), a file that defines no rule, a cited name the code
-no longer has, and a path, or a file name with an extension Plumb lists
-(`.cs`, `.ts`, `.json`, `.yml`, and so on), that matches several files. In a
-Proof, a lower-case name with no `/` and no lower-case dotted ending
-(`current_timestamp`, `now()`) describes what the test checks, so it isn't
-checked; paths, names with a lower-case dotted ending (`smoke.ps1`,
-`area.status`), and `…Tests` names are. A name not in backticks isn't checked.
+Plumb checks this: `MER-CP-002`
 
 ## Laws
 

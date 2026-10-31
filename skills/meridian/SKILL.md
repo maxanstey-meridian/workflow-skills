@@ -54,26 +54,37 @@ Each rule below is a one-line summary; its reference file is the authority.
 
 ### Laws
 
-- the API is not the information architecture: UI language and ordering follow
-  the user's journey and desired outcomes, not transport models, backend
-  operations, configuration variants, or implementation sequence
-- modules integrate through consumer-owned required ports, provider-owned
-  published contracts, or a deliberately shared kernel; Domain never consumes
-  a sibling's published contract
-- frontend composition happens only in Nuxt shells: `app.vue`, layouts, and
-  pages provide capabilities/contexts with `provideX`; components and
-  composables only inject them with `injectX`
+- a gap with a doc page is still a gap: a known defect, an unchecked promise or
+  a path that only works "because nothing does X today" gets fixed, not written
+  up; refusing valid input is not a fix; `Accepts` holds deliberate trade-offs
+  only
 - model the invariant before choosing enforcement or concurrency; the domain,
   not a caller, decides what the invariant is
+- declared failures are results; undeclared failures are exceptions
 - callers never re-derive a server rule: a UI reads the read model's
   `availableActions`, capabilities or named flag; a second use case calls the
   same decision
-- declared failures are results; undeclared failures are exceptions
-- a gap with a doc page is still a gap: a known defect, an unchecked promise or
-  a path that only works "because nothing does X today" gets fixed, not written
-  up; `Accepts` holds deliberate trade-offs only
+- modules integrate through consumer-owned required ports, provider-owned
+  published contracts, or a deliberately shared kernel; Domain never consumes
+  a sibling's published contract
+- the API is not the information architecture: UI language and ordering follow
+  the user's journey and desired outcomes, not transport models, backend
+  operations, configuration variants, or implementation sequence
+- provide implementations, not projections: a page that needs more of a
+  capability widens its port; it doesn't unpack it, repack it, or add getters
+  to hand out pieces
+- frontend composition happens only in Nuxt shells: `app.vue`, layouts, and
+  pages provide capabilities/contexts with `provideX`; components and
+  composables only inject them with `injectX`
 - adapter integration tests run on the production database engine — EF
-  InMemory is banned; fake the port when the adapter is not under test
+  InMemory is banned (a fake engine manufactures confidence); fake the port
+  when the adapter is not under test
+- do not hand-roll commodity infrastructure, protocols, or dev tooling when a
+  suitable maintained framework, library, official SDK, or generated client
+  exists; custom machinery carries the same burden of proof as a new dependency
+
+A Law beats any spec or plan Decision: when a design and a Law conflict, the
+design changes, and a Decision that breaks one is a defect, not a choice.
 
 ### Defaults
 
@@ -94,9 +105,6 @@ Each rule below is a one-line summary; its reference file is the authority.
   anti-corruption layer only when it adds semantic value
 - tests default to real behaviour over mock soup and mechanically enforce
   modular boundaries
-- do not hand-roll commodity infrastructure or protocols when a suitable
-  maintained framework, library, official SDK, or generated client exists;
-  custom machinery carries the same burden of proof as a new dependency
 - FluentResults is Application furniture, not Domain furniture
 - strategic DDD helps discover boundaries; tactical DDD is conditional
 - frontends are SPAs (`ssr: false` assumed)
@@ -106,19 +114,6 @@ Each rule below is a one-line summary; its reference file is the authority.
 - tooling stays boring and explicit
 - no type-tag suffixes in TS file names (`.port.ts`, `.service.ts`,
   `.use-case.ts`); dirs carry the role; `<feature>.module.ts` exempt
-
-## Frontend Runtime Wiring
-
-Provided capabilities use a typed local provide/inject pair, `inject` first:
-
-```ts
-export const [injectAuth, provideAuth] = useProvideInject<Auth>("Auth");
-```
-
-`useX` is reserved for real implementation composables. The helper, naming
-rules, and "provide implementations, not projections" live in
-`references/frontend-pa-vsa.md` (Provide / Inject Pattern); CQRS-lite lives in
-`references/backend-pa-vsa.md`.
 
 ## Mechanical Checking
 
@@ -134,8 +129,7 @@ error-level findings:
   checkout: `<plumb-checkout>/plumb . --json`.
 
 If the repo uses Plumb but it won't run, say so in your report rather than
-skipping the check silently. Setting it up needs Node 20 or newer,
-`pnpm install` in its checkout, and `ast-grep` on `PATH` (see its README).
+skipping the check silently. Setup is in its README.
 
 Each finding's `docRef` (for example `testing-philosophy.md#test-doubles`)
 names a file in this skill's `references/` folder and the heading it enforces;

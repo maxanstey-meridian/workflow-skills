@@ -219,13 +219,6 @@ For local orchestration:
 - use `Task` / `go-task`
 - prefer `Taskfile.yml` over ad hoc shell sprawl once commands become real workflow
 
-## Summary
-
-The current Meridian tools default is:
-
-- TS/Nuxt: `pnpm`, `Nuxt 4`, `Vue 3`, `TypeScript`, `vue-tsc`, `@nuxt/ui`, `@vueuse/core`, `oxlint`, `oxfmt`, `eslint` only for Vue/Nuxt gaps, `typed-inject` for explicit runtime DI outside framework DI, `vitest`, `happy-dom`, `playwright`
-- .NET: `.NET 10`, `global.json` with `rollForward: latestFeature`, `.editorconfig`, analyzers on, ASP.NET Core, `FluentValidation`, `Rivet.Attributes`, EF Core + Npgsql, `xUnit`, `FluentAssertions` 7.x, `Mvc.Testing`, `Testcontainers`, `Respawn`, `ArchUnitNET`
-
 ## Starting a new project
 
 - rivet-ts's `scaffold` starts a new workspace:

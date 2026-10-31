@@ -15,270 +15,9 @@ generated clients one-for-one. Module/use-case architecture still lives outside
 Rivet. Rivet makes the API seam explicit and typed.
 
 Docs: README https://github.com/maxanstey-meridian/rivet#readme, contracts
-https://maxanstey-meridian.github.io/rivet/guides/contracts, and builder reference
-https://github.com/maxanstey-meridian/rivet/blob/main/docs/reference/endpoint-builder.md.
-
-## Two Ways In
-
-### 1. Contract-first (`[RivetContract]`) — preferred
-
-A `[RivetContract]` declaration is a static class containing only `const string`
-route constants and `static readonly RouteDefinition...` fields built via the
-`Define` factory. It has no methods, properties, instance state, or other fields.
-Rivet reads each initializer from source, so it must be one `Define.*` chain whose
-arguments are compile-time constants: a helper call, another field, a variable
-argument or an endpoint declared as a property stops generation (`RIV1113`), and
-so does a field that isn't `static readonly` (`RIV1001`):
-
-```csharp
-[RivetContract]
-public static class MembersContract
-{
-    public const string BaseRoute = "/api/members";
-
-    public static readonly RouteDefinition<PaginatedResponse<MemberDto>> List =
-        Define.Get<PaginatedResponse<MemberDto>>(BaseRoute)
-            .Description("List all team members");
-
-    public static readonly RouteDefinition<InviteMemberRequest, InviteMemberResponse> Invite =
-        Define.Post<InviteMemberRequest, InviteMemberResponse>(BaseRoute)
-            .Status(201)
-            .Returns<ErrorResponse>(422, "Validation failed")
-            .Secure("admin");
-}
-```
-
-Handlers bind declared inputs with `.Bind(input)` and construct responses with
-`.Success(...)`, `.Error(...)`, or `.File(...)`. Application execution stays
-ordinary C#; the contract owns response construction, not the handler body.
-
-### 2. Annotate existing controllers (`[RivetEndpoint]`)
-
-Mark the endpoints you want surfaced — the operation is derived from the real
-transport shape (routes, params, bodies, response types):
-
-```csharp
-[RivetEndpoint]
-[HttpGet("{id:guid}")]
-[ProducesResponseType(typeof(TaskDetailDto), StatusCodes.Status200OK)]
-[ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-public async Task<IActionResult> Get(Guid id, CancellationToken ct) { ... }
-```
-
-`[RivetClient]` on a controller class surfaces every HTTP action in it; prefer
-`[RivetEndpoint]` per action so only deliberate operations are published.
-
-## Route Definition API
-
-### Factories
-
-| Factory | Variants | Default success |
-|---|---|---|
-| `Define.Get(route)` | untyped, `<TOutput>`, `<TInput, TOutput>` | 200 |
-| `Define.Head(route)` / `Define.Options(route)` | untyped, `<TOutput>`, `<TInput, TOutput>` | 200 |
-| `Define.Post(route)` | untyped, `<TOutput>`, `<TInput, TOutput>` | 201 |
-| `Define.Put(route)` / `Define.Patch(route)` | untyped, `<TOutput>`, `<TInput, TOutput>` | 200 |
-| `Define.Delete(route)` | untyped, `<TOutput>`, `<TInput, TOutput>` | 204 untyped, 200 typed |
-| `Define.File(route)` | untyped, `<TInput>` | 200, GET, `application/octet-stream` |
-
-Untyped definitions can become input-only via `.Accepts<TInput>()` (e.g. a PUT
-that takes a body and returns 204), producing an `InputRouteDefinition<TInput>`.
-
-### Builder methods
-
-All return the definition for chaining.
-
-| Method | Effect |
-|---|---|
-| `.Summary(text)` / `.Description(text)` | OpenAPI `summary` / `description` |
-| `.Status(code)` | Override the success status. Once only. |
-| `.Returns<T>(status[, description])` | Declare an additional typed response. Each status once. |
-| `.Returns(status[, description])` | Same, without a payload type. |
-| `.WithResponseHeader(status, name[, description][, required:])` | Response header on a declared status (an undeclared one is `RIV1017`). With `required: true` the adapter checks it: a response at that status written without the header throws `RivetContractViolationException`. Set it on `HttpContext.Response.Headers` before returning; a header added in `OnStarting` arrives too late to count. |
-| `.WithResponseHeader(name[, description][, required:])` | Same, targeting the success status. |
-| `.Secure(scheme, scopes...)` | One way in: a security alternative needing this scheme. A second `.Secure` is another alternative (OR). Define schemes with `--security` or `[assembly: RivetSecurityScheme]`. |
-| `.AndSecure(scheme, scopes...)` | Adds a scheme the same caller also needs (AND), to the alternative before it. |
-| `.OrAnonymous()` | Credentials optional: adds the empty alternative. |
-| `.Anonymous()` | No auth (`security: []`). Contradictory calls (`.Anonymous()` with `.Secure()`, `.AndSecure()` with nothing to join) fail with `RIV1114`. |
-| `.QueryAuth(name = "token")` | Auth token as required query param — for media players that cannot set headers. |
-| `.FormEncoded()` | Request body is `application/x-www-form-urlencoded`. |
-| `.AcceptsFile()` | Request body is `multipart/form-data` with a binary file part. **There is no `.Multipart()` — this is it.** |
-| `.AcceptsBinary(contentType = "application/octet-stream")` | Request body is raw bytes. Spec-only; `TInput` properties lower to route/query params. Mutually exclusive with `.AcceptsFile()` / `.FormEncoded()`. |
-| `.ProducesFile(contentType = "application/octet-stream")` | Response is a binary download. |
-| `.AcceptsContentType(mediaType)` | Declared media type for a non-JSON request body (e.g. `"text/plain"`). Schema unchanged. |
-| `.ProducesContentType(mediaType)` | Declared media type for a non-JSON success response (e.g. `"text/html"`). |
-| `.RequestExampleJson(json, ...)` / `.ResponseExampleJson(status, json, ...)` | Attach examples. Runtime no-ops — Roslyn reads them at generation time only. |
-
-Definitions publish on the first `Bind`, `Success`, `Error`, or `File`; builder
-mutators throw after publication. Configure fully in the `static readonly` initializer.
-
-An endpoint with no JSON body (GET, DELETE, `.AcceptsBinary()`) lowers its input's
-properties to route and query parameters, so that input must be a record with one
-property per parameter; a dictionary, collection or scalar stops generation
-(`RIV1020`). A header input named `Accept`, `Content-Type` or `Authorization` is
-refused too (`RIV2009`), because OpenAPI ignores those as parameters: use
-`.AcceptsContentType`/`.ProducesContentType` for media types and a security scheme
-for credentials.
-
-## File Uploads / Multipart
-
-On controller endpoints, an `IFormFile` parameter (or collection) makes the
-operation multipart automatically. On contracts, `.AcceptsFile()` marks it
-explicitly:
-
-```csharp
-public static readonly RouteDefinition<UploadRequest, UploadResponse> Upload =
-    Define.Post<UploadRequest, UploadResponse>("/api/files")
-        .AcceptsFile();
-```
-
-`.AcceptsBinary(contentType)` declares a raw byte-stream body (chunked uploads,
-audio, etc.). `TInput` properties bind to route/query params, not a JSON body.
-Mutually exclusive with `.AcceptsFile()` and `.FormEncoded()`.
-
-`Define.File(route)` declares a binary download endpoint (GET,
-`application/octet-stream` unless overridden via `.ProducesFile(mediaType)`).
-
-## Implementing Contracts
-
-### Controller or Functions ASP.NET integration
-
-```csharp
-var endpoint = MembersContract.Invite.Bind(request);
-var result = await useCase.ExecuteAsync(new InviteMemberCommand(request.Email), ct);
-if (result.IsFailed)
-{
-    return endpoint.Error(422, result.ToErrorResponse()).ToActionResult();
-}
-return endpoint.Success(new InviteMemberResponse(result.Value.Id)).ToActionResult();
-```
-
-`ToErrorResponse` above is the application's explicit mapping to its declared
-error DTO, not a Rivet API. Without an input type, call the terminals directly
-on the contract field. Bodyless success/error responses use `.Success()` and
-`.Error(status)`.
-
-A result filter may read the `StatusCode` and `Value` of the `RivetActionResult`
-that `.ToActionResult()` returns. Building a result from them, or writing them to
-the response itself, is a hand-written bridge: let Rivet write the response.
-
-### Handler shapes `--check` follows
-
-Guide: https://maxanstey-meridian.github.io/rivet/guides/contract-coverage
-
-The handler must itself return a terminal through the first-party adapter. From
-0.48.0 these shapes count:
-
-- an adapter per switch/`?:` arm, or one adapter around the whole switch/`?:`;
-- a local holding a terminal (or a switch of them), then adapted;
-- lambda arms passed straight to the call the handler returns, sync or async,
-  through `await`, `ConfigureAwait` and casts:
-
-```csharp
-var endpoint = TasksContract.Get.Bind(input);
-return outcome.Match(
-    found: task => endpoint.Success(task).ToActionResult(),
-    missing: reason => Done(endpoint.Refuse(reason)));
-```
-
-`Refuse` and `Done` stand for the app's own error helpers; they aren't Rivet APIs.
-
-A `Match` arm named first still counts: a lambda held in a local
-(`var found = (TaskDto t) => ...;`) or a local function passed as
-`outcome.Match(found, ...)`. A lambda buried in an argument
-(`Ok(items.Select(t => ...))`) and a `Match` whose result is discarded are not
-followed. In a minimal API the handler is the lambda handed to `Map*`, not a
-`Match` arm inside it.
-
-Helpers may own the error paths, and a helper may take the bound endpoint: a
-`.Bind` passed to a helper on the returned path is not an `OrphanedBinding`. But a
-terminal that reaches the adapter only through a helper never gives coverage, so
-keep at least one terminal (usually `.Success`) returned by the handler itself.
-A handler whose every arm goes through helpers is `MissingImplementation`.
-
-### Minimal APIs
-
-Use the same terminals, then `.ToResult()` at the transport edge. All terminals
-return the non-generic `RivetResult`. Use Rivet's first-party adapters; do not
-recreate them as custom `ObjectResult`/`Results.Json` bridges. Do not copy legacy
-`.Invoke(...)`, `RivetResult<T>`, or `.SkipValidation()` examples into current code.
-
-For an ordinary ASP.NET app, the bundled violation handler can emit structured
-500 responses:
-
-```csharp
-builder.Services.AddExceptionHandler<RivetContractViolationHandler>();
-builder.Services.AddProblemDetails();
-app.UseExceptionHandler();
-```
-
-That ASP.NET middleware recipe is not automatically a Functions worker exception
-pipeline. Functions-specific exception handling must be integrated and verified
-with that host if required.
-
-## Runtime Validation Scope
-
-Guide: https://maxanstey-meridian.github.io/rivet/guides/runtime-validation
-
-Response terminals enforce declared statuses, payload types, body presence and
-binary versus textual/JSON representations. Mismatches throw
-`RivetContractViolationException`. Concrete payload declarations reject unexpected
-subtypes; declared interfaces/abstract types and registered JSON polymorphism
-have their own supported subtype rules. Both first-party adapters preserve the
-constructed response and guard incompatible host response state.
-
-The adapters also check two promises the spec makes: required response headers
-(above), and the host's JSON options. The spec assumes System.Text.Json's web
-defaults, so another naming policy or `DictionaryKeyPolicy`, anything in
-`Converters` (Rivet's enum converters included), number handling that writes
-strings, an ignore condition, `IgnoreReadOnlyProperties`/`Fields`, `IncludeFields`,
-a `ReferenceHandler`, `UnmappedMemberHandling.Disallow`,
-`RespectRequiredConstructorParameters`, a resolver that isn't the default or a
-source-generated context (modifiers included), or a context with
-`UseStringEnumConverter = true` makes `.ToResult()`/`.ToActionResult()` throw,
-naming each difference. Declare wire behaviour on the types instead. Settings that
-only loosen reading or change formatting (case-insensitive names, trailing commas,
-indenting, the encoder) are left alone.
-
-Rivet does not enforce serialized JSON shape, member validation constraints,
-request parsing/binding, optional headers, auth policies, or file byte contents at
-runtime. Those remain host/application responsibilities. Handlers returning native
-results outside the terminals bypass Rivet's runtime checks. Coverage is static
-analysis, not proof that every request branch or deployment configuration is correct.
-
-## Enum Parameters
-
-Details: https://github.com/maxanstey-meridian/rivet/blob/main/docs/misc/limitations.md#enum-parameters-are-bound-by-aspnet
-
-Rivet's string-enum converters (`Rivet{LowerCase,CamelCase,SnakeCase,Kebab}EnumConverter<T>`,
-all deriving from `RivetStringEnumConverter<T>`) apply to JSON bodies only. From
-0.49.0 they read exactly the names the spec lists, case-sensitively, on every
-runtime: integers, `"0"` (.NET 8 included), other casings and unknown dictionary
-keys are a `JsonException`.
-
-An enum in the route, query, header or form is parsed by ASP.NET, never by the
-converter, yet the spec advertises the converter's names for it. Minimal APIs use
-`Enum.TryParse` (exact member name, case-sensitive); MVC ignores case. So the
-invariant is: every advertised wire value must equal its member name (exactly on
-minimal APIs, ignoring case on MVC). Azure Functions is stricter: the worker reads
-a route value as JSON, so no string wire value binds at all. `--check` enforces it
-for contract handlers on all three hosts (`RIV4005`), including enums ASP.NET binds
-member by member inside a complex parameter; generation enforces it for
-`[RivetEndpoint]`/`[RivetClient]` actions (`RIV1110`, a static `[RivetEndpoint]`
-gets the minimal-API rule). RIV codes:
-https://maxanstey-meridian.github.io/rivet/reference/diagnostics. Parameters the
-host reads as a JSON body are exempt.
-
-For an enum bound outside the body, choose one:
-
-1. a plain enum (integers on the wire);
-2. the built-in `JsonStringEnumConverter<T>` with no `[JsonStringEnumMemberName]`
-   renames (wire names are the member names); not on Functions;
-3. bind a `string` and parse it in the handler.
-
-camelCase/lowercase converters are fine on MVC and refused on minimal APIs;
-snake, kebab and letter-changing renames are refused on both. Host leniency
-(integers, other casings) is ASP.NET's, not a contract promise.
+https://maxanstey-meridian.github.io/rivet/guides/contracts, builder reference
+https://github.com/maxanstey-meridian/rivet/blob/main/docs/reference/endpoint-builder.md, and RIV
+diagnostics reference https://maxanstey-meridian.github.io/rivet/reference/diagnostics.
 
 ## Azure Functions
 
@@ -303,80 +42,19 @@ The checker (0.42.0+) reads the project-adjacent `host.json`, honors
 in trigger routes; 0.41.0 and older hardcode `api`. Static checks cannot discover
 remote deployment overrides. Align the check environment with deployment.
 
+Besides the trigger's `HttpRequest`, a parameter with no binding attribute is
+filled by name, ignoring case: a route value, else a query parameter, else a
+top-level property of a JSON body; never a header, cookie, or form field. A name
+nothing carries is `null` (a value type fails the call), so name each such
+parameter after a route token, a declared query parameter, or a property of the
+contract's JSON body; `--check` reports one the contract doesn't declare
+(`RIV4006`, from 0.50.0).
+
 The worked sample is
 https://github.com/maxanstey-meridian/rivet/tree/main/samples/FunctionsApi (guide:
 https://github.com/maxanstey-meridian/rivet/blob/main/docs/guides/azure-functions.md);
 the real-host gate is `task test:functions` in the rivet repo.
 Use real HTTP tests for the host/worker routing and serialization boundary.
-
-## Multiple File Representations
-
-Declare allowed formats, then select the actual MIME type per response:
-
-```csharp
-// Contract initializer:
-Define.File("/images/{id}")
-    .ProducesFile("image/png")
-    .ResponseBinaryContent(200, "image/jpeg");
-
-// Handler (after Bind for an input-bearing definition):
-return endpoint.File(bytes, contentType: actualMimeType).ToActionResult();
-```
-
-The selector works for bytes, streams, physical paths and writers. Omission is valid only
-for an unambiguous binary success representation; undeclared selections fail.
-Selection matches the complete declared media type case-insensitively. Rivet does
-not negotiate Accept or inspect/convert the bytes. Define a file response with
-`.File`/`.ProducesFile`; do not use native results just to choose a MIME type when
-the supported selector is available.
-
-The selector shipped in 0.42.0; check the project's pinned package/tool version
-before using it.
-
-## Streamed Files
-
-For a body that only exists while it's sent (a live transcode), use the writer
-terminal (0.48.0) rather than a native `Results.Stream`/`PushStreamContent`:
-
-```csharp
-return endpoint
-    .File(output => transcoder.RunAsync(id, output, HttpContext.RequestAborted),
-          contentType: "video/mp4")
-    .ToActionResult();
-```
-
-Every `File(...)` rule (declared binary success, covered content type, concrete
-type for a media range, valid entity tag) is checked before the writer runs. The
-writer runs after the handler returns, so open what it needs inside it, and write
-asynchronously (Kestrel refuses synchronous writes). There are no ranges; seeking
-is an API concern (a start offset in the query). Once bytes are sent, an exception
-can only cut the response short. On MVC, every Rivet file (bytes, streams, paths,
-writers) is served by the same ASP.NET file results as minimal APIs.
-
-## CLI
-
-Install: https://github.com/maxanstey-meridian/rivet#install. Full flag reference:
-https://maxanstey-meridian.github.io/rivet/reference/cli.
-
-```bash
-# Generate
-dotnet rivet --project path/to/Api.csproj --output ./generated
-
-# With metadata
-dotnet rivet --project path/to/Api.csproj --output ./generated \
-  --title "Orders API" --version 2.3.0 --server https://api.example.com --security bearer
-
-# Contract coverage check (CI gate)
-dotnet rivet --project path/to/Api.csproj --check
-
-# Drift gate — fails if committed openapi.json is stale
-dotnet rivet --project path/to/Api.csproj --output ./generated --verify
-
-# List discovered endpoints
-dotnet rivet --project path/to/Api.csproj --routes
-```
-
-`--security` accepts: `bearer`, `bearer:jwt`, `cookie:<name>`, `apikey:<in>:<name>`.
 
 ## Contract Location
 
@@ -529,37 +207,33 @@ Legacy Rivet v1 clients use `{ unwrap: false }` plus `.isOk()` /
 - Use file terminals with explicit MIME selection when several formats are declared.
 - Use the writer `File(...)` for streamed bodies, not native stream results.
 - Bind route/query/header/form enums as plain enums, unrenamed `JsonStringEnumConverter<T>` (not on Functions), or a parsed `string`.
+- Name a form input's member for both form binders: `[DataMember(Name = ...)]` (the minimal-API form mapper, which ignores a member's `[FromForm(Name = ...)]` and never prefixes) and `[FromForm(Name = ...)]` (MVC; on a positional record, on the parameter, not `[property:]`). `[JsonPropertyName]` never names a form part, and one rename without the other is `RIV1100` on a contract. On MVC a `Name =` (or `[Bind(Prefix = ...)]`) on the parameter prefixes every member but headers. Prefer the `{ get; init; }` form for a form input: the minimal-API form mapper refuses a positional record missing any constructor parameter, so on a contract every constructor-bound part is emitted `required`, nullable and `[RivetOptional]` ones included. A part that's really optional belongs in an init property.
+- Declare the document's default security in source (`[assembly: RivetSecurityScheme(...)]`, `[assembly: RivetGlobalSecurity(0)]`, `[assembly: RivetGlobalSecurityScheme(0, "bearer", new string[0])]`), not only with `--security`, so generation and `--check` read the same spec; then mark the endpoints anyone may call `.Anonymous()` (on a `[RivetEndpoint]` action, `[AllowAnonymous]` or `[RivetAnonymous]`).
+- Apply authorization unconditionally (`[Authorize]`, an `AuthorizeFilter` in `MvcOptions.Filters`, `.RequireAuthorization()`, or a fallback policy). A development environment without real authentication gets a development authentication handler that signs the dev user in, not an `if` around `RequireAuthorization()`.
+- Give every route token a typed declaration: an input property, `.Parameter<T>(name, "path", ...)`, or a type constraint (`RIV1019`).
 - Run both coverage (`--check` without `--output`) and spec drift (`--verify`) gates.
 - Run real-host tests where transport integration is part of the change.
 - Keep application architecture and generated-client policy separate from Rivet.
-
-Coverage recognizes controller, minimal API and Functions handlers that return a
-Rivet terminal through the first-party adapter, in the shapes listed under
-"Handler shapes `--check` follows". It checks methods/routes, enum parameter
-bindability (`RIV4005`), missing implementations, orphaned bindings, and the inputs
-each minimal API or MVC handler binds against the contract's, by name and source,
-reading binding the way ASP.NET does (`RIV4006`; Functions handlers aren't
-compared). A handler that takes `HttpRequest`/`HttpContext` or reads `Request` is
-trusted to read the rest by hand. The `Authorization` header, a `.QueryAuth()`
-token and an apiKey scheme's parameter belong to security, so pass `--check` the
-same `--security` flags as generation. It is not exhaustive control-flow
-verification. A passing drift gate alone says nothing about implementation coverage
-or host behavior.
+- A `[RivetContract]` declaration is a static class containing only `const string` route constants and `static readonly RouteDefinition...` fields built via the `Define` factory. It has no methods, properties, instance state, or other fields.
+- `[RivetClient]` on a controller class surfaces every HTTP action in it; prefer `[RivetEndpoint]` per action so only deliberate operations are published.
+- Do not copy legacy `.Invoke(...)`, `RivetResult<T>`, or `.SkipValidation()` examples into current code.
+- Functions-specific exception handling must be integrated and verified with that host if required.
+- Rivet does not enforce serialized JSON shape, member validation constraints, request parsing/binding, optional headers, auth policies, or file byte contents at runtime. Those remain host/application responsibilities. Handlers returning native results outside the terminals bypass Rivet's runtime checks. Coverage is static analysis, not proof that every request branch or deployment configuration is correct.
 
 ## Anti-patterns
 
 - duplicating route literals in handlers instead of using contract constants
-- treating OpenAPI security declarations as authentication enforcement
+- treating OpenAPI security declarations as authentication enforcement (`--check`'s `RIV4008` catches a spec and a handler that disagree, but the handler's authorization is what enforces)
 - replacing first-party response adapters with hand-written bridges
 - bypassing terminals while claiming Rivet validated the response
 - wrapping the generated client in another identical service layer
 - mixing domain/application concerns into the contract class
 - using `.FormEncoded()` for multipart input
 - calling new source-only APIs against an older pinned package
-- a handler whose only terminals live in helpers (`MissingImplementation`)
+- a handler whose only terminals are built inside helpers, or handed to helpers that don't adapt them (`MissingImplementation`)
 - a Rivet case converter (or a renaming `[JsonStringEnumMemberName]`) on an enum bound from route/query/header/form
 - native `Results.Stream`/`PushStreamContent` for a contract file instead of the writer terminal
 - registering converters, a naming policy or other wire-changing settings in host JSON options (the adapters throw)
 - `[JsonConverter]` on a property, or one Rivet can't model on a type (`RIV1111`); pin a primitive's wire with `[RivetSchemaType]` instead
 - `[JsonDerivedType]` with an int tag or none (`RIV1014`); polymorphic tags are strings
-- declaring `Authorization`, `Accept` or `Content-Type` as a header input (`RIV2009`)
+- declaring `Authorization`, `Accept`, or `Content-Type` as a header input, or `Content-Type` as a response header (`RIV2009`; a response's media type is `.ProducesContentType(...)`)

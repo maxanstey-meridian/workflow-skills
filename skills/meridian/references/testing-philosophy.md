@@ -227,10 +227,6 @@ database. Either the test exercises the real adapter against a real engine, or
 it fakes the port and the adapter isn't under test at all — there is no honest
 middle.
 
-The mechanical check reports at most one finding per provider kind per test file:
-one for EF InMemory and, independently, one for SQLite when the test project
-references a production Postgres/Npgsql project directly or transitively.
-
 Tests themselves are exempt from production-code rules (layer purity, module shape,
 .NET style):
 test code can import whatever it needs; it is judged by this file's standards
@@ -276,6 +272,8 @@ cover the substituted adapter. State that scope honestly. Verifying only the
 double's calls, rather than an observable result or state transition, usually
 manufactures confidence.
 
+The rule is AGENTS.md's 'A check that can't fail is a defect'; here it means compare a check's result with something the code under test didn't produce.
+
 ## Risk and Test Shape
 
 Do not pursue one universal test pyramid or direct branch coverage quota. Match
@@ -297,15 +295,3 @@ A test strategy is probably wrong if:
 - boundaries are constantly discussed in reviews but never enforced in tests
 - the test suite is mostly mocks with very little real behaviour exercised
 - new decision branches or error paths have no direct test exercising them
-
-## Summary
-
-The intended testing style is:
-
-- pure logic tested directly
-- behaviour tested at the level it becomes visible
-- real seams tested with integration
-- lifecycle and integration tests preferred over mock-heavy isolation by default
-- fakes only when a heavy dependency genuinely forces the issue
-- important architecture rules enforced
-- minimal implementation-detail obsession

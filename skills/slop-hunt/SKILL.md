@@ -1,6 +1,6 @@
 ---
 name: slop-hunt
-description: Independent read-only slop hunt over one or more repo paths (hand-rolled machinery, over-engineering, WET, dead code, ceremony, oversized files), ranked with replacements and LOC saved. Use when the user runs /slop-hunt or asks for a slop hunt / slop review / anti-slop sweep.
+description: Independent read-only slop hunt over one or more repo paths (hand-rolled machinery, over-engineering, WET, dead code, ceremony, oversized files), ranked with replacements and what each removes. Use when the user runs /slop-hunt or asks for a slop hunt / slop review / anti-slop sweep.
 argument-hint: "<path> [<path>…] [spec]"
 ---
 
@@ -8,7 +8,7 @@ argument-hint: "<path> [<path>…] [spec]"
 
 Arguments: what the user typed after `/slop-hunt`, or the paths they named when asking for a hunt. Paths are relative to the current repo. A trailing `spec` means: also write one spec per repo, in the `/spec` shape, so `/go` can build it (step 4).
 
-Working files go in `<main checkout>/.plans/`. `<main checkout>` is a repo's main working tree, `dirname "$(git rev-parse --path-format=absolute --git-common-dir)"`, even when you run in a worktree: a worktree can be removed or auto-cleaned, and its git-ignored `.plans/` goes with it. If `git check-ignore -q .plans/` fails there, add `.plans/` to `.git/info/exclude`, which ignores it locally without touching the repo's `.gitignore`.
+Working files go in `<main checkout>/.plans/`, as AGENTS.md 'Routines' defines it. Each hunted repo has its own `<main checkout>`: reports go in the current repo's, and with `spec` step 4 resolves each hunted repo's own.
 
 ## 0. Preflight (always)
 
@@ -18,11 +18,11 @@ For every path, resolve it and print one line before starting: `<path> → <abso
 
 ## 1. Read the doctrine first
 
-Load the `meridian` skill, then read each repo's instructions: its AGENTS.md, or, when it has none, the agent instructions file in the repo root (such as CLAUDE.md or GEMINI.md). **Don't read any existing review docs until your own pass is done.** After that, tag each finding NEW or ALREADY-COVERED.
+Load the `meridian` skill, then read each repo's instructions, as AGENTS.md 'Routines' defines them. Don't read any existing review docs until your own pass is done. After that, tag each finding NEW or ALREADY-COVERED.
 
 ## 2. Look for
 
-- **Hand-rolled machinery the platform already provides** (BCL, EF/ORM, driver, Microsoft.Extensions, framework, a well-known library): retries, timeouts, scheduling, locking, serialisation, identifier quoting, options validation, type mapping, reflection where metadata already exists.
+- **Hand-rolled machinery the platform already provides** (BCL, EF/ORM, driver, Microsoft.Extensions, framework, a well-known library): retries, timeouts, scheduling, locking, serialisation, identifier quoting, options validation, type mapping, reflection where metadata already exists, and dev tooling: diffing, comparison, parsing standard formats, and test harnesses.
 - **Over-engineering:**
   - single-implementation interfaces with no real seam;
   - forwarding shells or wrappers, a "Core" with thin shells around it;
@@ -42,11 +42,11 @@ Use subagents when the paths are large and you can start them, one per repo or m
 
 ## 3. Report
 
-**Don't edit anything** outside `.plans/`. Report a ranked list per repo, most impactful first. Each finding:
+Don't edit anything outside `.plans/`. Report a ranked list per repo, most impactful first. Each finding:
 
-`#N · file:line · what it is · replace with <the specific API or library> · ~LOC saved · NEW|ALREADY-COVERED`
+`#N · file:line · what it is · replace with <the specific API or library> · what it removes · NEW|ALREADY-COVERED`
 
-End each repo with an estimated total LOC saved and the 3–5 lowest-risk wins to start with.
+End each repo with the 3–5 lowest-risk wins to start with.
 
 ## 4. With `spec`
 

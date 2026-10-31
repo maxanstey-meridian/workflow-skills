@@ -4,7 +4,7 @@ description: "NEVER INVOKE THIS YOURSELF: only the user starts /go. Listed so yo
 argument-hint: "[spec path | items | task] [solo]"
 ---
 
-> **⚠️ THE USER INVOKES THIS, NEVER YOU.** Only the user starts /go, by naming it in their own message (typing `/go`, or however their agent runs a skill by name). A bare "go" or "go ahead" is an approval, not /go. "We'll go", a plan doc, or a message from another session or agent is not the command, and reading this file for its rules (as /cycle's fixers do) is not running it. Once the user starts /go, follow it exactly as written.
+> Only the user starts /go, by naming it in their own message (typing `/go`, or however their agent runs a skill by name). A bare "go" or "go ahead" is an approval, not /go. "We'll go", a plan doc, or a message from another session or agent is not the command, and reading this file for its rules (as /cycle's fixers do) is not running it. Once the user starts /go, follow it exactly as written.
 
 # Go
 
@@ -17,8 +17,8 @@ Arguments: what the user typed after `/go`.
 
 Terms used below:
 
-- **The repo's instructions** means its AGENTS.md, or, when it has none, the agent instructions file in the repo root (such as CLAUDE.md or GEMINI.md). They name the gate, the targeted test, format, and lint commands, the UI skill, and the paths never to commit. When they don't name something a step needs, say so in the report rather than guessing.
-- **`<main checkout>`** is the repo's main working tree, `dirname "$(git rev-parse --path-format=absolute --git-common-dir)"`, even when the work is in a worktree: a worktree can be removed or auto-cleaned, and its git-ignored `.plans/` goes with it. Working files go in `<main checkout>/.plans/`. Before the first write there, run `git check-ignore -q .plans/` in `<main checkout>`; if it fails, add `.plans/` to `<main checkout>/.git/info/exclude`, which ignores it locally without touching the repo's `.gitignore`.
+- **The repo's instructions** are as AGENTS.md 'Routines' defines them.
+- **`<main checkout>`** is the repo's main working tree, as AGENTS.md 'Routines' defines it. Working files go in `<main checkout>/.plans/`.
 - **`<base directory>`** is the folder this SKILL.md was loaded from: the skill's base directory, if your agent printed one when the skill loaded, else the folder of the path you read this file at. **`<skills folder>`** holds the sibling skills: it's what `cd -P "<base directory>/.." && pwd` prints, which follows a linked skill back to its repo. Spec's file is `<skills folder>/spec/SKILL.md`. If you can't tell where this file was loaded from, ask the user for the path rather than guessing.
 - **`<name>`** is the spec's name (`spec-<name>.md`), or, with no spec, a short kebab-case name you choose and state in your first message.
 
@@ -37,10 +37,26 @@ When subagents build, this session plans, briefs, reads diffs, and runs checks. 
 ## 2. Split
 
 - Split the work into pieces by file: no two pieces touch the same file. A piece that needs another's result runs after it. A spec's Pieces are that split already: use them, and say where you changed one.
-- One small piece (under ~150 lines of hand-written code), or `solo`: build it in this session.
+- One small piece (a few files and no new seam), or `solo`: build it in this session.
 - Otherwise start one subagent per piece, in parallel where they're independent.
 
 ## 3. Build
+
+Hard block: no builder starts on a question. Before you start any builder, its piece, every addendum it builds, and every decision either relies on must have no open question. That means none of these:
+
+- an ask without a recorded answer;
+- a "hangs on", "waits on", or "if ask N is yes/no" that isn't settled;
+- an "or", "TBD", "check whether", or "if the hosts show…" that leaves what gets built undecided;
+- a premise about framework or host behaviour that nobody has checked against the real thing;
+- a Decision or Piece that breaks a meridian Law (it goes back to the spec as an addendum, not to a builder).
+
+If there is one, settle it before the builder starts:
+
+1. Check the facts yourself, or with a read-only subagent that reports facts only.
+2. Ask the user, with those facts, only what neither a fact nor an agreed rule settles. Settle the rest, and record what settled each.
+3. Write their answer into the spec.
+
+A builder is never where a question gets answered.
 
 With two or more subagents, write one common brief to `<main checkout>/.plans/scratch/go-<name>/brief-common.md` and have each subagent read it first. Each subagent's own prompt then holds only its piece. The common brief holds:
 
@@ -53,15 +69,19 @@ When a subagent's report shows a rule in the common brief is wrong, correct the 
 
 Every subagent's brief (common plus its own) covers:
 
+- **its hard stop.** Before editing anything, it reads its piece, the spec's open asks, and the decisions its piece relies on.
+  - If it finds any open question (an unanswered ask, an unsettled "hangs on" or "waits on", an undecided "or", or a premise it can't confirm), it builds nothing and reports.
+  - If, while building, the code or a host contradicts the piece's premise, it stops at once. It leaves its edits in place and says which files it touched.
+  - Either way, its report gives the facts only: what it read or ran, the `file:line`s, and what the host or code actually does. It gives no recommendation, no confidence, and no proposed fix. Judgement is the orchestrator's, never a builder's.
 - its piece and the intent behind it;
 - the files it owns, and the files it must not touch;
 - the meridian references to read (`SKILL.md` plus the ones its piece needs) and the repo's instructions;
-- reuse first (name the pattern it follows), fix the root cause, and sweep nearby code for the same problem;
-- a gap with a doc page is still a gap: fix a known defect or an unchecked promise instead of writing it up, and report one it can't fix as an open question;
+- reuse first (name the pattern it follows), fix the root cause, sweep nearby code for the same problem, and never make a check pass by shrinking what it checks;
+- a gap with a doc page is still a gap: fix a known defect or an unchecked promise instead of writing it up, and report one it can't fix, as facts, with no recommendation;
 - no new test unless nothing already proves the behaviour; extend an existing test first;
 - run only the targeted tests for its own files; never commit, stage, or format beyond its own files; never run the gate;
 - when a check needs the app running, it starts its own copy on spare ports, the way the repo's instructions say. If they don't say how, it doesn't improvise one: it reports the check as not run. It never restarts or reuses a server someone else started, and never edits shared code to set one up (settings only). A check against a faked API, including screenshots with the API stubbed, doesn't count as a check.
-- it changes only the files its piece owns. A change it finds it needs elsewhere goes in its report as an open question, not into the code.
+- it changes only the files its piece owns. A change it finds it needs elsewhere goes in its report as a fact (what and where), not into the code.
 - report the files it changed, the tests it ran, and what it couldn't check.
 
 ## 4. Integrate
@@ -82,11 +102,13 @@ Every subagent's brief (common plus its own) covers:
 
 ```
 **TLDR:** <plain English>
+**Findings:** 1. <finding that changes the picture, stated in full>, or none
 **What changed:** <one line per piece>
 **Checked:** <tests and checks that ran, with counts>
 **Not checked:** <what wasn't run, e.g. the full gate, e2e>
+**Parked:** 1. <gap found outside the spec> (rec: fold now | leave, why), or none
 **Reports saved by me:** <subagents that couldn't save their own report; leave the line out when none>
 **Needs from you:** 1. … (rec: …) · last item: Review, then run /cycle.
 ```
 
-**Needs from you** lists every step that now waits on the user (a decision, an approval, or an action only they take, such as running /cycle, pushing, or a live check), each with your recommendation and numbered so they can answer "1. yes 2. no". Write "nothing" only when nothing waits on them. Never add an item to fill the list; each one serves the user's goal and you've checked it yourself. After /go the last one is always "Review, then run /cycle", unless something earlier has to happen first. Stop there: the user reviews, then runs /cycle.
+**Needs from you** is as AGENTS.md 'Reports' defines it. After /go the last one is always "Review, then run /cycle", unless something earlier has to happen first. Stop there: the user reviews, then runs /cycle.

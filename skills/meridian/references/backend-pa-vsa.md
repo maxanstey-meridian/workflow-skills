@@ -279,8 +279,8 @@ Adapters are named after the concrete implementation of that capability:
 - `TemporalWorkflowStarter`
 - `PrismaUserRepository`
 
-File naming: **no type-tag suffixes — the directory carries the role, the file
-is named after the thing.** (`.port.ts`, `.service.ts`, `.provider.ts`,
+File naming: no type-tag suffixes — the directory carries the role, the file
+is named after the thing. (`.port.ts`, `.service.ts`, `.provider.ts`,
 `.use-case.ts`, `.interface.ts`, `.handler.ts` are all banned — tagging one
 kind implies tagging them all, so none are tagged. HTTP route
 registration is a suffix-free `interface/http/<module>-routes.ts`.)
@@ -342,9 +342,7 @@ declaration carries a top-level `CancellationToken` parameter. A token nested in
 another generic or options type does not propagate cancellation.
 
 Domain and Application never receive `System.IServiceProvider`.
-[Plumb](https://github.com/maxanstey-meridian/plumb)'s lexical checker detects provider fields and constructor/method parameters; the Roslyn
-analyzer additionally resolves `GetService` and `GetRequiredService` calls on
-`System.IServiceProvider` and Microsoft DI extension methods. Composition
+Composition
 resolves dependencies; business layers receive explicit constructor dependencies.
 
 Recommended use case signature:
@@ -403,8 +401,8 @@ mechanically inferred from the call site.
 
 ### Results vs exceptions
 
-**Declared failures are results;
-undeclared failures are exceptions.** If the contract declares the failure
+Declared failures are results;
+undeclared failures are exceptions. If the contract declares the failure
 (`.Returns<ErrorResponse>(4xx)`), the use case returns it as a value and the
 endpoint maps it — declared failures are control flow the caller must handle,
 and values make that visible. Exceptions are reserved for "this should never
@@ -786,22 +784,6 @@ No if:
 
 - it exists only because one module is leaking
 - it would erase a meaningful feature boundary
-
-## Short Version
-
-If in doubt:
-
-1. start with a modular monolith
-2. make modules the primary boundary
-3. keep domain pure
-4. keep application explicit
-5. put ports in application
-6. let infrastructure implement them
-7. integrate modules through required ports or published contracts
-8. reserve shared/common for a genuine shared kernel or truly cross-cutting
-   host infrastructure
-9. avoid magic and unnecessary abstraction
-10. enforce the rules with tests or linting once the codebase is big enough
 
 ## Observability
 

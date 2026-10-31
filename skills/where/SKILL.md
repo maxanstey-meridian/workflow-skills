@@ -7,12 +7,12 @@ description: Answer "where are we?" — phase (spec / go / cycle / none), done /
 
 Read only. This skill never writes, commits, or tidies.
 
-`<main checkout>` is the repo's main working tree, `dirname "$(git rev-parse --path-format=absolute --git-common-dir)"`, even when you're in a worktree. The other routines keep their working files in `<main checkout>/.plans/`.
+`<main checkout>` is the repo's main working tree, as AGENTS.md 'Routines' defines it. The other routines keep their working files in `<main checkout>/.plans/`.
 
 ## Steps
 
 1. **Find the waypoint.**
-   - Session id: run `printenv` with your agent's own variable and take what it prints: `CLAUDE_CODE_SESSION_ID` in Claude Code, `CODEX_SESSION_ID` in Codex, `OPENCODE_SESSION_ID` in OpenCode, `COPILOT_AGENT_SESSION_ID` in Copilot CLI, or `CURSOR_CONVERSATION_ID` in Cursor CLI. Read only that one: an agent inherits the environment it was started from, so another agent's variable, or a terminal's or login's (`TERM_SESSION_ID`, `XDG_SESSION_ID`), may be set too, and it's never this session's id. If your agent isn't listed (Gemini CLI, Antigravity CLI, and the Cursor IDE aren't), treat it as printing nothing. If it prints nothing, use the id this conversation already states (a waypoint's reply ends "(session id …)"). Never generate one here; with none, go to the newest waypoint below. `<id8>` is the id's last 8 characters.
+   - Session id: run `printenv` with your agent's own variable, as AGENTS.md 'Routines' says. If it prints nothing, use the id this conversation already states (a waypoint's reply ends "(session id …)"). Never generate one here; with none, go to the newest waypoint below. `<id8>` is the id's last 8 characters.
    - Look in your memory directory (the directory your instructions give for memories you keep about this project, if you have one), then in `<main checkout>/.plans/waypoints/`, for the waypoint whose `session_id:` is this id: `grep -l 'session_id: <id>' <dir>/waypoint-*.md`. If several match, read the newest `updated:`.
    - If neither has it, or you have no id, read the newest `waypoint-*.md` (by its `updated:` line) in either place and say whose it is: "(from <session>, not this one)", or, with no id to compare, "(newest waypoint here; can't tell whether it's this session's)".
    - If there is none at all, use the conversation plus the plan doc.
@@ -47,4 +47,4 @@ Read only. This skill never writes, commits, or tidies.
 State: <main checkout | worktree <path>> · <branch> · <N> dirty · <N> unpushed · peers: <names, none, or not checked>
 ```
 
-**Needs from you** lists every step that now waits on the user (a decision, an approval, or an action only they take, such as running /cycle, pushing, or a live check), each with your recommendation and numbered so they can answer "1. yes 2. no". Write "nothing" only when nothing waits on them. Never add an item to fill the list; each one serves the user's goal and you've checked it yourself.
+**Needs from you** is as AGENTS.md 'Reports' defines it.

@@ -143,20 +143,20 @@ app/shared/
 
 Rules:
 
-- **Promote only what is genuinely shared.** The port type and provide/inject helper promote when the capability is wired at one composition root (e.g. layout) but consumed in another subtree (e.g. page components). Pure logic promotes when used by components in multiple page subtrees.
-- **Preserve feature ownership.** Cross-page Auth or Recordings code belongs in
+- Promote only what is genuinely shared. The port type and provide/inject helper promote when the capability is wired at one composition root (e.g. layout) but consumed in another subtree (e.g. page components). Pure logic promotes when used by components in multiple page subtrees.
+- Preserve feature ownership. Cross-page Auth or Recordings code belongs in
   `app/features/auth/` or `app/features/recordings/` when it remains a product
   capability. Use `app/shared/` for genuinely generic/co-owned primitives.
-- **No migration shims.** Delete pass-through files left at old locations after
+- No migration shims. Delete pass-through files left at old locations after
   moving code. A deliberate public feature entry point is specifically
   `app/features/<feature>/index.ts`; workspace package entry files named explicitly
   by `package.json#exports` and generated barrels are also valid. Other `index.ts`
   barrels are not public feature contracts by filename alone.
-- **Implementations stay with their owner.** A root-local implementation stays
+- Implementations stay with their owner. A root-local implementation stays
   beside its page/layout. A cross-page implementation may live in
   `app/features/<feature>/`, but only `app.vue`, a layout, or a page constructs
   and provides it.
-- **Delete the page-local file.** When a port or logic module is promoted, remove the original — do not leave a re-export stub behind.
+- Delete the page-local file. When a port or logic module is promoted, remove the original — do not leave a re-export stub behind.
 
 Example — Auth port promoted from page-local to shared:
 
@@ -426,26 +426,6 @@ export const sectionStateAdapter: SectionStatePort = {
 };
 ```
 
-Preferred frontend example:
-
-```ts
-// ports/auth.ts
-import type { Ref } from "vue";
-import type { components } from "@<scope>/contracts";
-import { useProvideInject } from "~/composables/useProvideInject";
-
-type CurrentUserDto = components["schemas"]["CurrentUserDto"];
-
-export interface Auth {
-  currentSession: Ref<CurrentUserDto | null>;
-  errorMessage: Ref<string | null>;
-  isLoading: Ref<boolean>;
-  load: () => Promise<void>;
-}
-
-export const [injectAuth, provideAuth] = useProvideInject<Auth>("Auth");
-```
-
 ```ts
 // composables/useRivetAuth.ts
 import { ref } from "vue";
@@ -519,10 +499,10 @@ object literal.
 
 ### Provide implementations, not projections
 
-A composition root should not unpack a composable and manually repack selected
+**Law:** A composition root should not unpack a composable and manually repack selected
 members into a port-shaped object. Pass the implementation directly to `provideX`;
 the preserved concrete return type lets the root retain persistence and orchestration
-capabilities while injected consumers receive only the narrow port.
+capabilities while injected consumers receive only the narrow port. A page that needs more of a capability widens its port; it doesn't unpack it, repack it, or add getters to hand out pieces.
 
 ```ts
 // Wrong: the page has become a hand-written adapter.
@@ -642,8 +622,7 @@ Compose capabilities only in:
 Components and composables never call `provideX`. Local component dependencies
 use props/events. This is a traceability law, not a preference. Test harnesses
 (`*.spec.ts`, `*.test.ts`, `__tests__/**`, and a `tests/`, `test/` or `e2e/` tree
-at the root of the frontend or of its package) may call `provideX` to stand in for the shell; [plumb](https://github.com/maxanstey-meridian/plumb) exempts them
-from MER-FE-020.
+at the root of the frontend or of its package) may call `provideX` to stand in for the shell.
 
 Composition roots may:
 
@@ -759,15 +738,3 @@ Avoid:
 
 - mock-heavy tests that verify implementation detail only
 - component tests that need large fake environment setup because boundaries were ignored
-
-## Summary
-
-The intended frontend style is:
-
-- `app.vue`, layouts, and pages as the only composition roots
-- dumb views
-- explicit capability seams
-- pure logic separated from framework code
-- provide/inject used as typed subtree wiring
-- generated Rivet clients used directly where honest
-- colocation first, promotion later

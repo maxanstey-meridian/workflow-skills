@@ -15,7 +15,7 @@ not less. They cannot be expected to remember the product's internal model.
 
 ## Core Law
 
-**The API is not the information architecture.**
+The API is not the information architecture.
 
 UI structure, terminology, grouping, and ordering follow the user's journey and
 desired outcomes. They do not follow:

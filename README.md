@@ -1,6 +1,6 @@
 # Workflow skills
 
-The house routines for any agent that loads [Agent Skills](https://agentskills.io/specification) (`SKILL.md` folders): spec the work, build it, then review and commit it, plus the Meridian doctrine they check against. `AGENTS.md` holds the shared rules that apply between routines.
+The house routines for any agent that loads [Agent Skills](https://agentskills.io/specification) (`SKILL.md` folders): spec the work, build it, then review and commit it, plus the Meridian doctrine they check against. `AGENTS.md` holds the shared rules, in every session and between routines.
 
 | Skill | Arguments | What it does | What it never does |
 |---|---|---|---|
@@ -9,7 +9,7 @@ The house routines for any agent that loads [Agent Skills](https://agentskills.i
 | `/cycle` | `[push] [tag <version>] [publish] [review-only] [light \| fanout] [diff]` | Reviews all uncommitted work with fresh subagents, commits, fixes, re-reviews, commits again, and runs the full gate once. | Pushes or tags unless given `push` or `tag`. Publishes: `publish` only prints the command for you to run. |
 | `/waypoint` | none | Saves the session's state to a note before you compact or step away. | Commits, pushes, or tidies. |
 | `/where` | none | Answers "where are we?": the phase, done, doing, next, what waits on you, and the branch, from the waypoint and live git state. | Writes, commits, or tidies. |
-| `/slop-hunt` | `<path> [<path>…] [spec]` | Hunts for code heavier than it needs to be (hand-rolled machinery, over-engineering, duplication, and dead code) and ranks it with replacements and lines saved. With `spec`, writes a spec `/go` can build. | Edits anything outside `.plans/`. |
+| `/slop-hunt` | `<path> [<path>…] [spec]` | Hunts for code heavier than it needs to be (hand-rolled machinery, over-engineering, duplication, and dead code) and ranks it with replacements and what each removes. With `spec`, writes a spec `/go` can build. | Edits anything outside `.plans/`. |
 | `meridian` | (loaded by the skills) | The house doctrine (architecture, invariants, testing, and tooling) that the other skills load and send their subagents to read. | |
 
 `/go` and `/cycle` are yours to start. The skills tell the agent never to start them itself. This README writes each skill as `/name`; your agent's section under [Install](#install) says how yours calls one.
@@ -18,7 +18,7 @@ The house routines for any agent that loads [Agent Skills](https://agentskills.i
 
 Talk the work through, then run `/spec [name]` and answer its asks. Run `/go <spec path>`, review the diff yourself, and run `/cycle` (`/cycle push` to push too). Run `/waypoint` before you compact a session (your agent's compact or summarise command, which shrinks the conversation to a summary) or step away, and `/where` when you come back to one.
 
-`/go` starts one subagent per piece of the spec. `/cycle` starts a reviewer per slice plus two doctrine-compliance passes (backend and frontend), or one reviewer when the change is small, then a fixer per slice, re-reviewers, and one full gate run. That uses plan quota or API spend, and a cycle can take as long as the repo's gate.
+`/go` starts one subagent per piece of the spec. `/cycle` starts a reviewer per slice plus two doctrine-compliance passes (backend and frontend), or one reviewer when the change is small, then a fixer per slice, re-reviewers, and one full gate run. That uses plan quota or API spend, and a cycle can take as long as the repo's gate. Which model each kind of subagent runs on is yours to set: see "Subagent models" in `AGENTS.md`.
 
 ## Prerequisites
 
@@ -177,7 +177,7 @@ Give the folders as paths (`~/.myagent/skills`, not a bare name).
 
 ## The shared rules file
 
-The skills hold every rule they need while they run. `AGENTS.md` covers the time between routines: what the approval words mean ("commit" commits, "push" pushes, and nothing more), that "we'll cycle" authorises nothing, the report shape in ordinary conversation, and reading the waypoint back after a compaction.
+The skills hold their own steps and defer to `AGENTS.md` for the shared definitions (Reports, Routines); every subagent brief stays self-contained. `AGENTS.md` holds the shared rules, in every session and between routines: what the approval words mean ("commit" commits, "push" pushes, and nothing more), that "we'll cycle" authorises nothing, the report shape in ordinary conversation, and reading AGENTS.md, the meridian skill, and the waypoint back after a compaction.
 
 Installed as your agent's section says, it loads in every project beside your own personal rules, within the limits that section gives. Your preferences go in those, not in `AGENTS.md`. Change `AGENTS.md` through this repo.
 

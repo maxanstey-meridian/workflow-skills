@@ -55,8 +55,9 @@ Defaults unless the item states a hard boundary:
 
 ## Use Libraries Before Building Machinery
 
-**Default:** do not hand-roll infrastructure, security protocols, wire clients,
-serialization formats, schedulers, storage clients, authentication flows, or
+**Law:** do not hand-roll infrastructure, security protocols, wire clients,
+serialization formats, schedulers, storage clients, authentication flows, dev
+tooling (comparators, parsers for standard formats, test harnesses), or
 other general-purpose machinery when a suitable maintained library, framework,
 official SDK, or generated client already exists.
 
@@ -90,7 +91,7 @@ The library owns commodity protocol and runtime mechanics. Do not fork an SDK's
 job into application code, and do not wrap a library one-for-one merely to hide
 that it is a dependency.
 
-This default does not require a package for every small pure function. A
+This law does not require a package for every small pure function. A
 dependency is unsuitable when its scope, runtime cost, maintenance state, or
 semantic mismatch outweighs the small and fully understood code it would
 replace. The distinction is commodity machinery versus local product logic, not
@@ -141,7 +142,7 @@ Prefer fixing:
 
 Use shims only as deliberate, temporary last resorts.
 
-**Law: a gap with a doc page is still a gap.** Writing a problem down does not
+**Law:** a gap with a doc page is still a gap. Writing a problem down does not
 resolve it. A decision record, an `INVARIANTS.md` `Accepts`, a changelog "known
 issue", a README caveat or a code comment never stands in for a fix.
 
@@ -152,16 +153,10 @@ issue", a README caveat or a code comment never stands in for a fix.
   reason, such as one more indexed query per cache miss rather than building
   stampede protection. Only trade-offs go under `Accepts`.
 - The test: would we welcome a change that removed it at no other cost? If yes,
-  it is a gap. When the work in hand caused or promised it, fix it in this
-  change, in the library or module that owns it if necessary, and widen the
-  scope to do so.
-- If it truly cannot be fixed now, it goes to the user as an open decision with
-  a recommendation, not into a doc as settled. A doc may say a gap exists only
-  while a tracked fix for it is open, and names that fix.
-- **Trivial gaps are never parked.** A gap found outside the work in hand is
-  fixed on the spot when the fix is trivial: mechanical, a few lines, no design
-  call. A non-trivial one is new work: tell the user and list it under
-  **Parked** in your report; don't fix it in passing.
+  it is a gap.
+- A doc may say a gap exists only while a tracked fix for it is open, and names
+  that fix.
+- What to do with one: AGENTS.md, 'Gaps get fixed'.
 
 ## Local Before Shared
 
@@ -328,7 +323,7 @@ When reviewing a diff or change:
 
 3. **Fix-first heuristic.** When the review is also asked to fix: mechanical fixes (dead code, stale comments, missing includes, unused variables) are just fixed, without asking. In a read-only review, list them as mechanical. Ambiguous fixes (security, design decisions, removing functionality, >20 lines) are batched into one question with recommendations.
 
-4. **A documented gap is a finding.** A known gap excused in a doc, `Accepts`, changelog or comment is a `fix`, as if the doc did not exist (see Root Cause). Never resolve a finding by documenting it: a fix round that only rewords the doc to describe the defect accurately has not fixed it.
+4. A documented gap is a finding. A known gap excused in a doc, `Accepts`, changelog or comment is a `fix`, as if the doc did not exist (see Root Cause). Never resolve a finding by documenting it: a fix round that only rewords the doc to describe the defect accurately has not fixed it.
 
 5. **Suppress noise.** Do not flag: harmless redundancy that aids readability, threshold values tuned empirically, assertions that could theoretically be tighter but already cover the behaviour.
 
@@ -341,18 +336,3 @@ The code is probably drifting if:
 - tiny features are buried under heavy ceremony
 - real complexity is hidden behind bland names
 - the fix is local but the cause is systemic
-
-## Summary
-
-The intended coding style is:
-
-- data transforms over object hierarchies
-- principle-first decisions
-- explicit seams only where earned
-- local-first structure
-- root-cause fixes over shims
-- strict, honest types — no `unknown`, `object`, or `any` as value carriers
-- no self-narrating comments
-- obvious provenance
-- explicit composition at the edge
-- minimal dependencies
