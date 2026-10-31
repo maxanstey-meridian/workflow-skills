@@ -91,7 +91,7 @@ Terms used below:
 
 ## 4. Commit first
 
-- Commit unless a targeted check is red or a finding is a `blocker` (broken build, data loss, security hole, or one of the three checks in step 2). If one is, brief a fixer subagent with the failing check or blocker (as in step 5), rerun only what failed, then commit. Those fixes go into this first commit; list them (`file:line` and the finding each fixes) in round 2's re-review brief so the re-reviewer checks them too. The re-reviewer reads them at the listed `file:line`, not in the round's diff. If step 5 leaves no fix diff, review them on their own as a small fix diff (step 6) before the gate.
+- Commit unless a targeted check is red or a finding is a `blocker` (broken build, data loss, security hole, or one of the three checks in step 2 when `introduced`). If one is, brief a fixer subagent with the failing check or blocker (as in step 5), rerun only what failed, then commit. Those fixes go into this first commit; list them (`file:line` and the finding each fixes) in round 2's re-review brief so the re-reviewer checks them too. The re-reviewer reads them at the listed `file:line`, not in the round's diff. If step 5 leaves no fix diff, review them on their own as a small fix diff (step 6) before the gate.
 - Stage **explicit paths only**. Never `-A`, `-u`, or `.`. Re-check `git status` right before staging, because peers edit in between.
 - Never `git reset --hard`, `git checkout -- .`, or `git clean`, and never stash someone else's work.
 - Use one commit, unless the tree clearly holds unrelated features that read better split.

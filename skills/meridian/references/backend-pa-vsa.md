@@ -342,8 +342,8 @@ declaration carries a top-level `CancellationToken` parameter. A token nested in
 another generic or options type does not propagate cancellation.
 
 Domain and Application never receive `System.IServiceProvider`.
-Composition
-resolves dependencies; business layers receive explicit constructor dependencies.
+Composition resolves dependencies; business layers receive explicit constructor
+dependencies.
 
 Recommended use case signature:
 

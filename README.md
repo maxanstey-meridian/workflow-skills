@@ -177,7 +177,7 @@ Give the folders as paths (`~/.myagent/skills`, not a bare name).
 
 ## The shared rules file
 
-The skills hold their own steps and defer to `AGENTS.md` for the shared definitions (Reports, Routines); every subagent brief stays self-contained. `AGENTS.md` holds the shared rules, in every session and between routines: what the approval words mean ("commit" commits, "push" pushes, and nothing more), that "we'll cycle" authorises nothing, the report shape in ordinary conversation, and reading AGENTS.md, the meridian skill, and the waypoint back after a compaction.
+The skills hold their own steps and defer to `AGENTS.md` for the shared definitions (Reports, Routines); every subagent brief stays self-contained. `AGENTS.md` holds the shared rules, in every session and between routines: what the approval words mean ("commit" commits, "push" pushes, and nothing more), that "we'll cycle" authorises nothing, the report shape, and reading AGENTS.md, the meridian skill, and the waypoint back after a compaction.
 
 Installed as your agent's section says, it loads in every project beside your own personal rules, within the limits that section gives. Your preferences go in those, not in `AGENTS.md`. Change `AGENTS.md` through this repo.
 
