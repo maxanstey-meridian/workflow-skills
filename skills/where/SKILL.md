@@ -7,6 +7,8 @@ description: Answer "where are we?" — phase (spec / go / cycle / none), done /
 
 Read only. This skill never writes, commits, or tidies.
 
+AGENTS.md is the workflow-skills shared rules file your agent loads as its rules, not the repo's own AGENTS.md.
+
 `<main checkout>` is the repo's main working tree, as AGENTS.md 'Routines' defines it. The other routines keep their working files in `<main checkout>/.plans/`.
 
 ## Steps

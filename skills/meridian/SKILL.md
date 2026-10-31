@@ -141,3 +141,4 @@ a loop on a repo you have not changed.
 
 - For backend/frontend structure, do not restate generic clean architecture from scratch; use the Meridian references directly.
 - For testing and coding questions, prefer the doctrine here over generic framework advice.
+- AGENTS.md is the workflow-skills shared rules file your agent loads as its rules, not the repo's own AGENTS.md.

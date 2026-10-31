@@ -17,6 +17,7 @@ Arguments: what the user typed after `/go`.
 
 Terms used below:
 
+- **AGENTS.md** is the workflow-skills shared rules file your agent loads as its rules, not the repo's own AGENTS.md.
 - **The repo's instructions** are as AGENTS.md 'Routines' defines them.
 - **`<main checkout>`** is the repo's main working tree, as AGENTS.md 'Routines' defines it. Working files go in `<main checkout>/.plans/`.
 - **`<base directory>`** is the folder this SKILL.md was loaded from: the skill's base directory, if your agent printed one when the skill loaded, else the folder of the path you read this file at. **`<skills folder>`** holds the sibling skills: it's what `cd -P "<base directory>/.." && pwd` prints, which follows a linked skill back to its repo. Spec's file is `<skills folder>/spec/SKILL.md`. If you can't tell where this file was loaded from, ask the user for the path rather than guessing.

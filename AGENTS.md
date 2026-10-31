@@ -52,6 +52,8 @@ You may be one of several agent sessions working at once, often in one shared gi
 
 ## Reports
 
+This section is for the session that talks to the user. A subagent's report gives facts only: what it read, ran, and changed, the `file:line`s, and what the code or host actually does. It gives no Needs from you, no recommendation, no options, and no asks. A gap it couldn't close is reported as unfinished, with its cause; judgement is the orchestrator's.
+
 - Start with a **plain-English TLDR**. The reader may not know every corner of the product, so gloss any jargon.
 - A finding that changes the picture is the report's first line after the TLDR, numbered, stated in full.
 - Then **What changed**, then **Needs from you**, each item with your recommendation.

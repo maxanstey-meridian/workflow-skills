@@ -28,6 +28,7 @@ The user starting `/cycle` is their instruction to commit. Push, tag, and publis
 
 Terms used below:
 
+- **AGENTS.md** is the workflow-skills shared rules file your agent loads as its rules, not the repo's own AGENTS.md.
 - **The repo's instructions** are as AGENTS.md 'Routines' defines them.
 - **`<main checkout>`** is as AGENTS.md 'Routines' defines it. Everything the cycle saves (reviewers' reports, the gate's log, and the final report) goes in `<main checkout>/.plans/`.
 - **`<base directory>`** is the folder this SKILL.md was loaded from: the skill's base directory, if your agent printed one when the skill loaded, else the folder of the path you read this file at. **`<skills folder>`** holds the sibling skills: it's what `cd -P "<base directory>/.." && pwd` prints, which follows a linked skill back to its repo. Go's file is `<skills folder>/go/SKILL.md`. If you can't tell where this file was loaded from, ask the user for the path rather than guessing.

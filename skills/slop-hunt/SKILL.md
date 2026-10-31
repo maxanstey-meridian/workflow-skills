@@ -8,6 +8,8 @@ argument-hint: "<path> [<path>…] [spec]"
 
 Arguments: what the user typed after `/slop-hunt`, or the paths they named when asking for a hunt. Paths are relative to the current repo. A trailing `spec` means: also write one spec per repo, in the `/spec` shape, so `/go` can build it (step 4).
 
+AGENTS.md is the workflow-skills shared rules file your agent loads as its rules, not the repo's own AGENTS.md.
+
 Working files go in `<main checkout>/.plans/`, as AGENTS.md 'Routines' defines it. Each hunted repo has its own `<main checkout>`: reports go in the current repo's, and with `spec` step 4 resolves each hunted repo's own.
 
 ## 0. Preflight (always)

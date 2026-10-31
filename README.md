@@ -58,7 +58,7 @@ sh ~/src/workflow-skills/install.sh claude-code
 - **Rules:** linked as `~/.claude/rules/workflow-skills.md`. Every `.md` file in `~/.claude/rules/` loads beside your `~/.claude/CLAUDE.md`, so your own rules stay where they are. If you already have a `workflow-skills.md` there, rename yours and rerun.
 - **Call a skill:** `/name`.
 - **Check:** in a new session, `/skills` lists the seven skills, and `/context` lists the rules file under Memory files, beside your `CLAUDE.md`.
-- Cowork desktop sessions load neither: they skip personal skills, and linked rules that point outside the working folder. Cloud sessions have no `~/.claude` at all. The skills reach both only when they're enabled on your claude.ai account.
+- Cowork desktop sessions load neither: they skip personal skills, and linked rules that point outside the working folder. Cloud sessions have no `~/.claude` at all. The skills reach both only when they're enabled on your claude.ai account. The skills take their shared definitions from `AGENTS.md`, so those sessions also need its text added to their instructions.
 
 ### Codex
 

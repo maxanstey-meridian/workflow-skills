@@ -7,6 +7,8 @@ description: Save this session's state to a waypoint note before the user compac
 
 Write one note the next context, or the user tomorrow morning, can rely on without re-asking "where are we?". It replaces a round trip of asking what to carry over before compacting.
 
+AGENTS.md is the workflow-skills shared rules file your agent loads as its rules, not the repo's own AGENTS.md.
+
 ## Steps
 
 1. **Gather facts. Don't recall them.**

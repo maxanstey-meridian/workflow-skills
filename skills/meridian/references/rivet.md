@@ -216,6 +216,7 @@ Legacy Rivet v1 clients use `{ unwrap: false }` plus `.isOk()` /
 - Keep application architecture and generated-client policy separate from Rivet.
 - A `[RivetContract]` declaration is a static class containing only `const string` route constants and `static readonly RouteDefinition...` fields built via the `Define` factory. It has no methods, properties, instance state, or other fields.
 - `[RivetClient]` on a controller class surfaces every HTTP action in it; prefer `[RivetEndpoint]` per action so only deliberate operations are published.
+- A result filter may read the `StatusCode` and `Value` of the `RivetActionResult` that `.ToActionResult()` returns. Building a result from them, or writing them to the response itself, is a hand-written bridge: let Rivet write the response.
 - Do not copy legacy `.Invoke(...)`, `RivetResult<T>`, or `.SkipValidation()` examples into current code.
 - Functions-specific exception handling must be integrated and verified with that host if required.
 - Rivet does not enforce serialized JSON shape, member validation constraints, request parsing/binding, optional headers, auth policies, or file byte contents at runtime. Those remain host/application responsibilities. Handlers returning native results outside the terminals bypass Rivet's runtime checks. Coverage is static analysis, not proof that every request branch or deployment configuration is correct.

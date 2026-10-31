@@ -15,6 +15,8 @@ A spec is the one place the agreed work lives: `/go` builds from it without re-a
 
 Skip it for a single small piece (`/go`'s threshold: a few files and no new seam): the conversation is spec enough.
 
+AGENTS.md is the workflow-skills shared rules file your agent loads as its rules, not the repo's own AGENTS.md.
+
 Working files go in `<main checkout>/.plans/`, as AGENTS.md 'Routines' defines it.
 
 "The repo's instructions" are defined in AGENTS.md 'Routines'.
