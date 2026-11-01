@@ -93,6 +93,7 @@ This section is for the session that talks to the user. A subagent's report give
 - Memory notes and waypoints say which session wrote them (`metadata.session: <session title>`), so another session doesn't act on them.
 - If another session is editing the same files and you can message it, message it once and work around each other. If you can't, leave its files alone and tell the user.
 - Check which shell runs your commands. In zsh an unquoted `$var` is one word, so `for x in $list` runs once over the whole string: use an array (`ids=(a b c); for i in "${ids[@]}"`) or `xargs`. In any shell, `set -e` doesn't stop a `for` loop on a failed check, so gate a destructive step with `&&` on an explicit check, give it absolute paths, and never let a failed `cd` fall through to it.
+- Check which `sed` you have, too. macOS ships BSD `sed`: `-i` needs a suffix argument (`sed -i '' …`), and GNU's `\|` and `\+` aren't operators in its basic patterns (use `-E` with `|` and `+`). A pattern that matches nothing changes nothing and still exits 0, so a GNU-only pattern fails silently. After any scripted edit, read the diff before you rely on it, above all a make-it-fail break: a break that wasn't applied proves nothing, so a test that stays green tells you nothing about the test. For a multi-line or exact edit, use your edit tool or a short script.
 
 ## Routines
 
