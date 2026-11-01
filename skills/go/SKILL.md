@@ -88,6 +88,7 @@ Every subagent's brief (common plus its own) covers:
 ## 4. Integrate
 
 - A subagent that replied with its report instead of a path: save the reply to its named file verbatim before doing anything else, and tell the user in your next message which subagent couldn't save its own.
+- Read every report as claims (AGENTS.md "Reports"): check each one against the diff or the code before you build on it, brief a subagent with it, or report it. That includes what a builder says about code it replaced or removed, and why that code was there.
 - Read every diff a subagent made. A seam that's wrong, or the same problem in nearby code, goes back to the subagent that owns that file, with what's wrong. A problem no piece covers is an addendum (see "The orchestrator").
 - If the repo generates API contracts or clients, regenerate them when an endpoint changed, and run its contract check if it has one. Its instructions name both commands.
 
