@@ -101,6 +101,7 @@ Terms used below:
 ## 5. Fix
 
 - The main session writes no fixes, for the same reason it never reviews. Brief one fixer subagent per slice with its findings (each `file:line` and the fix), the spec, and the subagent rules in step 3 of `<skills folder>/go/SKILL.md` (give the fixer that file's absolute path). A fix that changes what the spec says gets built is an addendum first (the addendum rule under "Rules for the doc" in `<skills folder>/spec/SKILL.md`).
+- No fixer starts on a question. `/go` step 3's hard block applies to every fix brief: a fix the reviewer marks as a design call, or one that says "check whether", "trace", or "make sure", is settled before the fixer starts. Trace it yourself, or with a read-only fact-gatherer, through every place the changed code feeds, with `file:line`s. Then brief the settled fix. A fixer is never where a question gets answered.
 - Fix every `introduced` `fix` finding that doesn't need the user.
 - Trivial gaps are never parked. An `existing` finding whose fix is trivial (mechanical, a few lines, no design call) is fixed in this step like an `introduced` one.
 - When one of step 2's three checks is `existing`, the gap rule decides: trivial, fixed in this step; non-trivial, parked, and it opens the report as its own numbered finding, under the Lead-with rule — in both slots, by design: the finding is the news, the park is the action.
