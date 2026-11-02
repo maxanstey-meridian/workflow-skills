@@ -3,7 +3,7 @@ alwaysApply: true
 ---
 # Global agent rules
 
-These rules apply in every repo. House engineering doctrine lives in the `meridian` skill; repo facts (commands, the gate, what never gets committed) live in the repo's instructions (see Routines). While one of the workflow routines (`/spec`, `/go`, `/cycle`, `/waypoint`, `/where`, or `/slop-hunt`) runs, its own steps and report format win over this file.
+These rules apply in every repo. House engineering doctrine lives in the `meridian` skill; repo facts (commands, the gate, what never gets committed) live in the repo's instructions (see Routines). While one of the workflow routines (`/spec`, `/go`, `/cycle`, `/waypoint`, `/where`, `/slop-hunt`, or `/readme`) runs, its own steps and report format win over this file.
 
 Your own preferences go in your agent's personal instructions file or settings, never here. Change this file through its repo.
 
@@ -105,7 +105,7 @@ This section is for the session that talks to the user. A subagent's report give
 
 - If the user names a skill or command you can't find, look for it on disk (your agent's skills folders), then say so and stop. Never substitute a similar one.
 - `/spec` writes the agreed work into `.plans/spec-<name>.md`. `/go` builds it and leaves it uncommitted. `/cycle` reviews, commits, fixes, and commits again. The skills hold the steps.
-- `/where` answers "where are we?" from this session's waypoint and live git state. `/slop-hunt <path>` runs a read-only sweep for code heavier than it needs to be (hand-rolled machinery, over-engineering, duplication, and dead code); with `spec`, it also writes a spec `/go` can build.
+- `/where` answers "where are we?" from this session's waypoint and live git state. `/slop-hunt <path>` runs a read-only sweep for code heavier than it needs to be (hand-rolled machinery, over-engineering, duplication, and dead code); with `spec`, it also writes a spec `/go` can build. `/readme` brings a README up to date with the code and leaves it uncommitted.
 - Before a manual compaction, `/waypoint` writes the note the next context starts from. After a compaction, read AGENTS.md, the meridian skill, and this session's waypoint before anything else.
 - **Subagent models.** Each subagent a routine starts has a role: *fact-gatherer* (`/spec`'s premise check), *cold reader*, *builder*, *fixer*, or *reviewer*. When your personal instructions give a role a model and effort, start that role's subagents on it, where your agent lets you choose; otherwise they run on your agent's default. The routines never pick a model themselves.
 - `<main checkout>` is the repo's main working tree, `dirname "$(git rev-parse --path-format=absolute --git-common-dir)"`, even when the work is in a worktree: a worktree can be removed or auto-cleaned, and its git-ignored `.plans/` goes with it. Working docs, plans, and scratch files go in `<main checkout>/.plans/` (`.plans/scratch/` for throwaway files), never in the repo root and never in `/tmp`. This beats a tool-provided scratch directory for anything another session, subagent, or the user reads. `.plans/` is never committed. Before the first write there, run `git check-ignore -q .plans/` in `<main checkout>`; if it fails, add `.plans/` to `<main checkout>/.git/info/exclude`, which ignores it locally without touching the repo's `.gitignore`. A repo's own scripts that use `/tmp` are fine; run them as written.
