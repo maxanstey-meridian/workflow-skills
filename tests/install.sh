@@ -46,6 +46,24 @@ clone() { # copies the clone into the home and runs the install from there; link
   mkdir -p "$H/clone" && cp -R "$repo/install.sh" "$repo/AGENTS.md" "$repo/skills" "$repo/hooks" "$H/clone/"
   r=$H/clone installer=$H/clone/install.sh
 }
+has_jq() { [ -x /usr/bin/jq ] || [ -x /bin/jq ]; }   # the PATH every case runs with is /usr/bin:/bin
+jq_dir=""   # a case that reads a JSON config runs with this folder (jq's) on its PATH
+if jq_bin=$(command -v jq); then jq_dir=$(dirname -- "$jq_bin"); fi
+needs_jq() { [ -n "$jq_dir" ] || { echo "skip $name ($shell): jq isn't installed"; return 1; }; }
+hook_json() { # <matcher> <command>: a Claude Code / Codex JSON config that runs the command on SessionStart
+  printf '{ "hooks": { "SessionStart": [{ "matcher": "%s", "hooks": [{ "type": "command", "command": "%s" }] }] } }\n' "$1" "$2"
+}
+codex_block() { # <command value> <matcher>: the lines install.sh prints for Codex's config.toml
+  printf '[[hooks.SessionStart]]\nmatcher = "%s"\n[[hooks.SessionStart.hooks]]\ntype = "command"\ncommand = %s\nadditionalContextLimit = 0\n' "$2" "$1"
+}
+nojq_path() { # prints a PATH of links to the tools install.sh uses, without jq
+  d_=$tmp/$shell/nojq-bin
+  if [ ! -d "$d_" ]; then
+    mkdir -p "$d_"
+    for t_ in basename dirname find grep ln mkdir readlink rm sed tr; do ln -s "$(command -v "$t_")" "$d_/$t_"; done
+  fi
+  printf '%s' "$d_"
+}
 skill_names() { for s_ in "$repo"/skills/*/SKILL.md; do s_=${s_%/SKILL.md}; echo "${s_##*/}"; done; }
 
 # Assertions (paths are relative to the home)
@@ -106,8 +124,14 @@ cases() {
       skills_in "$skills"
       [ -z "$rules" ] || rules_at "$rules"
       case $agent in
-        claude-code) says - .claude/settings.json ;;
-        codex) says - .codex/config.toml ;;
+        claude-code)
+          says - .claude/settings.json; ! has_jq || says_no - "install jq"
+          says - "\"command\": \"sh \\\"$r/hooks/after-compaction.sh\\\"\""
+          ;;
+        codex)
+          says - .codex/config.toml; ! has_jq || says_no - "install jq"
+          says_line "    command = 'sh \"$r/hooks/after-compaction.sh\"'"
+          ;;
         opencode) is_missing .config/opencode/AGENTS.md; says - opencode.json ;;
         gemini) says - settings.json ;;
         antigravity) is_missing .gemini/AGENTS.md ;;
@@ -160,18 +184,81 @@ cases() {
   verdict
 
   scenario c7
-  clone; mkdir -p "$H/.claude"
-  echo '{ "hooks": { "SessionStart": [{ "matcher": "compact", "hooks": [{ "type": "command", "command": "sh ~/clone/hooks/after-compaction.sh" }] }] } }' > "$H/.claude/settings.json"
-  run claude-code; exits 0
-  says already .claude/settings.json; says_no - settings.json
+  if needs_jq; then
+    clone; mkdir -p "$H/.claude"
+    hook_json compact 'sh ~/clone/hooks/after-compaction.sh' > "$H/.claude/settings.json"
+    run PATH="$jq_dir:/usr/bin:/bin" claude-code; exits 0
+    says already .claude/settings.json; says_no - settings.json
+    verdict
+  fi
+
+  scenario c8
+  if needs_jq; then
+    clone; mkdir -p "$H/.claude"
+    hook_json compact "sh \\\"$r/hooks/after-compaction.sh\\\"" > "$H/.claude/settings.json"
+    run PATH="$jq_dir:/usr/bin:/bin" claude-code; exits 0
+    says already .claude/settings.json; says_no - settings.json
+    verdict
+  fi
+
+  scenario c9
+  if needs_jq; then
+    mkdir -p "$H/.claude"
+    hook_json startup "sh \\\"$r/hooks/after-compaction.sh\\\"" > "$H/.claude/settings.json"
+    run PATH="$jq_dir:/usr/bin:/bin" claude-code; exits 0
+    says - .claude/settings.json; says_no already
+    verdict
+  fi
+
+  scenario j1
+  run PATH="$(nojq_path)" claude-code; exits 0
+  says - "install jq"
   verdict
 
-  scenario x4
-  mkdir -p "$H/.codex"
-  printf '[[hooks.SessionStart.hooks]]\ncommand = %s\n' "'sh $r/hooks/after-compaction.sh'" > "$H/.codex/config.toml"
+  scenario j2
+  mkdir -p "$H/.claude"
+  hook_json compact "sh \\\"$r/hooks/after-compaction.sh\\\"" > "$H/.claude/settings.json"
+  run PATH="$(nojq_path)" claude-code; exits 0
+  says "can't check" .claude/settings.json; says - "install jq"; says_no - settings.json; says_no already
+  verdict
+
+  scenario x11
+  clone; mkdir -p "$H/.codex"
+  codex_block "'sh \"$r/hooks/after-compaction.sh\"'" '^compact$' > "$H/.codex/config.toml"
   run codex; exits 0
   says already .codex/config.toml; says_no - config.toml
   verdict
+
+  scenario x12
+  mkdir -p "$H/.codex"
+  codex_block "'sh \"$r/hooks/after-compaction.sh\"'" '^startup$' > "$H/.codex/config.toml"
+  run codex; exits 0
+  says - .codex/config.toml; says_no already
+  verdict
+
+  scenario x13
+  mkdir -p "$H/.codex"
+  printf '[[hooks.SessionStart]]\nmatcher = "^compact$"\n[[hooks.SessionStart.hooks]]\n# command = %s\n' "'sh \"$r/hooks/after-compaction.sh\"'" > "$H/.codex/config.toml"
+  run codex; exits 0
+  says - .codex/config.toml; says_no already
+  verdict
+
+  scenario x15
+  mkdir -p "$H/.codex"
+  printf '[[hooks.SessionStart]]\nmatcher = "^compact$"\n[[hooks.SessionStart.hooks]]\ntype = "command"\ncommand = %s\n[[hooks.SessionStart]]\nmatcher = "^startup$"\n[[hooks.SessionStart.hooks]]\ntype = "command"\ncommand = %s\n' \
+    "'sh /opt/other.sh'" "'sh \"$r/hooks/after-compaction.sh\"'" > "$H/.codex/config.toml"
+  run codex; exits 0
+  says - .codex/config.toml; says_no already
+  verdict
+
+  scenario x14
+  if needs_jq; then
+    mkdir -p "$H/.codex"
+    hook_json compact "sh \\\"$r/hooks/after-compaction.sh\\\"" > "$H/.codex/hooks.json"
+    run PATH="$jq_dir:/usr/bin:/bin" codex; exits 0
+    says already .codex/hooks.json; says_no - config.toml
+    verdict
+  fi
 
   scenario x1
   make_file .codex/AGENTS.md
@@ -381,6 +468,12 @@ cases() {
 
   scenario z1
   cp "$repo/install.sh" "$H/install.sh"; installer=$H/install.sh
+  run codex; exits 1
+  says nothing; is_missing .agents/skills
+  verdict
+
+  scenario z2
+  clone; rm -rf "$H/clone/hooks"
   run codex; exits 1
   says nothing; is_missing .agents/skills
   verdict

@@ -6,7 +6,7 @@
 # Never replaces a real file, a folder, or a link it didn't make (broken or not), and never edits a config file.
 
 repo=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 1
-if [ ! -f "$repo/skills/meridian/SKILL.md" ] || [ ! -f "$repo/AGENTS.md" ]; then
+if [ ! -f "$repo/skills/meridian/SKILL.md" ] || [ ! -f "$repo/AGENTS.md" ] || [ ! -f "$repo/hooks/after-compaction.sh" ]; then
   echo "nothing installed: run install.sh from its place in the workflow-skills repo"
   exit 1
 fi
@@ -173,11 +173,55 @@ link_only_rules_file() { # <rules file the agent loads> <where your own rules go
   install_link AGENTS.md "$1" rules "if it's yours, move its lines into $2, remove it, and rerun"
 }
 
+runs_hook() { # <config file>: whether it runs the hook after a compaction (a JSON file needs jq to say so)
+  case $1 in
+    *.json)
+      command -v jq >/dev/null 2>&1 && jq -e --arg h "$hook" --arg t "$repo_from_home/hooks/after-compaction.sh" \
+        '[.hooks.SessionStart[]? | select((.matcher // "") | test("compact")) | .hooks[]? | (.command // "") | select(contains($h) or contains($t))] | length > 0' \
+        "$1" >/dev/null 2>&1
+      ;;
+    *) # one pass: a [[hooks.SessionStart]] line starts a group, any other header but its [[hooks.SessionStart.hooks]] ends it
+      [ -f "$1" ] || return 1
+      group="" matcher=""
+      while IFS= read -r l_ || [ -n "$l_" ]; do
+        l_=${l_#"${l_%%[![:space:]]*}"}
+        case $l_ in
+          "#"*) ;;
+          "[[hooks.SessionStart]]"*) group=1 matcher="" ;;
+          "[[hooks.SessionStart.hooks]]"*) ;;
+          "["*) group="" matcher="" ;;
+          matcher*=*) [ -z "$group" ] || matcher=$l_ ;;
+          *"$hook"* | *"$repo_from_home/hooks/after-compaction.sh"*)
+            case $matcher in *compact*) return 0 ;; esac
+            ;;
+        esac
+      done < "$1"
+      return 1
+      ;;
+  esac
+}
+
 ask_for_hook() { # <what to add> <config file>…; asks for the after-compaction hook unless a config file already runs it
   what=$1
   shift
-  if grep -qF -e "$hook" -e "$repo_from_home/hooks/after-compaction.sh" "$@" 2>/dev/null; then
-    echo "already installed: $(grep -lF -e "$hook" -e "$repo_from_home/hooks/after-compaction.sh" "$@" 2>/dev/null | head -1) runs $hook after a compaction"
+  found="" unchecked=""
+  for config in "$@"; do
+    if runs_hook "$config"; then
+      found=$config
+      break
+    fi
+    case $config in
+      *.json)
+        if ! command -v jq >/dev/null 2>&1 && grep -qF -e "$hook" -e "$repo_from_home/hooks/after-compaction.sh" "$config" 2>/dev/null; then
+          unchecked=$config
+        fi
+        ;;
+    esac
+  done
+  if [ -n "$found" ]; then
+    echo "already installed: $found runs $hook after a compaction"
+  elif [ -n "$unchecked" ]; then
+    echo "can't check $unchecked without jq: install jq and rerun"
   else
     add_todo "$what"
   fi
@@ -220,7 +264,7 @@ case $1 in
       "$opencode_home/skills" "$opencode_home/skill"
     link_rules_in_folder "$HOME/.claude/rules" workflow-skills.md '*.md' any \
       "rename yours (every .md file in $HOME/.claude/rules loads, whatever its name) and rerun"
-    ask_for_hook "add this hook to $HOME/.claude/settings.json, so the waypoint comes back after a compaction, inside its \"hooks\" block if it has one (and into its SessionStart list if that exists):\"hooks\": { \"SessionStart\": [{ \"matcher\": \"compact\", \"hooks\": [{ \"type\": \"command\", \"command\": \"sh $hook\" }] }] }" \
+    ask_for_hook "add this hook to $HOME/.claude/settings.json, so the waypoint comes back after a compaction, inside its \"hooks\" block if it has one (and into its SessionStart list if that exists): \"hooks\": { \"SessionStart\": [{ \"matcher\": \"compact\", \"hooks\": [{ \"type\": \"command\", \"command\": \"sh \\\"$hook\\\"\" }] }] }" \
       "$HOME/.claude/settings.json"
     check="start a new session: /skills lists the eight skills, and /context lists the rules file in $HOME/.claude/rules under Memory files, beside your own CLAUDE.md"
     ;;
@@ -238,7 +282,7 @@ case $1 in
     matcher = \"^compact\$\"
     [[hooks.SessionStart.hooks]]
     type = \"command\"
-    command = 'sh $hook'
+    command = 'sh \"$hook\"'
     additionalContextLimit = 0" \
       "$codex_home/config.toml" "$codex_home/hooks.json"
     check="start a new session: /skills lists the eight skills, /status lists $codex_home/AGENTS.md on its Agents.md row, and asking \"List the instruction sources you loaded\" names your developer_instructions"
