@@ -12,8 +12,9 @@ It does the job of typing "usual process; subagents, don't commit, then we'll cy
 - git 2.31 or later: the routines use `git rev-parse --path-format`.
 - An agent that loads `SKILL.md` skills and can run shell commands and edit files.
 - Subagents, for `/go`, `/cycle`, and `/spec`'s cold read. Without them, `/cycle` stops and says so, `/spec` skips its cold read, and `/go` builds in the session as with `solo`.
-- [ast-grep](https://ast-grep.github.io/) is optional: `AGENTS.md` bans `sed`, and agents use `ast-grep --rewrite` for the same change across many code files (`brew install ast-grep`, `npm i -g @ast-grep/cli`, or `cargo install ast-grep`). It doesn't parse Markdown, so prose files, and every file when it isn't installed, are edited one at a time.
+- [ast-grep](https://ast-grep.github.io/) is optional: `AGENTS.md` bans editing files with `sed`, and agents use `ast-grep --rewrite` for the same change across many code files (`brew install ast-grep`, `npm i -g @ast-grep/cli`, or `cargo install ast-grep`). It doesn't parse Markdown, so prose files, and every file when it isn't installed, are edited one at a time.
 - A per-project memory directory is optional: `/waypoint` and `/where` keep waypoints in your agent's per-project memory directory if it has one, else in the main checkout's `.plans/waypoints/`.
+- [jq](https://jqlang.org/), for the after-compaction hook in Claude Code and Codex (`brew install jq`; macOS 15 and later ship it). The install says so when it's missing.
 
 ## Install
 
@@ -43,6 +44,7 @@ sh ~/src/workflow-skills/install.sh claude-code
 
 - **Skills:** linked into `~/.claude/skills`. Claude Code doesn't read `~/.agents/skills`.
 - **Rules:** linked as `~/.claude/rules/workflow-skills.md`. Every `.md` file in `~/.claude/rules/` loads beside your `~/.claude/CLAUDE.md`, so your own rules stay where they are. If you already have a `workflow-skills.md` there, rename yours and rerun.
+- **After a compaction:** add the hook the install prints under "To finish" to `~/.claude/settings.json`. It's a `SessionStart` hook on `compact` that runs `hooks/after-compaction.sh`, which puts the session's waypoint back and has the agent read the files it names. See [After a compaction](#after-a-compaction).
 - **Call a skill:** `/name`.
 - **Check:** in a new session, `/skills` lists the eight skills, and `/context` lists the rules file under Memory files, beside your `CLAUDE.md`.
 - Cowork desktop sessions load neither: they skip personal skills, and linked rules that point outside the working folder. Cloud sessions have no `~/.claude` at all. The skills reach both only when they're enabled on your claude.ai account. The skills take their shared definitions from `AGENTS.md`, so those sessions also need its text added to their instructions.
@@ -65,6 +67,7 @@ sh ~/src/workflow-skills/install.sh codex
   ```
 
   Never edit `~/.codex/AGENTS.md` once it's linked: an edit there changes the clone. If you already have a `~/.codex/AGENTS.md` of your own, a file or a link to your dotfiles (working or broken), the install leaves it alone and says so: move its lines into `developer_instructions`, remove it, and rerun. The same goes for `~/.codex/AGENTS.override.md`, which Codex reads in place of `AGENTS.md` while it holds anything but blank lines.
+- **After a compaction:** add the lines the install prints under "To finish" to the end of `~/.codex/config.toml`: a `SessionStart` hook on `compact` that runs `hooks/after-compaction.sh`, with `additionalContextLimit = 0` so Codex passes the whole waypoint rather than a preview. See [After a compaction](#after-a-compaction). Not yet run through a real Codex compaction.
 - **Call a skill:** `$name`, or pick it from `/skills`.
 - **Check:** start a new session: `/skills` lists the eight skills, `/status` lists `~/.codex/AGENTS.md` on its `Agents.md` row, and asking "List the instruction sources you loaded" names your `developer_instructions`.
 - Codex's default sandbox keeps `.git` read-only, so it asks before `/cycle` commits and before a routine adds `.plans/` to `.git/info/exclude`. Approve those, or allow `.git` writes in your sandbox settings.
@@ -201,9 +204,18 @@ Talk the work through, then run `/spec [name]` and answer its asks. Run `/go <sp
 
 At the end, agents that didn't write the work have reviewed it, the work is committed with each round of fixes in a commit of its own, and the repo's gate has run once over the result.
 
+## After a compaction
+
+`AGENTS.md` tells the agent to read the shared rules, the meridian skill, and its waypoint before anything else after a compaction. Agents mostly don't: of 78 compactions measured up to November 2026, 40 had summaries that carried the rule, and after none of those did the agent load the meridian skill itself; the waypoint was read after 2 of the 78.
+
+[`hooks/after-compaction.sh`](hooks/after-compaction.sh) does it without them. It runs after the compaction, finds the session's waypoint (by the `session_id` in its frontmatter, else by its file name) in the agent's per-project memory folder or the main checkout's `.plans/waypoints/`, and puts it into context, headed by a numbered `STOP. NON-NEGOTIABLE` list of the files its "Read first" line names. Plainer wording was ignored; in its first real test, that list was read. When there's no waypoint, it tells you, and has the agent say so in its reply's first line.
+
+Claude Code and Codex can run it: their install sections say how. Cursor, Copilot CLI, Gemini CLI, and Antigravity CLI have no hook that runs after a compaction and can add to the context, and OpenCode would need a plugin, so with those the rule in `AGENTS.md` is all there is.
+
 ## Also in the box
 
 - [`AGENTS.md`](AGENTS.md): the shared rules, loaded in every project beside your own personal rules, within the limits your agent's install section gives. They say what the approval words mean ("commit" commits, "push" pushes, and nothing more), that "we'll cycle" authorises nothing, the report shape, and to read AGENTS.md, the meridian skill, and the waypoint back after a compaction. The skills hold their own steps and take the shared definitions (Reports, Routines) from it, and every subagent brief stays self-contained. Your preferences go in your personal rules, not here; change `AGENTS.md` through this repo.
+- [`hooks/after-compaction.sh`](hooks/after-compaction.sh): puts the session's waypoint back after a compaction, in agents that can run a hook then. See [After a compaction](#after-a-compaction).
 - [`examples/`](examples/): one-shot runs, a small model given these skills and a single prompt with no `/spec`, `/go`, or `/cycle`, its output kept as built, unreviewed and unedited. They show what the doctrine alone gets you, and each README gives the prompt, the cost, and the defects a quick check found. Several are what the routine is for: the .NET run turned an ambiguous requirement into a double-booking rule and wrote tests asserting it, a choice `/spec` would have set out as a Decision for you to agree, and its error-handling and setup defects are the kind `/cycle`'s reviewers and gate look for.
   - [Room booking, .NET 10 and Nuxt 4](examples/room-booking-dotnet/), by GLM 5.3 Flash.
 - [Plumb](https://github.com/maxanstey-meridian/plumb): checks a repo against the Meridian doctrine. It's optional: the `meridian` skill and `/cycle`'s reviewers run it when a repo uses it.

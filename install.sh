@@ -173,6 +173,17 @@ link_only_rules_file() { # <rules file the agent loads> <where your own rules go
   install_link AGENTS.md "$1" rules "if it's yours, move its lines into $2, remove it, and rerun"
 }
 
+ask_for_hook() { # <what to add> <config file>…; asks for the after-compaction hook unless a config file already runs it
+  what=$1
+  shift
+  if grep -qF -e "$hook" -e "$repo_from_home/hooks/after-compaction.sh" "$@" 2>/dev/null; then
+    echo "already installed: $(grep -lF -e "$hook" -e "$repo_from_home/hooks/after-compaction.sh" "$@" 2>/dev/null | head -1) runs $hook after a compaction"
+  else
+    add_todo "$what"
+  fi
+  command -v jq >/dev/null 2>&1 || add_todo "install jq: $hook needs it"
+}
+
 unlink_into_repo() { # <path>; fails when it isn't a link into this repo
   [ -L "$1" ] || return 1
   case $(readlink "$1") in
@@ -186,6 +197,7 @@ copilot_home=${COPILOT_HOME:-$HOME/.copilot}
 opencode_home=${OPENCODE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/opencode}
 home_real=$(CDPATH= cd -P -- "$HOME" 2>/dev/null && pwd) || home_real=$HOME
 repo_from_home=$(printf '%s' "$repo" | sed "s|^$HOME/|~/|")
+hook=$repo/hooks/after-compaction.sh
 
 case $1 in
   uninstall)
@@ -199,7 +211,7 @@ case $1 in
       fi
     done
     echo "If you installed with CODEX_HOME or COPILOT_HOME set, rerun this with the same values."
-    echo "Remove by hand what you added only for this: OpenCode's \"instructions\" entry and Gemini's \"AGENTS.md\" in context.fileName; from an earlier install, Cursor's pasted User Rules and COPILOT_CUSTOM_INSTRUCTIONS_DIRS in your shell profile."
+    echo "Remove by hand what you added only for this: the after-compaction hook in Claude Code's settings.json or Codex's config.toml, OpenCode's \"instructions\" entry, and Gemini's \"AGENTS.md\" in context.fileName; from an earlier install, Cursor's pasted User Rules and COPILOT_CUSTOM_INSTRUCTIONS_DIRS in your shell profile."
     exit 0
     ;;
   claude-code)
@@ -208,6 +220,8 @@ case $1 in
       "$opencode_home/skills" "$opencode_home/skill"
     link_rules_in_folder "$HOME/.claude/rules" workflow-skills.md '*.md' any \
       "rename yours (every .md file in $HOME/.claude/rules loads, whatever its name) and rerun"
+    ask_for_hook "add this hook to $HOME/.claude/settings.json, so the waypoint comes back after a compaction, inside its \"hooks\" block if it has one (and into its SessionStart list if that exists):\"hooks\": { \"SessionStart\": [{ \"matcher\": \"compact\", \"hooks\": [{ \"type\": \"command\", \"command\": \"sh $hook\" }] }] }" \
+      "$HOME/.claude/settings.json"
     check="start a new session: /skills lists the eight skills, and /context lists the rules file in $HOME/.claude/rules under Memory files, beside your own CLAUDE.md"
     ;;
   codex)
@@ -219,6 +233,14 @@ case $1 in
     elif link_only_rules_file "$codex_home/AGENTS.md" "developer_instructions in $codex_home/config.toml (see the README)"; then
       echo "Your own Codex rules go in developer_instructions = '''…''' at the top of $codex_home/config.toml, before any [section] line: $codex_home/AGENTS.md is this repo's file now, so an edit there changes the repo."
     fi
+    ask_for_hook "add these lines to the end of $codex_home/config.toml, so the waypoint comes back after a compaction (additionalContextLimit = 0 passes the whole waypoint, not a preview):
+    [[hooks.SessionStart]]
+    matcher = \"^compact\$\"
+    [[hooks.SessionStart.hooks]]
+    type = \"command\"
+    command = 'sh $hook'
+    additionalContextLimit = 0" \
+      "$codex_home/config.toml" "$codex_home/hooks.json"
     check="start a new session: /skills lists the eight skills, /status lists $codex_home/AGENTS.md on its Agents.md row, and asking \"List the instruction sources you loaded\" names your developer_instructions"
     ;;
   cursor)

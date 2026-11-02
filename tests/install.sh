@@ -43,7 +43,7 @@ make_file() { mkdir -p "$(dirname "$H/$1")" && echo mine > "$H/$1"; }   # <path>
 make_skill() { make_file "$1/SKILL.md"; }                                # <folder>: a skill of yours
 make_link() { mkdir -p "$(dirname "$H/$2")" && ln -s "$1" "$H/$2"; }     # <target> <path>: a link of yours
 clone() { # copies the clone into the home and runs the install from there; links are expected into the copy
-  mkdir -p "$H/clone" && cp -R "$repo/install.sh" "$repo/AGENTS.md" "$repo/skills" "$H/clone/"
+  mkdir -p "$H/clone" && cp -R "$repo/install.sh" "$repo/AGENTS.md" "$repo/skills" "$repo/hooks" "$H/clone/"
   r=$H/clone installer=$H/clone/install.sh
 }
 skill_names() { for s_ in "$repo"/skills/*/SKILL.md; do s_=${s_%/SKILL.md}; echo "${s_##*/}"; done; }
@@ -106,6 +106,8 @@ cases() {
       skills_in "$skills"
       [ -z "$rules" ] || rules_at "$rules"
       case $agent in
+        claude-code) says - .claude/settings.json ;;
+        codex) says - .codex/config.toml ;;
         opencode) is_missing .config/opencode/AGENTS.md; says - opencode.json ;;
         gemini) says - settings.json ;;
         antigravity) is_missing .gemini/AGENTS.md ;;
@@ -155,6 +157,20 @@ cases() {
   make_link "$r/AGENTS.md" .claude/rules/shared/x.md
   run claude-code; exits 0
   says already x.md; is_missing .claude/rules/workflow-skills.md
+  verdict
+
+  scenario c7
+  clone; mkdir -p "$H/.claude"
+  echo '{ "hooks": { "SessionStart": [{ "matcher": "compact", "hooks": [{ "type": "command", "command": "sh ~/clone/hooks/after-compaction.sh" }] }] } }' > "$H/.claude/settings.json"
+  run claude-code; exits 0
+  says already .claude/settings.json; says_no - settings.json
+  verdict
+
+  scenario x4
+  mkdir -p "$H/.codex"
+  printf '[[hooks.SessionStart.hooks]]\ncommand = %s\n' "'sh $r/hooks/after-compaction.sh'" > "$H/.codex/config.toml"
+  run codex; exits 0
+  says already .codex/config.toml; says_no - config.toml
   verdict
 
   scenario x1
