@@ -12,7 +12,7 @@ The house routines for any agent that loads [Agent Skills](https://agentskills.i
 | `/slop-hunt` | `<path> [<path>…] [spec]` | Hunts for code heavier than it needs to be (hand-rolled machinery, over-engineering, duplication, and dead code) and ranks it with replacements and what each removes. With `spec`, writes a spec `/go` can build. | Edits anything outside `.plans/`. |
 | `meridian` | (loaded by the skills) | The house doctrine (architecture, invariants, testing, and tooling) that the other skills load and send their subagents to read. | |
 
-`/go` and `/cycle` are yours to start. The skills tell the agent never to start them itself. This README writes each skill as `/name`; your agent's section under [Install](#install) says how yours calls one.
+`/go` and `/cycle` are yours to start. The skills tell the agent never to start them itself. They say so in prose rather than with `disable-model-invocation`: that flag takes the skill's description out of the agent's context, so it no longer recognises "then we'll go" as the routine and improvises one instead. This README writes each skill as `/name`; your agent's section under [Install](#install) says how yours calls one.
 
 ## The routine in practice
 
@@ -26,6 +26,7 @@ Talk the work through, then run `/spec [name]` and answer its asks. Run `/go <sp
 - git 2.31 or later: the routines use `git rev-parse --path-format`.
 - An agent that loads `SKILL.md` skills and can run shell commands and edit files.
 - Subagents, for `/go`, `/cycle`, and `/spec`'s cold read. Without them, `/cycle` stops and says so, `/spec` skips its cold read, and `/go` builds in the session as with `solo`.
+- [ast-grep](https://ast-grep.github.io/) is optional: `AGENTS.md` bans `sed`, and agents use `ast-grep --rewrite` for the same change across many code files (`brew install ast-grep`, `npm i -g @ast-grep/cli`, or `cargo install ast-grep`). It doesn't parse Markdown, so prose files, and every file when it isn't installed, are edited one at a time.
 - A per-project memory directory is optional: `/waypoint` and `/where` keep waypoints in your agent's per-project memory directory if it has one, else in the main checkout's `.plans/waypoints/`.
 
 ## Install

@@ -117,6 +117,8 @@ Unless `quick`, or you can't start subagents: start one fresh subagent, the cold
 
 It saves its list to `<main checkout>/.plans/scratch/spec-<name>/cold-read.md` (absolute path) with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), not its file-writing tool, and replies with only the path; if saving is refused, it replies with the whole list instead. Fix what it finds in the spec. Its questions that only the user can answer become open asks. When you skip the cold read because you can't start subagents, say so on the report's Spec line: nobody but its author has read it.
 
+A draft that changes in substance after its cold read (a new or rewritten decision or piece) gets the changed parts cold-read again, the same way, before the report calls it ready. Recording the user's answers, or renumbering, doesn't count as a change.
+
 ## 5. Report
 
 ```

@@ -137,6 +137,10 @@ read that section before fixing. Fix `error` findings unprompted. For `warn`
 findings, fix them or state the exception that applies. Do not re-run Plumb in
 a loop on a repo you have not changed.
 
+Plumb's findings are the floor, not the review. When the user names this skill
+for a task, apply its doctrine to the work itself; a clean Plumb run is not a
+review.
+
 ## Notes
 
 - For backend/frontend structure, do not restate generic clean architecture from scratch; use the Meridian references directly.

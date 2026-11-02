@@ -274,6 +274,34 @@ manufactures confidence.
 
 The rule is AGENTS.md's 'A check that can't fail is a defect'; here it means compare a check's result with something the code under test didn't produce.
 
+## Tests State Intent
+
+A test asserts the behaviour the product intends, even when today's code fails
+it. A test written to match a known gap hides the gap: when a test reaches one,
+assert the correct behaviour, report the red step, and handle the gap as
+AGENTS.md 'Gaps get fixed' says. If the gap is parked rather than fixed in the
+work, mark the test as an expected failure that names the park (Playwright's
+`test.fail()`, or the framework's equivalent; a skip isn't one, because it
+asserts nothing), so the suite goes red the day the gap is fixed and the mark
+comes off. Weakening the assertion instead is AGENTS.md's 'Never make a check
+pass by shrinking what it checks'.
+
+In an end-to-end run, a fake adapter's failure modes are reached through agreed
+trigger values in the fake (a postcode that always means "no results", another
+that means "look-up down"), not by intercepting the page's requests
+(`page.route`), so the journey drives the real path to the failure.
+
+Keep journeys simple and happy-path first, and make them resilient: role or
+test-id selectors, no sleeps, and no state shared between tests.
+
+## Suite Size
+
+Every test costs run time and upkeep, so each one earns its place by proving
+behaviour nothing else proves, at the cheapest level that proves it (see Risk
+and Test Shape). New behaviour gets a test; extend an existing test before
+writing a new one. No tests for copy, styling, colour, or layout. A change that
+makes a test redundant deletes it in the same change.
+
 ## Risk and Test Shape
 
 Do not pursue one universal test pyramid or direct branch coverage quota. Match
