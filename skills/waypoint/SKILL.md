@@ -57,7 +57,7 @@ metadata:
 
 4. **If this is a fork** (the conversation already holds a waypoint whose `session_id` isn't yours), write your own new file and set `parent:`. Never overwrite the other session's waypoint.
 
-5. **Reply with one line:** `Waypoint saved to <absolute path> (session id <id>). After compacting, read AGENTS.md, the meridian skill, and this waypoint before anything else.` Add more only for something genuinely blocking, such as an uncommitted migration half-written or a peer mid-edit on the same files. Subagents still running aren't blocking: their results reach the session after a compaction.
+5. **Reply with one line:** `Waypoint saved to <absolute path> (session id <id>).` Add more only for something genuinely blocking, such as an uncommitted migration half-written or a peer mid-edit on the same files. Subagents still running aren't blocking: their results reach the session after a compaction.
 
 ## Rules
 
