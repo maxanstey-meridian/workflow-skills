@@ -1,0 +1,15 @@
+{
+  "name": "@roombooking/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.14.1"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0"
+  }
+}

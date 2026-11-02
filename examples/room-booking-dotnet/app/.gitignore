@@ -1,0 +1,46 @@
+# .NET
+bin/
+obj/
+out/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+project.lock.json
+artifacts/
+.dotnet/
+.packages/
+TestResults/
+[Ss]chemas/Generated/
+
+# EF tooling artifacts
+*.dbml
+*.dbmdl
+
+# Node / pnpm
+node_modules/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Frontend build output
+ui/.nuxt/
+ui/.output/
+ui/dist/
+ui/.data/
+
+# Contracts package generated artifacts are committed; local scratch is not
+packages/contracts/node_modules/
+packages/contracts/dist/
+
+# IDE / OS
+.idea/
+.vs/
+.vscode/
+*.swp
+.DS_Store
+
+# dotnet user secrets
+secrets.json

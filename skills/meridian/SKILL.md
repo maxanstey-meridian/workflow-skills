@@ -29,7 +29,8 @@ Read only the reference files needed for the task:
   - `references/backend-pa-vsa.md`
 - frontend structure, page composition roots, provide/inject, dumb views:
   - `references/frontend-pa-vsa.md`
-- outcome-oriented UI, information hierarchy, form journeys, progressive disclosure:
+- outcome-oriented UI, information hierarchy, form journeys, progressive disclosure,
+  and accessibility, formatting, or validation details the spec leaves open:
   - `references/frontend-ui.md`
 - testing defaults and mock/fake bias:
   - `references/testing-philosophy.md`
@@ -92,6 +93,8 @@ design changes, and a Decision that breaks one is a defect, not a choice.
 - ask users for decisions they understand; progressively disclose the mechanism
   needed to express each decision
 - make defaults, consequences, and the resulting outcome visible
+- accessibility, formatting, display, or validation the spec leaves open follows
+  the GOV.UK Design System and style guide, unless the repo's UI skill decides it
 - seams must be earned
 - keep things local and preserve ownership when they gain more consumers
 - use the narrowest owner and smallest mechanism that make an invariant true

@@ -1,0 +1,6 @@
+packages:
+  - ui
+  - packages/contracts
+allowBuilds:
+  esbuild: true
+  vue-demi: true

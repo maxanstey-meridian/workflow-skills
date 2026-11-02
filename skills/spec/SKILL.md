@@ -1,6 +1,6 @@
 ---
 name: spec
-description: Turn the agreed work into one .plans/spec-<name>.md that /go builds from and /cycle reviews against. Use when the user runs /spec or asks for a spec of the work. Writes no code.
+description: Turn the agreed work into one .plans/spec-NAME.md that /go builds from and /cycle reviews against. Use when the user runs /spec or asks for a spec of the work. Writes no code.
 argument-hint: "[name | spec path] [quick]"
 ---
 
