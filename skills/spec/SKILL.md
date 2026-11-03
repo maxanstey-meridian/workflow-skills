@@ -115,7 +115,7 @@ Unless `quick`, or you can't start subagents: start one fresh subagent, the cold
 - any finding or source doc the spec cites that is ambiguous, or that a decision overrides without the spec saying which wins;
 - any Decision or Piece that breaks a meridian Law, naming the Law.
 
-It saves its list to `<main checkout>/.plans/scratch/spec-<name>/cold-read.md` (absolute path) with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), not its file-writing tool, and replies with only the path; if saving is refused, it replies with the whole list instead. Fix what it finds in the spec. Its questions that only the user can answer become open asks. When you skip the cold read because you can't start subagents, say so on the report's Spec line: nobody but its author has read it.
+It saves its list to `<main checkout>/.plans/scratch/spec-<name>/cold-read.md` (absolute path) with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), not its file-writing tool, and replies with only the path; if saving is refused, it replies with the whole list instead. Fix what it finds in the spec. When a finding shows the code is wrong, not just the spec's account of it (dead code, a broken promise, a defect), it's a gap: put it into a piece or an addendum, never just correct the sentence. Its questions that only the user can answer become open asks. When you skip the cold read because you can't start subagents, say so on the report's Spec line: nobody but its author has read it.
 
 A draft that changes in substance after its cold read (a new or rewritten decision or piece) gets the changed parts cold-read again, the same way, before the report calls it ready. Recording the user's answers, or renumbering, doesn't count as a change.
 
