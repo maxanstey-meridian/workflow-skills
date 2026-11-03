@@ -38,8 +38,8 @@ When subagents build, this session plans, briefs, reads diffs, and runs checks. 
 ## 2. Split
 
 - Split the work into pieces by file: no two pieces touch the same file. A piece that needs another's result runs after it. A spec's Pieces are that split already: use them, and say where you changed one.
-- One small piece (a few files and no new seam), or `solo`: build it in this session.
-- Otherwise start one subagent per piece, in parallel where they're independent.
+- One small piece (a few files and no new seam), or `solo`: build it in this session. When this session builds, it still builds one item at a time and checks each diff before the next. It makes each design call as step 1 says rather than stopping, and step 4's signs don't apply.
+- Otherwise subagents build the pieces, in parallel where they're independent: one fresh subagent per brief (step 3).
 
 ## 3. Build
 
@@ -59,24 +59,24 @@ If there is one, settle it before the builder starts:
 
 A builder is never where a question gets answered.
 
-**One item per brief.** A brief holds one coherent change: the edits one decision drives, proven by one test. A piece with several independent items (a list of gaps, say) becomes a run of briefs, one after another, each one's diff checked before the next goes out. The brief makes every design call its item needs, stated as the rule itself (what a member emits, how parts merge, which shape stays), never "pick a sensible …".
+**One item per brief.** A brief holds one coherent change: the edits one change drives, proven by one check (a test, or the Done-means check that covers it). A piece with several independent items (a list of gaps, say) becomes a run of briefs, one after another, each one's diff read as step 4 says, and its check run, before the next goes out. Each brief goes to a fresh subagent that owns the piece's files, never to one carrying an earlier brief, so the brief is all it knows; one brief at a time per piece keeps the files single-owner. Pieces still run in parallel where they're independent; only the briefs inside a piece run in order. The brief makes every design call its item needs, made as step 1 says (chosen and recorded, asked first, or an addendum) and stated as the rule itself (what a member emits, how parts merge, which shape stays), never "pick a sensible …".
 
-With two or more subagents, write one common brief to `<main checkout>/.plans/scratch/go-<name>/brief-common.md` and have each subagent read it first. Each subagent's own prompt then holds only its piece. The common brief holds:
+With two or more briefs, write one common brief to `<main checkout>/.plans/scratch/go-<name>/brief-common.md` and have each subagent read it first. Each brief then holds only its item. The common brief holds:
 
 - the spec's path, and every decision the user has taken on it, so no subagent reopens one;
 - where the subagent works (its worktree, if it has one) and that `.plans/` is read at its absolute path;
 - the rules below that apply to every piece, with the repo's exact test, format, and contract commands;
-- the report format, and the file each subagent saves its report to (`<main checkout>/.plans/scratch/go-<name>/report-<piece>.md`, absolute path). It saves it with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), not its file-writing tool, and replies with only the path; if saving is refused, it replies with the whole report instead.
+- the report format, and the file each subagent saves its report to (`<main checkout>/.plans/scratch/go-<name>/report-<piece>-<n>.md`, `<n>` the brief's place in the piece's run, absolute path). It saves it with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), not its file-writing tool, and replies with only the path; if saving is refused, it replies with the whole report instead.
 
-When a subagent's report shows a rule in the common brief is wrong, correct the file before the next subagent starts.
+When a subagent's report shows a rule in the common brief is wrong, correct the file before the next brief goes out, and tell any subagent still building that it changed.
 
 Every subagent's brief (common plus its own) covers:
 
 - **its hard stop.** Before editing anything, it reads its piece, the spec's open asks, and the decisions its piece relies on.
   - If it finds any open question (an unanswered ask, an unsettled "hangs on" or "waits on", an undecided "or", or a premise it can't confirm), it builds nothing and reports.
   - If, while building, the code or a host contradicts the piece's premise, it stops at once. It leaves its edits in place and says which files it touched.
-  - If, while building, it meets a design call the brief didn't make, it stops that item and leaves it unbuilt. It reports the call and the options the code allows, as facts, without picking one.
-  - Either way, its report gives the facts only: what it read or ran, the `file:line`s, and what the host or code actually does. It gives no recommendation, no confidence, and no proposed fix. Judgement is the orchestrator's, never a builder's.
+  - If, while building, it meets a design call the brief didn't make, it stops that item where it is, leaves its edits in place, and says which files it touched; the item counts as unbuilt. It reports the call and what the code at that point admits (each shape the existing code already uses or allows, with its `file:line`), as facts, without picking or ranking one.
+  - In every case, its report gives the facts only: what it read or ran, the `file:line`s, and what the host or code actually does. It gives no recommendation, no confidence, and no proposed fix; a list of what the code admits is a fact, not a proposed fix. Judgement is the orchestrator's, never a builder's.
 - its piece and the intent behind it;
 - the files it owns, and the files it must not touch;
 - the meridian references to read (`SKILL.md` plus the ones its piece needs) and the repo's instructions;
@@ -92,14 +92,14 @@ Every subagent's brief (common plus its own) covers:
 
 - A subagent that replied with its report instead of a path: save the reply to its named file verbatim before doing anything else, and tell the user in your next message which subagent couldn't save its own.
 - Read every report as claims (AGENTS.md "Reports"): check each one against the diff or the code before you build on it, brief a subagent with it, or report it. That includes what a builder says about code it replaced or removed, and why that code was there.
-- Read every diff a subagent made. A seam that's wrong, or the same problem in nearby code, goes back to the subagent that owns that file, with what's wrong. A problem no piece covers is an addendum (see "The orchestrator").
-- **A brief that isn't working.** Any of these means the brief failed first:
-  - the same item skipped, or carried to the next pass, twice;
-  - a check shrunk over a gap;
-  - "not traced" where the brief asked for a trace;
+- Read every diff a subagent made. A seam that's wrong, or the same problem in nearby code, goes back to the piece that owns that file, as a new brief (with what's wrong) to a fresh subagent. A problem no piece covers is an addendum (see "The orchestrator").
+- **A brief that isn't working.** The first time an item comes back unbuilt (a step 3 hard stop doesn't count: an open question, a premise contradicted, or a design call the brief didn't make), it goes back to its piece as the bullet above says. Any of these means the brief failed first:
+  - an item that comes back unbuilt twice in a row (left out of the diff without a word, or reported as left for later; a step 3 hard stop doesn't count);
+  - a check shrunk to make it pass (an assertion loosened, or a case dropped, skipped, or excluded; AGENTS.md 'Never make a check pass by shrinking what it checks');
+  - a part of the item the brief required (the sweep through the places the change feeds, or its check) reported as not traced, not checked, or not confirmed;
   - a design call the builder made itself.
 
-  Undo nothing. Make the call yourself, then send the item back as a brief of its own with that call written in. A shrunk check is restored. An item marked "not traced" or carried over isn't done. If the same sign comes back on the narrowed brief, propose a stronger model for that item to the user (AGENTS.md 'Spend': never swap without asking). Don't switch it yourself.
+  Don't revert anything yourself. Make the call yourself, as step 1 says (chosen and recorded, asked first, or an addendum), then send the item back as a brief of its own with that call written in. The new brief says what changes: the shrunk check restored, and the builder's own design call replaced by yours where they differ. A builder that stopped on a design call (step 3's hard stop) is handled the same way: make the call, then re-brief the item. A hard stop is never a sign, on the narrowed brief too: make that call (or settle that question) and re-brief again. An item reported as not traced or left for later isn't done. If any sign comes back on the narrowed brief, leave the item unbuilt, carry on with the other items, and list it in the report's Needs from you: the item, the sign, and the stronger model proposed (AGENTS.md 'Spend': never swap without asking). Don't switch it yourself.
 - If the repo generates API contracts or clients, regenerate them when an endpoint changed, and run its contract check if it has one. Its instructions name both commands.
 
 ## 5. Check narrowly
