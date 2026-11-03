@@ -59,6 +59,8 @@ If there is one, settle it before the builder starts:
 
 A builder is never where a question gets answered.
 
+**One item per brief.** A brief holds one coherent change: the edits one decision drives, proven by one test. A piece with several independent items (a list of gaps, say) becomes a run of briefs, one after another, each one's diff checked before the next goes out. The brief makes every design call its item needs, stated as the rule itself (what a member emits, how parts merge, which shape stays), never "pick a sensible …".
+
 With two or more subagents, write one common brief to `<main checkout>/.plans/scratch/go-<name>/brief-common.md` and have each subagent read it first. Each subagent's own prompt then holds only its piece. The common brief holds:
 
 - the spec's path, and every decision the user has taken on it, so no subagent reopens one;
@@ -73,6 +75,7 @@ Every subagent's brief (common plus its own) covers:
 - **its hard stop.** Before editing anything, it reads its piece, the spec's open asks, and the decisions its piece relies on.
   - If it finds any open question (an unanswered ask, an unsettled "hangs on" or "waits on", an undecided "or", or a premise it can't confirm), it builds nothing and reports.
   - If, while building, the code or a host contradicts the piece's premise, it stops at once. It leaves its edits in place and says which files it touched.
+  - If, while building, it meets a design call the brief didn't make, it stops that item and leaves it unbuilt. It reports the call and the options the code allows, as facts, without picking one.
   - Either way, its report gives the facts only: what it read or ran, the `file:line`s, and what the host or code actually does. It gives no recommendation, no confidence, and no proposed fix. Judgement is the orchestrator's, never a builder's.
 - its piece and the intent behind it;
 - the files it owns, and the files it must not touch;
@@ -90,6 +93,13 @@ Every subagent's brief (common plus its own) covers:
 - A subagent that replied with its report instead of a path: save the reply to its named file verbatim before doing anything else, and tell the user in your next message which subagent couldn't save its own.
 - Read every report as claims (AGENTS.md "Reports"): check each one against the diff or the code before you build on it, brief a subagent with it, or report it. That includes what a builder says about code it replaced or removed, and why that code was there.
 - Read every diff a subagent made. A seam that's wrong, or the same problem in nearby code, goes back to the subagent that owns that file, with what's wrong. A problem no piece covers is an addendum (see "The orchestrator").
+- **A brief that isn't working.** Any of these means the brief failed first:
+  - the same item skipped, or carried to the next pass, twice;
+  - a check shrunk over a gap;
+  - "not traced" where the brief asked for a trace;
+  - a design call the builder made itself.
+
+  Undo nothing. Make the call yourself, then send the item back as a brief of its own with that call written in. A shrunk check is restored. An item marked "not traced" or carried over isn't done. If the same sign comes back on the narrowed brief, propose a stronger model for that item to the user (AGENTS.md 'Spend': never swap without asking). Don't switch it yourself.
 - If the repo generates API contracts or clients, regenerate them when an endpoint changed, and run its contract check if it has one. Its instructions name both commands.
 
 ## 5. Check narrowly
