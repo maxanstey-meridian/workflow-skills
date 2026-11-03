@@ -151,7 +151,7 @@ $(cat "$waypoint")" \
     '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $ctx}}'
 else
   looked=$(printf '%s\n' "$folders" | grep -v '^$' | paste -sd ' ' - || true)
-  missing="No waypoint for this session (${session_id:-no id given}) in ${looked:-no folder}. Run /waypoint before you compact to bring one back."
+  missing="No waypoint for this session (${session_id:-no id given}) in ${looked:-no folder}. Run /waypoint (\$waypoint in Codex) before you compact to bring one back."
   jq -n --arg warn "$missing" --arg ctx "${stop}Context compacted. $missing
 
 STOP. NON-NEGOTIABLE: before anything else this turn, including answering the user's message, you MUST tell the user, in your reply's first line: \"No waypoint was found for this session after the compaction, so I'm working from the summary alone.\"" \

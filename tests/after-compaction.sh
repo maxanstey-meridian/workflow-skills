@@ -120,7 +120,7 @@ cases() {
   sid=0123456789abcdef transcript=$H/proj/t.jsonl cwd=$H/repo
   waypoint "$H/proj/memory/waypoint-decoy.md" ffffffffffffffff "2026-02-01 10:00" MARK-DECOY
   run_hook; exits 0
-  message_has "$sid"; message_has "$H/repo/.plans/waypoints"; message_has /waypoint
+  message_has "$sid"; message_has "$H/repo/.plans/waypoints"; message_has /waypoint; message_has '$waypoint in Codex'
   reads_are "$rules" "$meridian"; context_has "tell the user"; context_lacks MARK-DECOY
   verdict
 
