@@ -4,10 +4,10 @@
 # AGENTS.md 'Routines' says to read them; this makes it happen without the agent remembering to.
 # Input: the hook's JSON on stdin, with session_id and cwd, and transcript_path where the agent gives one.
 # Output: JSON with the text for the agent's context, and a message for the user when no waypoint is found.
-# Why it shouts: as of November 2026, of 78 compactions measured, 40 had summaries that carried the rule to read AGENTS.md,
-# the meridian skill, and the waypoint, and after none of those 40 did the agent load the meridian skill itself; the waypoint
-# was read after 2 of the 78. Plainer wording was ignored. The "STOP. NON-NEGOTIABLE" list was the first wording one obeyed.
-# Don't soften it.
+# Why it shouts: as of November 2026, in 40 compactions whose summary carried the rule to read these files, the agent never
+# did, and a hook that put the waypoint back was read past too. Claude Code's docs say current models don't need IMPORTANT
+# or ALL CAPS; this one did. "In full, even if it's already in your context" is there because it then read 5 lines and
+# called that done. Don't soften either.
 set -eu
 
 repo=$(CDPATH= cd -P -- "$(dirname -- "$0")/.." && pwd)

@@ -206,11 +206,13 @@ At the end, agents that didn't write the work have reviewed it, the work is comm
 
 ## After a compaction
 
-`AGENTS.md` tells the agent to read the shared rules, the meridian skill, and its waypoint before anything else after a compaction. Agents mostly don't: of 78 compactions measured up to November 2026, 40 had summaries that carried the rule, and after none of those did the agent load the meridian skill itself; the waypoint was read after 2 of the 78.
+`AGENTS.md` tells the agent to read the shared rules, the meridian skill, and its waypoint after a compaction. In 40 compactions that carried the rule, it never did.
 
-[`hooks/after-compaction.sh`](hooks/after-compaction.sh) does it without them. It runs after the compaction, finds the session's waypoint (by the `session_id` in its frontmatter, the newest `updated:` if several match, else by the id's last 8 characters in its file name) in the agent's per-project memory folder or the main checkout's `.plans/waypoints/`, and puts it into context, headed by a numbered `STOP. NON-NEGOTIABLE` list of files to read in full, even if they're already in context: this clone's `AGENTS.md` and meridian skill always, then the existing files the waypoint's "Read first" line names. Plainer wording was ignored; in its first real test, that list was read. When there's no waypoint, it tells you, has the agent say so in its reply's first line, and still lists `AGENTS.md` and the meridian skill. Without `jq` it can't read the session, so it prints that two-file list and says in plain text that no waypoint was loaded.
+[`hooks/after-compaction.sh`](hooks/after-compaction.sh) makes it. After a compaction, it puts the session's waypoint back into context, headed by a `STOP. NON-NEGOTIABLE` list of files to read in full: `AGENTS.md`, the meridian skill, and whatever the waypoint's "Read first" line names. If there's no waypoint, it tells you.
 
-Claude Code and Codex can run it: their install sections say how. Cursor, Copilot CLI, Gemini CLI, and Antigravity CLI have no hook that runs after a compaction and can add to the context, and OpenCode would need a plugin, so with those the rule in `AGENTS.md` is all there is.
+The shouting is deliberate. Claude Code's docs say current models don't need IMPORTANT or ALL CAPS, but plainer wording, and the hook on its own, were read past. "In full, even if it's already in your context" is there because the agent then read 5 lines of `AGENTS.md` and called it done.
+
+Claude Code and Codex can run it; their install sections say how. The other agents have no hook that runs after a compaction, so for them the rule in `AGENTS.md` is all there is.
 
 ## Also in the box
 
