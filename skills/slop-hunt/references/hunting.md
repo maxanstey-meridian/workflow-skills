@@ -11,6 +11,7 @@ Read this before you hunt. You're one hunter in a `/slop-hunt`: you read one are
 - **Read in full the files your brief marks `full`.** For a `skim` file, read its symbols and signatures, and open a body only when a lead or a signature points there. Never claim to have reviewed a skimmed file.
 - **Ask two questions of every finding.** *Necessity:* what breaks if this goes? Name the behaviour, or say "nothing". *History:* why is it here? `git log -L <start>,<end>:<file> -s --format='%h %as %s'` lists the commits that touched those lines; `git show <hash>` reads the one that matters. Cite its hash in the finding. A guard that a bug-fix commit added is a fence: say what replaces it, or leave it.
 - **Name what still protects it.** A protection is whatever stops a behaviour from breaking unnoticed: a test, a guard, a validator, a constraint, or a type. A finding that removes or weakens one names, by `file:line`, what still protects that behaviour afterwards, and that successor must not itself be something you're flagging. If nothing does, it isn't slop. When one finding is only true once another lands (B is dead only once A goes), report them as one finding.
+- **Don't hunt bugs.** You're looking for weight, not defects. A bug you trip over gets one line under Also noticed (below), with its `file:line`, and no proof, history, or fix work. Don't go looking for more.
 - **Leads aren't findings.** A knip, jscpd, or analyzer hit is a place to read. It becomes a finding only once you've checked it to the standard below.
 
 ## Signs, the proof each needs, and what not to flag
@@ -21,7 +22,7 @@ Read this before you hunt. You're one hunter in a `/slop-hunt`: you read one are
 
 **2. Silent failure:** a broad `catch` that logs and continues; an error turned into `null`, `false`, an empty list, or a default; `?? fallback` that hides state that should never be missing; fallback branches nobody asked for; exception → result → exception round trips; retries around work that isn't idempotent; fire-and-forget `Task`s, unawaited promises, and `async void` outside event handlers.
 - *Proof:* name the failure that gets lost, and what the caller sees instead.
-- *Don't flag:* a specific catch that acts on the failure; the app's top-level error boundary (middleware, an error page); degradation the domain names on purpose. One that loses data or hides a failed write is a bug: put it in Bugs found in passing.
+- *Don't flag:* a specific catch that acts on the failure; the app's top-level error boundary (middleware, an error page); degradation the domain names on purpose. One that loses data or hides a failed write is a bug, not slop: one line under Also noticed, marked `data loss`.
 
 **3. Defensive bloat:** null checks on non-nullable or already-validated values; the same rule validated again in several layers; guards on code that only internal callers reach.
 - *Proof:* the upstream guarantee that makes it dead: the type, the validator at the boundary, or the database constraint, by `file:line`.
@@ -55,11 +56,11 @@ Read this before you hunt. You're one hunter in a `/slop-hunt`: you read one are
 
 **10. Test slop:** a check that can't fail (it asserts the mock, compares output with its own input, or passes with the code deleted); a test that mocks the unit it claims to test; `UseInMemoryDatabase` or another fake engine where meridian requires the production one (a Law, `testing-philosophy.md`); duplicate tests; snapshot sprawl; test hooks in production code.
 - *Proof:* name the code change that would make the test fail, or say "none".
-- *A test of live code that can't fail* is a defect. Report it once, under Bugs found in passing, with the fix "replace with a test that pins <behaviour>". It can be deleted only when the behaviour itself is being removed (dead code with its own tests), or when another named test already pins *that behaviour* (by `file:line`).
+- *A test of live code that can't fail* is a finding like any other, with "replace with a test that pins <behaviour>". It can be deleted only when the behaviour itself is being removed (dead code with its own tests), or when another named test already pins *that behaviour* (by `file:line`).
 - *A duplicate test* can be deleted only when the kept test fails for every break the deleted one fails for.
 - *Any other test slop:* replace, never delete.
 - A test slop finding never also removes the code that test covers: they're separate findings, and the code's proof can't count on the test you're replacing.
-- *Don't flag:* tests that mock real external dependencies while running the real logic. A broken testing Law goes in Bugs found in passing.
+- *Don't flag:* tests that mock real external dependencies while running the real logic.
 
 **11. Out of proportion:** files or functions far bigger than the job they do.
 - *Proof:* the line count, and the job in one sentence. The finding is the split or deletion that fixes it; size alone isn't a finding.
@@ -91,4 +92,4 @@ Risk:
 
 Add the optional `(uncommitted)` marker when the finding sits in one of the uncommitted files your brief lists.
 
-Then a **Bugs found in passing** section (silent data loss, a check that can't fail, a broken Law), stated in full. Then the leads you checked and dropped, one line each with why. List the files you read, then end with `Files read: <n>/<marked full> in full, <n> skimmed`; that last line marks the report complete. Facts only: one replacement per finding, and no options, recommendations, or asks.
+Then **Also noticed**: bugs you tripped over, one line each (`file:line · what goes wrong`), marked `data loss` or `security` when they are, or `none`. Re-derived server rules and tests that can't fail aren't bugs: they're signs 5 and 10, and go in the ranked list. Then the leads you checked and dropped, one line each with why. List the files you read, then end with `Files read: <n>/<marked full> in full, <n> skimmed`; that last line marks the report complete. Facts only: one replacement per finding, and no options, recommendations, or asks.
