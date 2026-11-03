@@ -124,6 +124,14 @@ cases() {
   reads_are "$rules" "$meridian"; context_has "tell the user"; context_lacks MARK-DECOY
   verdict
 
+  scenario no-memory-folder   # Codex: no memory folder beside the transcript, so the message names only the folders that exist
+  sid=0123456789abcdef transcript=$H/sessions/t.jsonl cwd=$H/repo
+  mkdir -p "$H/sessions"
+  run_hook; exits 0
+  message_has "$H/repo/.plans/waypoints"
+  ! printf '%s\n' "$message" | grep -qF -e "$H/sessions/memory" || fail "systemMessage names the missing $H/sessions/memory"
+  verdict
+
   scenario no-jq
   sid=0123456789abcdef transcript=$H/proj/t.jsonl cwd=$H/repo
   mkdir -p "$H/bin" && ln -s "$(command -v dirname)" "$H/bin/dirname"

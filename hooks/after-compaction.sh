@@ -35,7 +35,7 @@ transcript=$(field transcript_path)
 # else <main checkout>/.plans/waypoints.
 folders=""
 main=""
-if [ -n "$transcript" ]; then
+if [ -n "$transcript" ] && [ -d "$(dirname -- "$transcript")/memory" ]; then
   folders="$(dirname -- "$transcript")/memory"
 fi
 if [ -n "$cwd" ] && common=$(git -C "$cwd" rev-parse --path-format=absolute --git-common-dir 2>/dev/null); then
