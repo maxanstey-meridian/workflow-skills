@@ -13,6 +13,7 @@ The orchestrator checks its fingerprint (the hash that catches edits made during
 
 1. **Run every command you were given** from the worktree root. Log each one's output to your log folder and record its exit code.
 2. **Rerun the builder's other claims:** the tests it says it ran, "nothing else uses X", "sweep done", and why code it removed was there. Add commands where a claim needs one.
+   Write each investigative command as an assertion. It must exit zero when the result supports the claim and non-zero when the claim is contradicted or the tool errors. Compare expected non-zero statuses explicitly, such as `rg` returning 1 for no matches. If a tool also uses that status for errors, require the expected output and check for errors as well. For example, `git diff --no-index` can return 1 for both differences and missing inputs. Keep tool diagnostics visible and never append unconditional success such as `|| true`.
 3. **A claim that a test would fail** if what it guards broke is unverified, including one supported by a hand-made break: list it so. The orchestrator's mutation run settles it. A mutant is a small deliberate change to the code, a surviving mutant is one no test noticed, and a mutation report is the JSON file the mutation command writes, in the mutation-testing-elements format (the shared JSON format for mutation results). Never break code by hand or run mutation yourself.
 4. **Check the item against the spec**, as your judgement, each finding citing the spec line and the `file:line`:
    - **Missing:** promised by the item or its sweep, and not there;
@@ -28,7 +29,7 @@ The orchestrator checks its fingerprint (the hash that catches edits made during
 
 Save it with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`); if that's refused, reply with the whole report. Sections:
 
-- **Checks run:** each command, its exit code, and its log path. Name any check that couldn't run, and why.
+- **Checks run:** each complete command, including the assertion for an investigation, its exit code, and its log path. Name any check that couldn't run, and why.
 - **Claims:** verified, failed, or unverified, each with its evidence.
 - **Spec (your judgement):** Missing, Extra, and Misunderstood, or none.
 - **Sign facts (your judgement):** or none.
