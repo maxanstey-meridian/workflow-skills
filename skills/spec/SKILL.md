@@ -98,6 +98,7 @@ Rules for the doc:
 - Status is `draft` while any ask is open. It becomes `agreed` only when the user has answered them all; record the date in each decision.
 - Anything that comes up after the spec is agreed is an addendum, whoever finds it (`/go`'s orchestrator, a builder, `/cycle`). It gets the same premise check as a piece and a cold read of its own (step 4, given only the addendum and the files it cites). One that holds a decision waits for the user's answer. Nothing in an addendum is built until then.
 - One /go per spec, with as few pieces as the files allow. Each /go is expensive: it briefs, integrates, and checks on its own, and every piece is a builder. Work that ships together stays in one spec, however long the doc gets. Fold pieces that share files, or that exist only for each other, into one piece. Split into parts (one spec per part, plus a short index spec that lists them in order with their statuses) only when one /go can't hold the work: parts that ship separately, or a part that needs another merged first.
+- Tracer bullets: when the spec adds something shared (a helper, component, contract field, rule, or server shape) that its Pieces apply in 3 or more places, it starts with a tracer bullet (`### P<n> Tracer bullet: <name> · owns: <files> · after: <piece, or none>`): the shared thing plus one consumer, built end to end first. It ships; it isn't a prototype. The pieces that apply it elsewhere list it in `after:`.
 - Check every Decision and Piece against meridian's Laws. A design that breaks one isn't an option: change the design, even when the fix is bigger. If no design inside the Laws does the job, that's a finding for the user naming the Law, never a Decision.
 - No runbooks or long scripts inline. Link to a file in `<main checkout>/.plans/scratch/` instead.
 - Plain English; gloss jargon on first use.
@@ -113,6 +114,7 @@ Unless `quick`, or you can't start subagents: start one fresh subagent, the cold
 - any existing code the spec skips, replaces, or changes without listing everything that code does: read the code and list what the spec left out;
 - any Done-means check that can't be run as written (a command the repo doesn't have, a wrong path, a step nobody can take);
 - any finding or source doc the spec cites that is ambiguous, or that a decision overrides without the spec saying which wins;
+- a missing tracer bullet;
 - any Decision or Piece that breaks a meridian Law, naming the Law.
 
 It saves its list to `<main checkout>/.plans/scratch/spec-<name>/cold-read.md` (absolute path) with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), not its file-writing tool, and replies with only the path; if saving is refused, it replies with the whole list instead. Fix what it finds in the spec. When a finding shows the code is wrong, not just the spec's account of it (dead code, a broken promise, a defect), it's a gap: put it into a piece or an addendum, never just correct the sentence. Its questions that only the user can answer become open asks. When you skip the cold read because you can't start subagents, say so on the report's Spec line: nobody but its author has read it.

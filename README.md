@@ -2,19 +2,20 @@
 
 **Agree the work before the agent builds it, and never let it review its own code.**
 
-These are the house routines for any agent that loads [Agent Skills](https://agentskills.io/specification) (`SKILL.md` folders). `/spec` writes the work you agreed into one file, `/go` builds it through subagents and leaves it uncommitted, and `/cycle` has fresh subagents review it, fix it, and commit it. Around them, `/waypoint` and `/where` carry a session across a compaction, `/slop-hunt` finds code heavier than it needs to be, and `/readme` keeps a README true to the code. They all check the work against Meridian, the house doctrine, and `AGENTS.md` holds the shared rules, in every session and between routines.
+These are the house routines for any agent that loads [Agent Skills](https://agentskills.io/specification) (`SKILL.md` folders). `/spec` writes the work you agreed into one file, `/go` builds it through subagents and leaves it uncommitted, and `/cycle` has fresh subagents review it, fix it, and commit it. Around them, `/waypoint` and `/where` carry a session across a compaction, `/slop-hunt` finds weight the code hasn't earned, and `/readme` keeps a README true to the code. They all check the work against Meridian, the house doctrine, and `AGENTS.md` holds the shared rules, in every session and between routines.
 
 It does the job of typing "usual process; subagents, don't commit, then we'll cycle" at the end of every conversation, without the agent improvising what you meant. The agent commits only when you say "commit" or run `/cycle`, and pushes, tags, or deploys only when you name that action. That's a rule the agent follows, not a lock on git.
 
 ## Prerequisites
 
 - macOS, Linux, or WSL on Windows: the install and the routines use POSIX `sh`, symlinks, and `openssl`.
-- git 2.31 or later: the routines use `git rev-parse --path-format`.
+- git 2.35 or later, for `git apply --allow-empty`: the routines use `git rev-parse --path-format`, and `/go` and `/cycle` use `git worktree` for throwaway copies.
+- `tar` and `shasum`: `/go` uses them to copy and fingerprint worktrees, and `/cycle` uses `tar` for its snapshots.
 - An agent that loads `SKILL.md` skills and can run shell commands and edit files.
-- Subagents, for `/go`, `/cycle`, and `/spec`'s cold read. Without them, `/cycle` stops and says so, `/spec` skips its cold read, and `/go` builds in the session as with `solo`.
+- Subagents, for `/go`, `/cycle`, and `/spec`'s cold read. Without them, `/cycle` stops and says so, `/spec` skips its cold read, and `/go` builds in the session as with `solo`, with no critic.
 - [ast-grep](https://ast-grep.github.io/) is optional: `AGENTS.md` bans writing files with `sed`, and agents use `ast-grep --rewrite` for the same change across many code files (`brew install ast-grep`, `npm i -g @ast-grep/cli`, or `cargo install ast-grep`). It doesn't parse Markdown, so prose files, and every file when it isn't installed, are edited one at a time.
 - A per-project memory directory is optional: `/waypoint` and `/where` keep waypoints in your agent's per-project memory directory if it has one, else in the main checkout's `.plans/waypoints/`.
-- [jq](https://jqlang.org/), for the after-compaction hook in Claude Code and Codex (`brew install jq`; macOS 15 and later ship it). The install says so when it's missing.
+- [jq](https://jqlang.org/), for the after-compaction hook in Claude Code and Codex, and for `/go` and `/cycle`'s mutation reports. Mutation testing makes small deliberate changes to code, called mutants, to check the tests; a surviving mutant is one no test noticed, and a mutation report is the JSON file that records the results. See the mutation-command bullet under [Each repo](#each-repo) for its required format (`brew install jq`; macOS 15 and later ship it). The install says so when it's missing.
 
 ## Install
 
@@ -165,7 +166,11 @@ Give the folders as paths (`~/.myagent/skills`, not a bare name).
 `/spec`, `/go`, `/cycle`, `/slop-hunt`, and `/readme` read the repo's `AGENTS.md`, or, when it has none, the agent instructions file in the repo root (such as `CLAUDE.md` or `GEMINI.md`). Put these there:
 
 - the full gate command;
-- the targeted test, format, lint, and typecheck commands;
+- the targeted test and typecheck commands, and where the tests live;
+- format and lint in check mode, for the critic;
+- the restore, install, and build that set up a fresh worktree; when setup isn't named, `/go` infers it from the lockfiles and reports `setup inferred: …`;
+- a mutation command (optional), such as Stryker.NET or StrykerJS. It takes named source files, with each name or pattern matching only that file, runs without git, exits non-zero when any mutant in those files survives or has no test, and writes a mutation report in `mutation-testing-elements` JSON format at a path you name. Declare its output folder as a disposable check-output path. Without one, `/go` and `/cycle` report `mutation: not run`;
+- declared disposable check-output paths, written as quoted `':(exclude)<path>'` Git pathspecs. `/go` and `/cycle` exclude only these paths and `.plans/` from worktree copies and fingerprints. Each is output regenerated by the command that writes it, never a source file or an input a later check can consume without regenerating it;
 - the contract regeneration and coverage commands, if any;
 - the UI skill, if any;
 - the paths never to commit;
@@ -186,11 +191,11 @@ The skills keep their working files in the main checkout's `.plans/`, and add `.
 | Skill | Arguments | What it does | What it never does |
 |---|---|---|---|
 | `/spec` | `[name \| spec path] [quick]` | Turns the agreed work into one `.plans/spec-<name>.md` that `/go` builds from and `/cycle` reviews against. `quick` skips the cold read (a fresh subagent reading the spec for gaps). | Edits code, runs builds or the gate, or commits. |
-| `/go` | `[spec path \| items \| task] [solo]` | Builds the agreed work through subagents (or in this session with `solo`), checks it narrowly, and leaves it uncommitted. | Commits, pushes, runs `/cycle`'s review, or runs the full gate. |
-| `/cycle` | `[push] [tag <version>] [publish] [review-only] [light \| fanout] [diff]` | Reviews all uncommitted work with fresh subagents, commits, fixes, re-reviews, commits again, and runs the full gate once. | Pushes or tags unless given `push` or `tag`. Publishes: `publish` only prints the command for you to run. |
+| `/go` | `[spec path \| items \| task] [solo]` | Builds the agreed work through subagents (or in this session with `solo`), with a critic after each subagent brief and none for session-built work, checks it narrowly with one end-of-`/go` mutation run when a command exists, and leaves it uncommitted. | Commits, pushes, runs `/cycle`'s review, or runs the full gate. |
+| `/cycle` | `[push] [tag <version>] [publish] [review-only] [light \| fanout] [diff]` | Reviews all uncommitted work with fresh subagents, commits, fixes, re-reviews, commits again, and runs the full gate once, with a critic after every fix brief and one mutation run per fix round when a command exists. | Pushes or tags unless given `push` or `tag`. Publishes: `publish` only prints the command for you to run. |
 | `/waypoint` | none | Saves the session's state to a note before you compact or step away. | Commits, pushes, or tidies. |
 | `/where` | none | Answers "where are we?": the phase, done, doing, next, what waits on you, and the branch, from the waypoint and live git state. | Writes, commits, or tidies. |
-| `/slop-hunt` | `<path> [<path>…] [spec]` | Hunts for code heavier than it needs to be (hand-rolled machinery, silent failures, speculative abstraction, duplication, dead code, and test slop) and ranks it with replacements and what each removes. With `spec`, writes a spec `/go` can build. | Edits anything outside `.plans/`, or runs builds, tests, or the gate. |
+| `/slop-hunt` | `<path> [<path>…] [spec]` | Hunts for weight the code hasn't earned: capabilities that cost more than they give users (weighed first by a design reader, or by the hunter itself in a one-area hunt), then hand-rolled machinery, silent failures, speculative abstraction, duplication, dead code, and test slop. Ranks each by the weight it removes, with its replacement and what users would lose. With `spec`, writes a spec `/go` can build. | Edits anything outside `.plans/`, or runs builds, tests, or the gate. |
 | `/readme` | `[path]` | Brings the README up to date with what users can see changed since it was last committed and moves it into the house shape and voice, checking every command, path, count, and link against the repo. With no README, it writes one. | Commits, pushes, or tags. |
 | `meridian` | (loaded by the skills) | The house doctrine (architecture, invariants, UI, testing, and tooling) that the other skills load and send their subagents to read. Where a spec leaves a UI's accessibility, formatting, or validation open, it follows the GOV.UK Design System and style guide, unless the repo's UI skill decides. | |
 
@@ -200,9 +205,9 @@ The skills keep their working files in the main checkout's `.plans/`, and add `.
 
 Talk the work through, then run `/spec [name]` and answer its asks. Run `/go <spec path>`, review the diff yourself, and run `/cycle` (`/cycle push` to push too). Run `/waypoint` before you compact a session (your agent's compact or summarise command, which shrinks the conversation to a summary) or step away, and `/where` when you come back to one.
 
-`/go` starts a fresh subagent for each item of each piece of the spec. `/cycle` starts a reviewer per slice plus two doctrine-compliance passes (backend and frontend), or one reviewer when the change is small, then a fixer per slice, re-reviewers, and one full gate run. That uses plan quota or API spend, and a cycle can take as long as the repo's gate. Which model each kind of subagent runs on is yours to set: see "Subagent models" in `AGENTS.md`.
+`/go` starts a fresh subagent for each item of each piece of the spec, and a critic after each subagent brief, which reruns the builder's tests, format, and lint in a throwaway worktree. Session-built `/go` has no critic. When the repo names a mutation command, `/go` runs it once at the end. `/cycle` starts a reviewer per slice plus two doctrine-compliance passes (backend and frontend), or one reviewer when the change is small, then a fixer per slice with a critic after every fix brief, and re-reviewers. It runs one mutation run per fix round when a command exists, round 0 and the gate-fix round included, and one full gate run. That uses plan quota or API spend, and a cycle can take as long as the repo's gate. Which model each kind of subagent runs on is yours to set: see "Subagent models" in `AGENTS.md`.
 
-At the end, agents that didn't write the work have reviewed it, the work is committed with each round of fixes in a commit of its own, and the repo's gate has run once over the result.
+At the end, agents that didn't write the work (critics for subagent-built `/go` work, then `/cycle`'s reviewers) have checked it, the work is committed with each round of fixes in a commit of its own, and the repo's gate has run once over the result.
 
 ## After a compaction
 

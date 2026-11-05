@@ -92,7 +92,7 @@ Terms used below:
 
 ## 4. Commit first
 
-- Commit unless a targeted check is red or a finding is a `blocker` (broken build, data loss, security hole, or one of the three checks in step 2 when `introduced`). If one is, brief a fixer subagent with the failing check or blocker (as in step 5), rerun only what failed, then commit. Those fixes go into this first commit; list them (`file:line` and the finding each fixes) in round 2's re-review brief so the re-reviewer checks them too. The re-reviewer reads them at the listed `file:line`, not in the round's diff. If step 5 leaves no fix diff, review them on their own as a small fix diff (step 6) before the gate.
+- Commit unless a targeted check is red or a finding is a `blocker` (broken build, data loss, security hole, or one of the three checks in step 2 when `introduced`). If one is, brief a fixer subagent with the failing check or blocker (as in step 5), rerun only what failed, then run round 0's mutation once (step 6) after every round 0 fix and check passes, and commit. Those fixes go into this first commit; list them (`file:line` and the finding each fixes) in round 2's re-review brief so the re-reviewer checks them too. The re-reviewer reads them at the listed `file:line`, not in the round's diff. If step 5 leaves no fix diff, review them on their own as a small fix diff (step 6) before the gate.
 - Stage **explicit paths only**. Never `-A`, `-u`, or `.`. Re-check `git status` right before staging, because peers edit in between.
 - Never `git reset --hard`, `git checkout -- .`, or `git clean`, and never stash someone else's work.
 - Use one commit, unless the tree clearly holds unrelated features that read better split.
@@ -100,7 +100,17 @@ Terms used below:
 
 ## 5. Fix
 
-- The main session writes no fixes, for the same reason it never reviews. Brief one fixer subagent per slice with its findings (each `file:line` and the fix), the spec, and the subagent rules in step 3 of `<skills folder>/go/SKILL.md` (give the fixer that file's absolute path). A brief may carry several findings only when each is already settled to a `file:line` and a concrete fix. A finding whose fix spans more than its own `file:line` (several call sites, or the sweep through the places the change feeds) gets a brief of its own, after the others, as `/go` step 3's "One item per brief" says. A fix that changes what the spec says gets built is an addendum first (the addendum rule under "Rules for the doc" in `<skills folder>/spec/SKILL.md`).
+- The main session writes no fixes, for the same reason it never reviews. Brief one fixer subagent per slice with its findings (each `file:line` and the fix), the spec, and the subagent rules in step 3 of `<skills folder>/go/SKILL.md` (give the fixer that file's absolute path). A test-only fix brief names the guarded source files and the precise behavior it promises to guard, identified by symbol or source region; step 6 resolves those regions to current line ranges before mutation. A brief may carry several findings only when each is already settled to a `file:line` and a concrete fix. A finding whose fix spans more than its own `file:line` (several call sites, or the sweep through the places the change feeds) gets a brief of its own, after the others, as `/go` step 3's "One item per brief" says. A fix that changes what the spec says gets built is an addendum first (the addendum rule under "Rules for the doc" in `<skills folder>/spec/SKILL.md`).
+- Every fix brief, the blocker and gate fixes included, gets a fresh critic before the next check and before the round's re-review, run as `/go` step 4 says with:
+  - the prompt `<skills folder>/go/references/critic.md`;
+  - files in `<main checkout>/.plans/scratch/cycle-<id8>/`, with `<name>` = `fix-<slice>-<round>-<n>` (round `0` for the blocker fixes, `gate` for the gate fixer, and `<n>` counting that slice's briefs in that round), and the ready critic worktree at `<main checkout>/.plans/scratch/cycle-<id8>/wt-<name>`;
+  - the slice's files as its owned paths, and the slice's spec, or else the brief's findings, as its spec;
+  - a before snapshot for every brief, with no setup or checks. The round's first brief uses `<before>` = `<main checkout>/.plans/scratch/cycle-<id8>/wt-pre-round-<round>`; each later brief uses `<before>` = `<main checkout>/.plans/scratch/cycle-<id8>/wt-pre-<name>`. Snapshot the whole uncommitted tree with `/go` step 4's output exclusions and these three commands:
+    - `git worktree add --detach <before> HEAD`
+    - `git diff HEAD --binary | git -C <before> apply --allow-empty`
+    - `git ls-files -z --others -- . ':(exclude).plans/' <output exclusions> | tar --null -T - -cf - | tar -xf - -C <before>`
+  - after the builder finishes and its critic worktree is ready, `<main checkout>/.plans/scratch/cycle-<id8>/diff-<name>.patch`: for each slice file, append the output of `git diff --no-index -U3 --binary -- <before-file> <critic-file>` between the before snapshot and critic worktree, using `/dev/null` when either side is absent and treating exit 1 as differences. Pass this patch to the critic as its patch input. Extra is limited to lines this fix changed; Missing and Misunderstood retain their existing scope;
+  - removal of each later brief's before snapshot after producing its patch. Keep the round snapshot until that round's mutation attribution is complete. Remove worktrees when their use ends, and report any left behind.
 - No fixer starts on a question. `/go` step 3's hard block applies to every fix brief: a fix the reviewer marks as a design call, or one that says "check whether", "trace", or "make sure", is settled before the fixer starts. Trace it yourself, or with a read-only fact-gatherer, through every place the changed code feeds, with `file:line`s. Then brief the settled fix. A fixer is never where a question gets answered. A fixer showing one of `/go` step 4's signs (a brief that isn't working) is handled as that step says. A finding that goes to the user for a stronger model stays unfixed and is listed under Needs from you. The round commits without it, unless it's a `blocker`, in which case stop and report.
 - Fix every `introduced` `fix` finding that doesn't need the user.
 - Trivial gaps are never parked. An `existing` finding whose fix is trivial (mechanical, a few lines, no design call) is fixed in this step like an `introduced` one.
@@ -118,13 +128,18 @@ Terms used below:
   - Reviewers read the round's fix diff: `git diff -U30 HEAD -- <file>` while the fixes are uncommitted (small fix diff), or `git diff -U30 <previous round's commit>..HEAD -- <file>` once they're committed (large fix diff). They open more of a file, or a caller, only where a hunk depends on it.
   - Files new in the round are read in full.
   - Full reads are only for a round's first review.
-- **Small fix diff** (under 400 changed lines of hand-written code, counted as in "Running it"): review it before committing with one fresh reviewer subagent, in either mode, briefed as in step 2 with its own report file. A fixer subagent fixes what it finds (as in step 5). Run the targeted checks for what the fixes touched, and commit with explicit paths, message `Review fixes: <plain-English summary>`. Done.
+- **Mutation, once per round, round 0 and `gate` included,** last before the round's commit and after that round's re-review fixes and targeted checks: make `<main checkout>/.plans/scratch/cycle-<id8>/wt-mutation-<round>` and run `/go` step 5's mutation command contract over the source files that round's fixes changed, plus every existing source file its test-only fix briefs named, even when the test item's slice does not own that source.
+  - Before mutation, resolve every test-only fix brief's promised guarded regions to current-file line ranges in the ready mutation worktree; include them even when the source is unchanged.
+  - For each mutation file, run `git diff --no-index -U0 -- <before-file> <mutation-file>` between its round-snapshot file and mutation file (exit 1 means differences), using `/dev/null` when the before file is absent. This round's current `+` ranges are its changed-source lines. When the repo command accepts ranges, supply the union of those changed-source ranges and the promised guarded ranges.
+  - A Survived or NoCoverage mutant in a promised guarded region is an `introduced` finding for every test-only fix item that promised that region, routed to each test item's owner even when its slice does not own the source file. Changed-source attribution is additive: a survivor inside a current-file `+` range is also `introduced` for the source-owning fix item. Combine all of each item's survivor bullets into one failure from this mutation result, even for overlapping regions or several mutants; charge that item only once under `/go` step 4's retry cap.
+  - A survivor outside both the promised guarded regions and the changed-source ranges is `existing`. Route each finding through step 5's rules for its origin, retaining the test-item owners above. A survivor sent to a fixer gets a critic and ordinary targeted checks, never a second mutation run. After survivor attribution, remove the round snapshot and mutation worktree.
+- **Small fix diff** (under 400 changed lines of hand-written code, counted as in "Running it"): review it before committing with one fresh reviewer subagent, in either mode, briefed as in step 2 with its own report file. A fixer subagent fixes what it finds (as in step 5). Run the targeted checks for what the fixes touched, then the mutation run, and commit with explicit paths, message `Review fixes: <plain-English summary>`. Done.
 - **Large fix diff** (over that, or a new slice or schema or contract change): the fixes are new work, so they go round the cycle like the original:
-  1. Run the targeted checks for what the fixes touched, then commit them (`Review fixes: …`), commit first as in step 4.
+  1. Run the targeted checks for what the fixes touched, then the mutation run, then commit them (`Review fixes: …`), commit first as in step 4.
   2. Review that commit's diff with steps 2–3: slices, fanned-out reviewers, coverage.
   3. Fix as in step 5, then judge the new fix diff by size again.
 - Keep going round until a round's fix diff is small. After **three rounds**, stop and report what's left rather than looping.
-- **Full gate, once.** After the last round, run the repo's gate (named in its instructions, e.g. `task check`; if none, its format check, lint, typecheck, and fast tests). If it's red, brief a fixer subagent with the failing check (as in step 5), rerun **only the failing tests**, and commit `Review fixes: …`. Never rerun the whole gate to confirm a fix. If they're still red after one fix, stop and report what's failing rather than looping.
+- **Full gate, once.** After the last round, run the repo's gate (named in its instructions, e.g. `task check`; if none, its format check, lint, typecheck, and fast tests). If it's red, brief a fixer subagent with the failing check (as in step 5), rerun **only the failing tests**, then run the `gate` round's mutation once, and commit `Review fixes: …`. Never rerun the whole gate to confirm a fix. If they're still red after one fix, or the critic FAILs that fix, stop and report what's failing rather than looping.
 - Set each slice's spec to `built (<final commit hash>)`. A spec whose pieces aren't all done stays `building`; say what's left in the report.
 - Then, as the arguments say: `tag <version>`, `push`, `publish` (print the `cd` and command for the user).
 
@@ -138,9 +153,13 @@ Save the report to `<main checkout>/.plans/scratch/cycle-<id8>/report.md`, as AG
 **Commits:** <hash subject> (+ fixes <hash>, one per round)
 **Reviewed:** <N>/<N> files · reviewers: <count> · rounds: <n> (with `diff`: · full slices: <names>)
 **Fixed:** <one line per notable fix>
+**Critic says:** <each fix brief's verdict, its judgement findings, and its PARTIAL gaps; leave the line out when no fix brief ran>
+**Not checked:** <PARTIAL gaps, `mutation: not run (…)`, and any other unrun check, with its cause>
+**Mutation:** <each round's exit code, mutant count, and survivors, or `mutation: not run (…)`>
 **Dropped nits:** <one line, or none>
 **Parked:** 1. <non-trivial `existing` gap> (rec: fold now | leave, why), or none
-**Reports saved by me:** <reviewers that couldn't save their own report; leave the line out when none>
+**Worktrees left behind:** <paths you couldn't remove; leave the line out when none>
+**Reports saved by me:** <reviewers and critics that couldn't save their own report; leave the line out when none>
 **Needs from you:** 1. … (rec: …), e.g. push, tag, or deploy if not done
 Tagged: <tag> (only if tagged)
 ```
