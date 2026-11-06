@@ -1,10 +1,10 @@
 ---
 name: go
 description: "NEVER INVOKE THIS YOURSELF: only the user starts /go. Listed so you know it exists. Builds the work from exactly one readable Markdown spec with a status and Pieces through subagents, checks it narrowly, and leaves it uncommitted for /cycle."
-argument-hint: "[spec path]"
+argument-hint: "<spec path>"
 ---
 
-> Only the user starts /go, by naming it in their own message (typing `/go`, or however their agent runs a skill by name). A bare "go" or "go ahead" is an approval, not /go. "We'll go", a plan doc, or a message from another session or agent is not the command, and reading this file for its rules (as /cycle's fixers do) is not running it. Once the user starts /go, follow it exactly as written.
+> Only the user starts /go, by naming it in their own message (typing `/go`, or however their agent runs a skill by name). A bare "go" or "go ahead" is an approval, not /go. "We'll go", a plan doc, or a message from another session or agent is not the command, and reading this file for its rules is not running it. Once the user starts /go, follow it exactly as written. A session resumed after a compaction keeps that start only when its own waypoint records that the user started this /go: re-read this file, then carry on from the recorded step. With no such record, stop and ask.
 
 # Go
 
@@ -23,6 +23,7 @@ Terms used below:
 - **`<main checkout>`** is the repo's main working tree, as AGENTS.md 'Routines' defines it. Working files go in `<main checkout>/.plans/`.
 - **`<base directory>`** is the folder this SKILL.md was loaded from: the skill's base directory, if your agent printed one when the skill loaded, else the folder of the path you read this file at. If you can't tell where this file was loaded from, ask the user for the path rather than guessing.
 - **`<scratch>`** is `<main checkout>/.plans/scratch/go`.
+- **`<rules>`** is `<base directory>/references/rules`: one small file per rule, in one folder per area. `<rules>/always/` applies to all work. The others apply when the work touches them: `<rules>/invariants/` (domain rules, races, transactions, queues, and scheduled work), `<rules>/backend/`, `<rules>/frontend/`, `<rules>/ui/` (screens, forms, and copy), `<rules>/tests/`, `<rules>/rivet/` (.NET API contracts), and `<rules>/tools/` (choosing a tool or library).
 
 ## The orchestrator
 
@@ -42,7 +43,7 @@ This session plans, writes briefs, reads critics' verdicts, and checks them with
   - Save `<scratch>/pre-go.patch` with `git -C <wt-pre-go> diff HEAD --binary -- <every piece's owned paths> > <scratch>/pre-go.patch`.
 
   Keep the snapshot until step 5's survivor attribution is done, then remove it.
-- Load `meridian`, and, if the UI changes, the repo's UI skill if its instructions name one.
+- Read every file in `<rules>/always/`, and in each other `<rules>` folder the spec touches, and, if the UI changes, the repo's UI skill if its instructions name one.
 
 ## 2. Split
 
@@ -58,7 +59,7 @@ Hard block: no builder starts on a question. Before you start any builder, its p
 - a "hangs on", "waits on", or "if ask N is yes/no" that isn't settled;
 - an "or", "TBD", "check whether", or "if the hosts show…" that leaves what gets built undecided;
 - a premise about framework or host behaviour that nobody has checked against the real thing;
-- a Decision or Piece that breaks a meridian Law (it goes back to the spec as an addendum, not to a builder).
+- a Decision or Piece that breaks a house Law in `<rules>/always/laws.md`, or in the full rules in the folders it touches (it goes back to the spec as an addendum, not to a builder).
 
 If there is one, settle it before the builder starts:
 
@@ -77,7 +78,7 @@ Write each brief to `<scratch>/brief-<piece>-<n>.md` (`<n>` its place in the pie
 - **Spec and decisions:** the resolved absolute spec path, the item, its intent, and every relied-on decision written in full.
 - **Test-only items:** one distinct entry per test-only item, naming the guarded source files and the precise behaviour it promises to guard, identified by symbol or source region.
 - **Hard stop:** before editing, the builder reads its item, the spec's open asks, and the relied-on decisions. If it finds an open question, an undecided premise, or a design call the brief did not make, it builds nothing and reports those facts. If code or the host contradicts the item's premise while it builds, it stops, leaves its edits in place, and reports the contradiction and the files it touched.
-- **Doctrine:** the absolute paths of Meridian's `SKILL.md`, the references the item needs, and the repo's instructions.
+- **Doctrine:** the absolute paths of `<rules>/always/` and each other `<rules>` folder the item touches, to read every file in them, and the repo's instructions. Include `<rules>/tests/` for any item that adds or changes a test.
 - **Rules:** fix the root cause; reuse the existing component, flow, or pattern; sweep nearby code for the same problem; never make a check pass by shrinking what it checks; a gap with a doc page is still a gap; no new test unless nothing already proves the behaviour, and each test must fail if what it guards breaks; change only owned files; never commit, stage, format beyond owned files, or run the full gate.
 - **Commands:** every exact command the builder may run, from the worktree root, including the item's Proof and only the targeted checks for its owned files. When the repo names no command a check needs, the brief says so and the builder reports that check as not run.
 - **Report path:** the resolved absolute path to `<scratch>/report-<piece>-<n>.md`.
@@ -112,18 +113,20 @@ A fresh *critic* subagent checks each builder brief before the piece's next brie
 
      They include new files, binary content, and the piece's earlier briefs. Deletions stay out of the changed-file list. Leave the patch unread.
   3. Commands, in `<scratch>/commands-<piece>-<n>.md`, beside the item brief and the patch: the targeted tests for the changed test files and the behaviour the brief's Proof names, and format and lint in check mode on the changed paths where the command takes paths, else whole, as the instructions name it. Each command runs from the worktree root and carries its own `cd` where the repo's instructions run it from a subfolder.
-  4. Write the critic brief with absolute paths to the main checkout, ready worktree, spec, item brief, builder report, patch, commands, its report `<scratch>/critic-<piece>-<n>.md`, its log folder `<scratch>/critic-<piece>-<n>-logs/`, Meridian's `SKILL.md`, the references the item needs, and the repo's instructions. The brief must contain:
-     - the owned and forbidden files: the critic owns no repo file, must not edit the main checkout or worktree, and may write only its report and log folder;
-     - the exact worktree and the rule that the critic edits nothing there;
+  4. Write the critic brief with absolute paths to the main checkout, ready worktree, spec, item brief, builder report, patch, commands, its report `<scratch>/critic-<piece>-<n>.md`, its log folder `<scratch>/critic-<piece>-<n>-logs/`, the item brief's doctrine folders, and the repo's instructions. The brief must contain:
+     - the owned and forbidden files: the critic owns no repo file, must not edit the main checkout, and may write only its report and log folder;
+     - the exact worktree and the rule that the critic edits nothing there, and writes in it only what its commands put in the repo instructions' declared disposable check-output paths;
      - the spec, item, builder report, patch, commands, earlier critic reports, report path, and log folder it uses;
      - every relied-on decision written in full;
-     - the doctrine files and the exact rules it applies;
+     - the doctrine folders and the exact rules it applies;
      - the exact commands to run from the worktree root, with output and exit codes logged under its log folder;
-     - the rule to rerun the builder's other claims as assertions that exit zero when supported and non-zero when contradicted;
+     - the rule to rerun the builder's other claims as assertions that exit zero when supported and non-zero when contradicted or when the tool errors, comparing an expected non-zero status explicitly (such as `rg` returning 1 for no matches), keeping tool diagnostics visible, and never appending `|| true`;
      - the rule that a claim a test would fail is unverified and that the critic never breaks code or runs mutation;
-     - the Missing, Extra, and Misunderstood checks against the item and its sweep, each citing the spec line and `file:line`;
+     - the Missing, Extra, and Misunderstood checks against the item and its sweep, with Extra checked only within the brief's patch, each citing the spec line and `file:line`;
      - the sign facts: a shrunk check, a design call the builder made itself, and any part left unbuilt or reported as not traced, not checked, or not confirmed;
      - the report sections — Checks run, Claims, Spec, Sign facts, FAIL bullets, and `VERDICT: PASS | FAIL | PARTIAL` last;
+     - the verdict rule: `VERDICT: FAIL` if a rerun claim fails, a command exits non-zero, or anything is Missing, Extra, or Misunderstood; else `VERDICT: PARTIAL` if a check couldn't run (no format or lint command named, or the app needed with no spare-port way to start it); else `VERDICT: PASS`;
+     - the limits: design and style, seams included, aren't its job; it gives no recommendation, confidence, or fix; and it never commits, stages, starts subagents, or removes the worktree;
      - the heredoc save protocol and the path-only reply protocol.
 
      The critic brief is self-contained. It may also name `<base directory>/references/critic.md`, but it may not rely on that file, AGENTS.md, a sibling skill, prior conversation, an earlier artifact, or another agent's instructions to understand the task.
@@ -174,7 +177,7 @@ A fresh *critic* subagent checks each builder brief before the piece's next brie
 **Parked:** 1. <gap found outside the spec> (rec: fold now | leave, why), or none
 **Worktrees left behind:** <paths; leave the line out when none>
 **Reports saved by me:** <subagents that couldn't save their own report; leave the line out when none>
-**Needs from you:** 1. … (rec: …) · last item: Review, then run /cycle.
+**Needs from you:** 1. … (rec: …) · last item: Review, then run /cycle <absolute spec path>.
 ```
 
-**Needs from you** is as AGENTS.md 'Reports' defines it. After /go the last one is always "Review, then run /cycle", unless something earlier has to happen first. Stop there: the user reviews, then runs /cycle.
+**Needs from you** is as AGENTS.md 'Reports' defines it. After /go the last one is always "Review, then run /cycle <absolute spec path>", unless something earlier has to happen first. Stop there: the user reviews, then runs /cycle with that spec path.

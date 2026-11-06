@@ -45,7 +45,7 @@ Use strategic DDD to discover boundaries and language: bounded contexts,
 context maps, published language, customer/supplier relationships,
 anti-corruption layers, and shared kernels. Use tactical DDD — aggregates,
 entities, value objects, domain services, specifications — only where domain
-complexity earns it. Meridian is not an anemic-domain rule and not DDD purity.
+complexity earns it. House doctrine is not an anemic-domain rule and not DDD purity.
 
 ### When CA is warranted inside a module
 
@@ -416,7 +416,7 @@ furniture. Domain decisions with a closed set of meaningful outcomes should
 return domain-specific result records or sealed outcome types so callers can
 handle them explicitly. Do not hand-roll a generic Result library per repo.
 
-A decider's refusal (`invariants-and-concurrency.md`, Deciders) is such a closed
+A decider's refusal (Invariant Enforcement, Deciders) is such a closed
 domain outcome. Each decider has one mapping from refusal to declared failure,
 which owns the error codes and wording, and every use case goes through it. Do not
 construct the failure for a refusal at the call site.
@@ -574,9 +574,9 @@ root — but each module owns its entities' mapping:
 
 ## Consistency, Concurrency, and Events
 
-`invariants-and-concurrency.md` is authoritative for invariant enforcement,
-concurrency admission, escalation, proof, locks, queues, workflows, and outboxes.
-Apply it before selecting persistence or messaging infrastructure.
+Invariant Enforcement and Concurrency Review are authoritative for invariant
+enforcement, concurrency admission, escalation, proof, locks, queues, workflows,
+and outboxes. Apply them before selecting persistence or messaging infrastructure.
 
 Backend placement consequences:
 

@@ -1,6 +1,6 @@
 ---
 name: spec
-description: Turn the agreed work into the active spec at <main checkout>/.plans/spec.md that /go builds from and /cycle reviews against. Use when the user runs /spec or asks for a spec of the work. Takes no arguments and writes no code.
+description: Turn the agreed work into a deterministic named spec at <main checkout>/.plans/spec-<slug>.md that /go builds from and /cycle reviews against. Use when the user runs /spec or asks for a spec of the work. Takes no arguments and writes no code.
 ---
 
 # Spec
@@ -9,17 +9,32 @@ description: Turn the agreed work into the active spec at <main checkout>/.plans
 
 A spec is the one place the agreed work lives: `/go` builds from it without re-asking, and `/cycle` reviews the diff against it. `/spec` writes that document and nothing else. It never edits code, runs builds or the gate, or commits.
 
-The active spec is `<main checkout>/.plans/spec.md`. Its premise report is `<main checkout>/.plans/scratch/spec/premise.md`, and its cold-read report is `<main checkout>/.plans/scratch/spec/cold-read.md`.
+The spec is `<main checkout>/.plans/spec-<slug>.md`. Its premise report is `<main checkout>/.plans/scratch/<spec stem>/premise.md`, and its cold-read report is `<main checkout>/.plans/scratch/<spec stem>/cold-read.md`. The spec stem is the spec filename without `.md`, including any numeric suffix.
 
 AGENTS.md is the workflow-skills shared rules file your agent loads as its rules, not the repo's own AGENTS.md.
 
 Working files go in `<main checkout>/.plans/`, as AGENTS.md 'Routines' defines it.
 
-## 1. Manage the active spec
+`<base directory>` is the folder this `SKILL.md` was loaded from: the skill's base directory, if your agent printed one when the skill loaded, else the folder of the path you read this file at. If you can't tell where this file was loaded from, ask the user for the path rather than guessing.
 
-Read `<main checkout>/.plans/spec.md` before gathering. If it does not exist, this run creates it.
+`<rules>` is `<base directory>/references/rules`: one small file per rule, in one folder per area. `<rules>/always/` applies to all work. The others apply when the work touches them: `<rules>/invariants/` (domain rules, races, transactions, queues, and scheduled work), `<rules>/backend/`, `<rules>/frontend/`, `<rules>/ui/` (screens, forms, and copy), `<rules>/tests/`, `<rules>/rivet/` (.NET API contracts), and `<rules>/tools/` (choosing a tool or library).
 
-For an existing file, parse:
+## 1. Gather
+
+- Find the intent in this conversation, the user's answers, and any document, backlog, or waypoint the work names.
+- Read every file in `<rules>/always/`, and in each other `<rules>` folder the work touches.
+
+## 2. Choose and manage the named spec
+
+After gathering, derive the title identity and slug from the agreed title. If gathering did not settle a title, ask for one before choosing a file.
+
+To derive the title identity, normalize the title to Unicode NFC, lowercase it, replace every character that is neither a Unicode letter nor a Unicode digit with a hyphen, collapse hyphen runs, and trim boundary hyphens. An empty title identity stops the routine and asks for a title that can form a slug.
+
+To derive the slug, truncate the title identity to 48 characters, cutting at the last hyphen inside that range when one exists, then trim any trailing hyphen.
+
+Examine candidates in order as `<main checkout>/.plans/spec-<slug>.md`, `<main checkout>/.plans/spec-<slug>-2.md`, `<main checkout>/.plans/spec-<slug>-3.md`, and so on. Stop at an existing candidate that is unreadable or has no readable title. If an existing candidate's title identity matches, use that candidate. Otherwise use the first missing candidate.
+
+For a matching existing candidate, parse:
 
 - the title from the first `# Spec: <title>` heading;
 - the status from the `**Status:**` line, which must be `draft`, `agreed`, `building`, or `built (<hash>)`;
@@ -27,26 +42,22 @@ For an existing file, parse:
 
 Then apply the status rule:
 
-- `draft` or `agreed`: update the spec in place.
-- `building`: ask the user to continue it or replace it. Continuing updates that same spec in place and preserves `building`. Replacing overwrites it and sets `Supersedes: <previous title> (<previous HEAD>)`.
-- `built (<hash>)`: ask the user only whether to replace it. Replacing overwrites it and sets `Supersedes: <previous title> (<previous HEAD>)`.
-- An unreadable file, an unrecognized status, a missing or unreadable title, or a missing or unreadable HEAD stops the routine. Ask the user to repair the file or replace it.
-
-## 2. Gather
-
-- Find the intent in this conversation, the user's answers, and any document, backlog, or waypoint the work names.
-- Load `meridian` and read the references the work touches.
+- A new spec is draft or agreed, according to whether any ask is open.
+- A draft or agreed named spec is updated in place.
+- A building named spec asks the user to continue or replace it; continue updates the same file and preserves `building`, while replace overwrites that exact file and records `Supersedes: <previous title> (<previous HEAD>)`.
+- A built named spec asks the user only whether to replace it. Replace overwrites that exact file and records `Supersedes: <previous title> (<previous HEAD>)`.
+- An unreadable file, an unrecognized status, an unreadable title, or an unreadable HEAD stops the routine. Ask the user to repair the file or replace it.
 
 ## 3. Check the premise against HEAD
 
-When you can start subagents, a fresh fact-gatherer does the reading. Before writing its brief, resolve `<main checkout>`, the report path, the source paths, the repo's instructions, and every Meridian file to absolute paths. The brief must contain all of these and every rule the fact-gatherer relies on:
+When you can start subagents, a fresh fact-gatherer does the reading. Before writing its brief, resolve `<main checkout>`, the report path, the source paths, the repo's instructions, and the doctrine folders to absolute paths. The brief must contain all of these and every rule the fact-gatherer relies on:
 
 - **Main checkout:** the resolved absolute main working tree.
 - **Scope:** read the ask and the source files the work touches; never edit code, run builds, run the gate, or commit.
 - **Source paths:** the exact absolute files to read.
-- **Doctrine:** the absolute paths of Meridian's `SKILL.md`, the references the work touches, and the repo's instructions.
+- **Doctrine:** the absolute paths of `<rules>/always/` and each other `<rules>` folder the work touches, to read every file in them, and the repo's instructions.
 - **Rules:** report facts with `file:line` and the short SHA; facts come from files, not memory; for any code the work skips, replaces, or changes, record everything that code does today; trace any feature, gate, or tool the work relies on from input to output; report facts only, with no recommendation, option, confidence, or ask.
-- **Report path:** the resolved absolute path to `<main checkout>/.plans/scratch/spec/premise.md`.
+- **Report path:** the resolved absolute path to `<main checkout>/.plans/scratch/<spec stem>/premise.md`.
 - **Save protocol:** save the report with a shell heredoc, `cat > <path> <<'EOF'` … `EOF`, not a file-writing tool; if saving is refused, reply with the whole report.
 - **Reply protocol:** reply with only the report path.
 
@@ -65,11 +76,11 @@ The premise check must:
 
 ## 4. Write the spec
 
-Write the active spec at `<main checkout>/.plans/spec.md`. Use this shape. Leave out a section that would be empty, except Open asks and Out of scope, which say "none".
+Write the chosen candidate at its resolved absolute path. Use this shape. Leave out a section that would be empty, except Open asks and Out of scope, which say "none".
 
 - `<session name>` is this session's own name, if you can find it; otherwise leave the Session field out.
 - `<name>` in a decision is the user, by their real name: from the conversation, else `git config user.name`.
-- `<previous title> (<previous HEAD>)` is the value derived in step 1 when this run replaces an existing spec; otherwise `Supersedes:` is `none`.
+- `<previous title> (<previous HEAD>)` is the value derived in step 2 when this run replaces an existing spec; otherwise `Supersedes:` is `none`.
 
 ```markdown
 # Spec: <title>
@@ -126,21 +137,21 @@ Rules for the doc:
 - Anything that comes up after the spec is agreed is an addendum, whoever finds it. It gets the same premise check as a piece and a cold read of its own. One that holds a decision waits for the user's answer. Nothing in an addendum is built until then.
 - One `/go` per spec, with as few pieces as the files allow. Work that ships together stays in one spec. Fold pieces that share files, or that exist only for each other, into one piece.
 - A shared change applied in three or more places starts with a tracer bullet: the shared change plus one consumer, built end to end first. Pieces applying it elsewhere name that tracer in `after:`.
-- Check every Decision and Piece against Meridian's Laws. A design that breaks one is not an option: change the design. If no design inside the Laws does the job, report that as a finding for the user, naming the Law.
+- Check every Decision and Piece against the house Laws in `<rules>/always/laws.md`, and the full rules behind them in the folders the work touches. A design that breaks one is not an option: change the design. If no design inside the Laws does the job, report that as a finding for the user, naming the Law.
 - No runbooks or long scripts inline. Link to a file in `<main checkout>/.plans/scratch/` instead.
 - Plain English; gloss jargon on first use.
 
 ## 5. Cold read
 
-Start one fresh cold-reader subagent whenever subagents are available. Before writing its brief, resolve `<main checkout>`, the spec path, the report path, the repo's instructions, and every Meridian file to absolute paths. The brief must contain all of these and every rule the cold reader relies on:
+Start one fresh cold-reader subagent whenever subagents are available. Before writing its brief, resolve `<main checkout>`, the spec path, the report path, the repo's instructions, and the doctrine folders to absolute paths. The brief must contain all of these and every rule the cold reader relies on:
 
 - **Main checkout:** the resolved absolute main working tree.
-- **Spec:** the resolved absolute path to the active spec.
+- **Spec:** the resolved absolute path to the chosen named spec.
 - **Source paths:** every source file the spec cites that the cold reader must read.
-- **Doctrine:** the absolute paths of Meridian's `SKILL.md`, the references the spec names, and the repo's instructions.
+- **Doctrine:** the absolute paths of `<rules>/always/` and each other `<rules>` folder the spec touches, to read every file in them, and the repo's instructions.
 - **Scope:** read the spec and its cited files; never edit code, run builds, run the gate, or commit.
-- **Rules:** list anything that could not be built without asking; any `file:line` that does not say what the spec claims; any two pieces that touch the same file; any decision restated or contradicted in the body; any existing code the spec skips, replaces, or changes without listing everything that code does; any Done-means check that cannot be run as written; any ambiguous source the spec cites; any missing tracer bullet; and any Decision or Piece that breaks a Meridian Law, naming the Law. Report facts and findings only, with no recommendation, option, confidence, or ask.
-- **Report path:** the resolved absolute path to `<main checkout>/.plans/scratch/spec/cold-read.md`.
+- **Rules:** list anything that could not be built without asking; any `file:line` that does not say what the spec claims; any two pieces that touch the same file; any decision restated or contradicted in the body; any existing code the spec skips, replaces, or changes without listing everything that code does; any Done-means check that cannot be run as written; any ambiguous source the spec cites; any missing tracer bullet; and any Decision or Piece that breaks a house Law in those folders, naming the Law. Report facts and findings only, with no recommendation, option, confidence, or ask.
+- **Report path:** the resolved absolute path to `<main checkout>/.plans/scratch/<spec stem>/cold-read.md`.
 - **Save protocol:** save the report with a shell heredoc, `cat > <path> <<'EOF'` … `EOF`, not a file-writing tool; if saving is refused, reply with the whole list.
 - **Reply protocol:** reply with only the report path.
 
@@ -163,4 +174,4 @@ A draft that changes in substance after its cold read gets the changed parts col
 
 **Needs from you** follows AGENTS.md 'Reports'.
 
-When the user answers, update the active spec in place: the decision, its date, and the status.
+When the user answers, update the chosen named spec in place: the decision, its date, and the status.

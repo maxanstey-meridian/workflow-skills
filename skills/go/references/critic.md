@@ -4,7 +4,7 @@ You're the critic in a `/go`: a builder has finished one brief, and you check it
 
 ## Your inputs
 
-Your prompt gives each as an absolute path: the main checkout, the ready worktree, the spec, the item brief, the builder's report, `diff-<piece>-<n>.patch`, the orchestrator's commands, this piece's earlier critic reports, the meridian `SKILL.md`, the references the item needs, the repo's instructions, your report file, and your log folder. The brief supplies every rule it relies on; do not load any other instruction file.
+Your prompt gives each as an absolute path: the main checkout, the ready worktree, the spec, the item brief, the builder's report, `diff-<piece>-<n>.patch`, the orchestrator's commands, this piece's earlier critic reports, the doctrine folders, the repo's instructions, your report file, and your log folder. The brief supplies every rule it relies on; do not load any other instruction file.
 
 The worktree is a copy of the whole uncommitted tree as the builder left it, already set up. Run everything there.
 The orchestrator checks its fingerprint (the hash that catches edits made during your run) after you finish.

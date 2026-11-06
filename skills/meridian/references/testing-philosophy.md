@@ -229,12 +229,12 @@ middle.
 
 Tests themselves are exempt from production-code rules (layer purity, module shape,
 .NET style):
-test code can import whatever it needs; it is judged by this file's standards
+test code can import whatever it needs; it is judged by the testing rules' standards
 (double vocabulary, mock density, location), not by production-code rules.
 
 ## Concurrency Proof
 
-`invariants-and-concurrency.md` owns concurrency admission and escalation. Tests
+Concurrency Review owns concurrency admission and escalation. Tests
 must prove the invariant and concrete interleaving at the real arbitration
 boundary rather than merely verify calls to a lock, repository, or queue.
 
@@ -272,19 +272,19 @@ cover the substituted adapter. State that scope honestly. Verifying only the
 double's calls, rather than an observable result or state transition, usually
 manufactures confidence.
 
-The rule is AGENTS.md's 'A check that can't fail is a defect'; here it means compare a check's result with something the code under test didn't produce.
+The rule is the workflow-skills shared rules' (AGENTS.md) 'A check that can't fail is a defect'; here it means compare a check's result with something the code under test didn't produce.
 
 ## Tests State Intent
 
 A test asserts the behaviour the product intends, even when today's code fails
 it. A test written to match a known gap hides the gap: when a test reaches one,
 assert the correct behaviour, report the red step, and handle the gap as
-AGENTS.md 'Gaps get fixed' says. If the gap is parked rather than fixed in the
+the workflow-skills shared rules (AGENTS.md), 'Gaps get fixed', say. If the gap is parked rather than fixed in the
 work, mark the test as an expected failure that names the park (Playwright's
 `test.fail()`, or the framework's equivalent; a skip isn't one, because it
 asserts nothing), so the suite goes red the day the gap is fixed and the mark
-comes off. Weakening the assertion instead is AGENTS.md's 'Never make a check
-pass by shrinking what it checks'.
+comes off. Weakening the assertion instead breaks the same rules' 'Never make a
+check pass by shrinking what it checks'.
 
 In an end-to-end run, a fake adapter's failure modes are reached through agreed
 trigger values in the fake (a postcode that always means "no results", another

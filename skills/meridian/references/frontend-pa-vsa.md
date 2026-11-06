@@ -331,7 +331,7 @@ Why:
 
 Use typed provide/inject helpers based on Vue `InjectionKey` and VueUse local injection.
 
-This is the canonical Meridian frontend port pattern. The exported pair must be named
+This is the canonical frontend port pattern. The exported pair must be named
 `injectX` first and `provideX` second:
 
 ```ts

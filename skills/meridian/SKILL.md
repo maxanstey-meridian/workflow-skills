@@ -55,39 +55,52 @@ Each rule below is a one-line summary; its reference file is the authority.
 
 ### Laws
 
+Each line is a summary; the section named in brackets states the rule in full.
+
 - a gap with a doc page is still a gap: a known defect, an unchecked promise or
   a path that only works "because nothing does X today" gets fixed, not written
   up; refusing valid input is not a fix; `Accepts` holds deliberate trade-offs
-  only
+  only [Root Cause]
 - model the invariant before choosing enforcement or concurrency; the domain,
-  not a caller, decides what the invariant is
+  not a caller, decides what the invariant is [Invariant Enforcement]
 - declared failures are results; undeclared failures are exceptions
+  [Coding Style Rules]
 - callers never re-derive a server rule: a UI reads the read model's
   `availableActions`, capabilities or named flag; a second use case calls the
-  same decision
+  same decision [Logic]
 - modules integrate through consumer-owned required ports, provider-owned
   published contracts, or a deliberately shared kernel; Domain never consumes
-  a sibling's published contract
+  a sibling's published contract [Non-Negotiable Dependency Rules]
 - the API is not the information architecture: UI language and ordering follow
   the user's journey and desired outcomes, not transport models, backend
-  operations, configuration variants, or implementation sequence
+  operations, configuration variants, or implementation sequence [Core Law]
 - provide implementations, not projections: a page that needs more of a
   capability widens its port; it doesn't unpack it, repack it, or add getters
-  to hand out pieces
+  to hand out pieces [Adapters]
 - frontend composition happens only in Nuxt shells: `app.vue`, layouts, and
   pages provide capabilities/contexts with `provideX`; components and
   composables only inject them with `injectX`
+  [Nuxt Shells As Composition Roots]
 - adapter integration tests run on the production database engine — EF
   InMemory is banned (a fake engine manufactures confidence); fake the port
-  when the adapter is not under test
+  when the adapter is not under test [Test Substrate]
 - do not hand-roll commodity infrastructure, protocols, or dev tooling when a
   suitable maintained framework, library, official SDK, or generated client
   exists; custom machinery carries the same burden of proof as a new dependency
+  [Use Libraries Before Building Machinery]
+- in TypeScript app code, Vue template expressions included, no type assertions
+  or non-null assertions [Type Safety (All Stacks)]
+- no check-then-write as the final correctness mechanism, no coordination
+  machinery for a race that is merely conceivable, no hand-rolled locks or
+  outboxes, no blind retries, and no outbox unless atomic state-plus-message
+  publication is the invariant [Laws]
 
 A Law beats any spec or plan Decision: when a design and a Law conflict, the
 design changes, and a Decision that breaks one is a defect, not a choice.
 
 ### Defaults
+
+Each line is a summary of a rule in its own section.
 
 - prefer explicit, honest boundaries
 - ask users for decisions they understand; progressively disclose the mechanism
@@ -134,14 +147,12 @@ error-level findings:
 If the repo uses Plumb but it won't run, say so in your report rather than
 skipping the check silently. Setup is in its README.
 
-Each finding's `docRef` (for example `testing-philosophy.md#test-doubles`)
-names a file in this skill's `references/` folder and the heading it enforces;
-read that section before fixing. Fix `error` findings unprompted. For `warn`
-findings, fix them or state the exception that applies. Do not re-run Plumb in
-a loop on a repo you have not changed.
+Each finding's `docRef` (a file name, `#`, and a heading slug) names the heading
+it enforces; read the rule section with that heading before fixing. Fix `error`
+findings unprompted. For `warn` findings, fix them or state the exception that
+applies. Do not re-run Plumb in a loop on a repo you have not changed.
 
-Plumb's findings are the floor, not the review. When the user names this skill
-for a task, apply its doctrine to the work itself; a clean Plumb run is not a
+Plumb's findings are the floor, not the review. A clean Plumb run is not a
 review.
 
 ## Notes
@@ -149,3 +160,4 @@ review.
 - For backend/frontend structure, do not restate generic clean architecture from scratch; use the Meridian references directly.
 - For testing and coding questions, prefer the doctrine here over generic framework advice.
 - AGENTS.md is the workflow-skills shared rules file your agent loads as its rules, not the repo's own AGENTS.md.
+- The routines carry generated copies of these rules, section by section. After editing this file's Laws, Defaults, Preferences, or Mechanical Checking, or a reference, run `sh scripts/build-doctrine.sh` in the workflow-skills repo.

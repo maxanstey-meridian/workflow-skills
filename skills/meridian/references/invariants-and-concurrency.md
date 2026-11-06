@@ -82,7 +82,7 @@ public static class RecordLifecycle
   in the organisation's time zone) from the one clock every caller uses, not a
   UTC date cut from `now`.
 - The refusal is a closed domain value, not an exception. The use case maps it
-  once to the declared failure (`backend-pa-vsa.md`, Results vs exceptions).
+  once to the declared failure (the backend Coding Style Rules, Results vs exceptions).
 - Every use case for those actions guards with `Refusal`. The read side projects
   `Available` as `availableActions` on the entity's detail read model, so no
   caller re-derives the rule.
@@ -232,7 +232,7 @@ as its heading, then its fields:
 - `Accepts` is what stops a later change from "fixing" a deliberate cost. Omit it
   when the rule has none. It holds trade-offs chosen over a working alternative,
   never known defects or unchecked promises: a gap with a doc page is still a
-  gap (`coding-philosophy.md`, Root Cause).
+  gap (Root Cause).
 - `Owner` names the authoritative boundary from Invariant Enforcement, not every
   caller on the path.
 - Before writing `Owner` or `Proof`, open both and confirm the proof would fail if

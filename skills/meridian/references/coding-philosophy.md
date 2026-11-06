@@ -23,7 +23,7 @@ The job is to make:
 
 ## Rule Strength
 
-Every Meridian statement belongs to one of four strengths:
+Every house doctrine statement belongs to one of four strengths:
 
 - **Law** — protects correctness, ownership, or dependency direction; a
   violation is a bug. If valid context contradicts it, the statement was a
@@ -46,7 +46,7 @@ Defaults unless the item states a hard boundary:
   `sealed record` (C#), object spread, and pure functions. Behavioral entities
   are correct when their methods protect lifecycle invariants; inheritance-heavy
   domain models are not. For the enforcement ladder and concurrency admission
-  policy, read `invariants-and-concurrency.md`.
+  policy, read Invariant Enforcement and Concurrency Review.
 - **Minimal dependencies** — every package must earn its place. The absence of a dependency is a feature, not a gap.
 - **Let patterns prove themselves** — prefer duplication over premature extraction. Three similar lines beats a premature helper. Extract when the pattern is real, not when it first appears.
 - **Readability over abstraction** — procedural scripts that read top-to-bottom beat clever composition. A reader should understand each line without holding the abstraction in their head.
@@ -86,7 +86,7 @@ Before writing custom machinery:
 The application still owns its product rules, capability contracts, idempotency
 semantics, transaction boundaries, failure interpretation, and orchestration.
 The database or established library owns concurrency arbitration and atomic
-persistence mechanics; `invariants-and-concurrency.md` defines that boundary.
+persistence mechanics; Invariant Enforcement defines that boundary.
 The library owns commodity protocol and runtime mechanics. Do not fork an SDK's
 job into application code, and do not wrap a library one-for-one merely to hide
 that it is a dependency.
@@ -156,7 +156,7 @@ issue", a README caveat or a code comment never stands in for a fix.
   it is a gap.
 - A doc may say a gap exists only while a tracked fix for it is open, and names
   that fix.
-- What to do with one: AGENTS.md, 'Gaps get fixed'.
+- What to do with one: the workflow-skills shared rules (AGENTS.md), 'Gaps get fixed'.
 
 ## Local Before Shared
 
@@ -262,7 +262,7 @@ introduce the capability without a requirement.
   activation, inbox/outbox, and transport. It is not the default in-process
   mediator.
 
-`invariants-and-concurrency.md` owns the admission rules and failure-model
+Concurrency Review owns the admission rules and failure-model
 qualifications for concurrency and messaging furniture. The furniture list grows
 only by explicit ruling, never by precedent creep.
 

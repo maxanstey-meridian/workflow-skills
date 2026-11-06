@@ -1,0 +1,481 @@
+#!/bin/sh
+# Tests the doctrine each routine carries: that the generator writes hand-written expected output and refuses a bad manifest, that the
+# rules match a rebuild, that every doctrine line and section reaches a rule file, that the Laws list and the sections stating a Law name
+# each other and reach every routine in a folder it reads, and that a routine points only at files it owns.
+# Plain sh like the other tests rather than bats, so the repo needs no test dependency.
+# Usage: sh tests/doctrine.sh
+#   REPO=<folder>   the repo to test (default: the one above this folder)
+
+repo=${REPO:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)}
+manifest=$repo/scripts/doctrine-manifest.txt
+refs=$repo/skills/meridian/references
+tmp=$(mktemp -d) || exit 2
+trap 'rm -rf "$tmp"' EXIT
+trap 'exit 1' HUP INT TERM
+passes=0 fails=0
+
+ok() { echo "ok $1"; passes=$((passes + 1)); }
+bad() { echo "FAIL $1"; sed 's/^/  /' "$tmp/why"; fails=$((fails + 1)); }
+
+# This test's own fence parser, independent of the generator's. CommonMark's rule: 1 for a line in a fence, opener and closer included.
+fence_awk='
+  function fenced(s,    t, c, run, rest) {
+    t = s
+    sub(/^ ? ? ?/, "", t)
+    c = ""
+    if (t ~ /^```/) { c = "`"; match(t, /^`+/) }
+    else if (t ~ /^~~~/) { c = "~"; match(t, /^~+/) }
+    run = RLENGTH
+    rest = substr(t, run + 1)
+    if (open_len) {
+      if (c == open_char && run >= open_len && rest ~ /^[ \t]*$/) open_len = 0
+      return 1
+    }
+    if (c == "" || (c == "`" && rest ~ /`/)) return 0
+    open_char = c
+    open_len = run
+    return 1
+  }
+'
+
+sections() { # <file>: prints "<file name>|<heading>|<1 when the section states a Law>" for each ## section, ignoring fenced lines
+  awk -v f="$(basename -- "$1")" "$fence_awk"'
+    function flush() { if (h != "") print f "|" h "|" law }
+    { in_fence = fenced($0) }
+    !in_fence && /^## / { flush(); h = $0; law = ($0 ~ /^## (.* )?Laws?$/); next }
+    !in_fence && /^(- )?\*\*Law:/ { law = 1 }
+    END { flush() }
+  ' "$1"
+}
+routed() { # <source file name> <heading>: prints the skills the manifest gives that section to, space-separated
+  awk -F' *[|] *' -v s="$1" -v h="$2" '
+    /^#/ || NF < 4 { next }
+    $3 == s && $4 == h { w = $1; sub(/ +$/, "", w); if (w == "all") w = "spec,go,cycle,slop-hunt"; gsub(/,/, " ", w); print w }
+  ' "$manifest"
+}
+rows_for() { # <heading>: prints "<skills, space-separated>|<area>" for each manifest row of that heading
+  awk -F' *[|] *' -v h="$1" '
+    /^#/ || NF < 4 { next }
+    $4 == h { w = $1; sub(/ +$/, "", w); if (w == "all") w = "spec,go,cycle,slop-hunt"; gsub(/,/, " ", w); print w "|" $2 }
+  ' "$manifest"
+}
+law_items() { # <file>: prints each item of its ### Laws list on one line, ignoring fenced lines
+  awk "$fence_awk"'
+    { in_fence = fenced($0) }
+    !in_fence && /^#+ / { inside = ($0 == "### Laws"); next }
+    !inside { next }
+    !in_fence && /^- / { if (item != "") print item; item = substr($0, 3); next }
+    !in_fence && /^  / && item != "" { sub(/^ +/, ""); item = item " " $0; next }
+    { if (item != "") print item; item = "" }
+    END { if (item != "") print item }
+  ' "$1"
+}
+
+fixture() { # <folder>: a small repo with its own copy of the generator, which derives the repo from its path; the manifest comes on stdin
+  mkdir -p "$1/scripts" "$1/skills/meridian/references" || exit 2
+  cp "$repo/scripts/build-doctrine.sh" "$1/scripts/" || exit 2
+  cat > "$1/scripts/doctrine-manifest.txt"
+  cat > "$1/skills/meridian/SKILL.md" <<'EOF'
+# Sample Skill
+
+## Core Rules
+
+### First Sub
+
+First sub body.
+
+### Second Sub
+
+Second sub body.
+
+## Later
+
+Later body.
+EOF
+  cat > "$1/skills/meridian/references/sample.md" <<'EOF'
+# Sample
+
+## Start With The User's Job
+
+Job body.
+
+### Nested
+
+Nested body.
+
+## Heading In Fence
+
+Before the fence.
+
+```sh
+# Not A Heading
+## Not A Heading
+```
+
+After the fence.
+
+## Four Backticks
+
+````md
+```
+## Not A Heading
+```
+````
+
+After the four-backtick fence.
+
+## Tilde In Backticks
+
+```text
+~~~
+## Not A Heading
+```
+
+After the backtick fence.
+
+## Backtick In Tildes
+
+~~~
+```
+## Not A Heading
+~~~
+
+After the tilde fence.
+
+## Indented Fence
+
+   ```
+## Not A Heading
+    ```
+## Still Not A Heading
+   ```
+
+After the indented fence.
+
+## Not Fences
+
+    ```
+
+``` inline, because backticks follow it ```
+
+After the lines that open nothing.
+
+## Closers
+
+```
+``` text follows, so this closes nothing
+## Not A Heading
+EOF
+  printf '```  \n' >> "$1/skills/meridian/references/sample.md"
+  cat >> "$1/skills/meridian/references/sample.md" <<'EOF'
+
+After the closer with trailing spaces.
+
+## Trailing Blanks
+
+Body before the blanks.
+
+
+
+## Last
+
+Last body.
+
+
+EOF
+}
+
+expect() { # <path under the expected tree>: writes the hand-written body on stdin after the line every rule file opens with
+  mkdir -p "$(dirname -- "$tmp/want/$1")" || exit 2
+  {
+    echo '<!-- Generated by scripts/build-doctrine.sh. Change the doctrine source and rebuild; do not edit this file. -->'
+    echo
+    cat
+  } > "$tmp/want/$1"
+}
+
+# The generator writes exactly what these hand-written files say. Nothing here comes from the code under test.
+fixture "$tmp/fx" <<'EOF'
+# A comment row.
+
+all             | always | sample.md | ## Start With The User's Job
+all             | always | SKILL.md  | ### First Sub
+all             | always | SKILL.md  | ### Second Sub
+all             | fences | sample.md | ## Heading In Fence
+all             | fences | sample.md | ## Four Backticks
+all             | fences | sample.md | ## Tilde In Backticks
+all             | fences | sample.md | ## Backtick In Tildes
+all             | fences | sample.md | ## Indented Fence
+all             | fences | sample.md | ## Not Fences
+all             | fences | sample.md | ## Closers
+all             | always | sample.md | ## Trailing Blanks
+go              | named  | SKILL.md  | ## Later
+cycle,slop-hunt | listed | sample.md | ## Last
+EOF
+expect spec/always/start-with-the-user-s-job.md <<'EOF'
+## Start With The User's Job
+
+Job body.
+
+### Nested
+
+Nested body.
+EOF
+expect spec/always/first-sub.md <<'EOF'
+### First Sub
+
+First sub body.
+EOF
+expect spec/always/second-sub.md <<'EOF'
+### Second Sub
+
+Second sub body.
+EOF
+expect spec/fences/heading-in-fence.md <<'EOF'
+## Heading In Fence
+
+Before the fence.
+
+```sh
+# Not A Heading
+## Not A Heading
+```
+
+After the fence.
+EOF
+expect spec/fences/four-backticks.md <<'EOF'
+## Four Backticks
+
+````md
+```
+## Not A Heading
+```
+````
+
+After the four-backtick fence.
+EOF
+expect spec/fences/tilde-in-backticks.md <<'EOF'
+## Tilde In Backticks
+
+```text
+~~~
+## Not A Heading
+```
+
+After the backtick fence.
+EOF
+expect spec/fences/backtick-in-tildes.md <<'EOF'
+## Backtick In Tildes
+
+~~~
+```
+## Not A Heading
+~~~
+
+After the tilde fence.
+EOF
+expect spec/fences/indented-fence.md <<'EOF'
+## Indented Fence
+
+   ```
+## Not A Heading
+    ```
+## Still Not A Heading
+   ```
+
+After the indented fence.
+EOF
+expect spec/fences/not-fences.md <<'EOF'
+## Not Fences
+
+    ```
+
+``` inline, because backticks follow it ```
+
+After the lines that open nothing.
+EOF
+expect spec/fences/closers.md <<'EOF'
+## Closers
+
+```
+``` text follows, so this closes nothing
+## Not A Heading
+EOF
+printf '```  \n\nAfter the closer with trailing spaces.\n' >> "$tmp/want/spec/fences/closers.md"
+expect spec/always/trailing-blanks.md <<'EOF'
+## Trailing Blanks
+
+Body before the blanks.
+EOF
+for skill in go cycle slop-hunt; do cp -R "$tmp/want/spec" "$tmp/want/$skill" || exit 2; done
+expect go/named/later.md <<'EOF'
+## Later
+
+Later body.
+EOF
+expect cycle/listed/last.md <<'EOF'
+## Last
+
+Last body.
+EOF
+expect slop-hunt/listed/last.md <<'EOF'
+## Last
+
+Last body.
+EOF
+: > "$tmp/why"
+sh "$tmp/fx/scripts/build-doctrine.sh" > "$tmp/out" 2>&1 || { echo "the build exited $?:" >> "$tmp/why"; cat "$tmp/out" >> "$tmp/why"; }
+for skill in spec go cycle slop-hunt; do
+  diff -r "$tmp/want/$skill" "$tmp/fx/skills/$skill/references/rules" >> "$tmp/why" 2>&1
+done
+if [ -s "$tmp/why" ]; then bad "the generator writes the expected rules"; else ok "the generator writes the expected rules"; fi
+
+refused() { # <folder name> <what the build must say> and the bad manifest on stdin: exits 2, says so, and leaves the built rules as they were
+  fx=$tmp/$1
+  fixture "$fx" <<'EOF'
+all | always | SKILL.md | ## Later
+EOF
+  sh "$fx/scripts/build-doctrine.sh" > /dev/null 2>&1 || echo "$1: the good manifest didn't build" >> "$tmp/why"
+  cp -R "$fx/skills" "$fx/before" || exit 2
+  cat > "$fx/scripts/doctrine-manifest.txt"
+  sh "$fx/scripts/build-doctrine.sh" > "$fx/out" 2>&1
+  code=$?
+  [ "$code" -eq 2 ] || echo "$1: the build exited $code, not 2" >> "$tmp/why"
+  grep -qF -- "$2" "$fx/out" || { echo "$1: the build didn't say \"$2\"; it said:" >> "$tmp/why"; cat "$fx/out" >> "$tmp/why"; }
+  diff -r "$fx/before" "$fx/skills" >> "$tmp/why" 2>&1
+}
+: > "$tmp/why"
+refused no-heading 'has no heading "## Missing"' <<'EOF'
+all | always | SKILL.md | ## Later
+all | always | SKILL.md | ## Missing
+EOF
+refused unknown-skill 'unknown skill nope' <<'EOF'
+all  | always | SKILL.md | ## Later
+nope | always | SKILL.md | ### First Sub
+EOF
+refused two-rows-one-file 'two sections would write go/always/later.md' <<'EOF'
+all | always | SKILL.md | ## Later
+go  | always | SKILL.md | ## Later
+EOF
+if [ -s "$tmp/why" ]; then bad "the generator refuses a bad manifest and changes nothing"; else ok "the generator refuses a bad manifest and changes nothing"; fi
+
+# The files match a rebuild: a hand edit, an edited source, or a changed manifest all land here.
+if sh "$repo/scripts/build-doctrine.sh" --check > "$tmp/why" 2>&1; then ok "rules match a rebuild"; else bad "rules match a rebuild"; fi
+
+# Every non-blank doctrine line is, whole and exact, in some rule file. In a reference only the # line and the Purpose section stay out.
+# In SKILL.md the frontmatter and the regions in the list stay out, each up to its next heading, so a new section is red until it reaches a rule file.
+: > "$tmp/why"
+for skill in spec go cycle slop-hunt; do
+  find "$repo/skills/$skill/references/rules" -type f -exec cat {} + 2> /dev/null
+done | LC_ALL=C sort -u > "$tmp/rule-lines"
+lost() { # <source named in the report> reads the wanted lines on stdin
+  LC_ALL=C sort -u | LC_ALL=C comm -23 - "$tmp/rule-lines" | while IFS= read -r line; do
+    printf '%s: %s\n' "$1" "$line" >> "$tmp/why"
+  done
+}
+for f in "$refs"/*.md; do
+  awk "$fence_awk"'
+    { in_fence = fenced($0) }
+    !in_fence && /^# / { purpose = 0; next }
+    !in_fence && /^## / { purpose = ($0 == "## Purpose") }
+    !purpose && /[^ \t]/ { print }
+  ' "$f" | lost "$(basename -- "$f")"
+done
+awk "$fence_awk"'
+  BEGIN {
+    out["# Meridian"]
+    out["## When to Use This Skill"]
+    out["## How to Use It"]
+    out["## Core Rules"]
+    out["## Notes"]
+  }
+  NR == 1 && $0 == "---" { front = 1; next }
+  front { if ($0 == "---") front = 0; next }
+  { in_fence = fenced($0) }
+  !in_fence && /^#+ / { skip = ($0 in out) }
+  !skip && /[^ \t]/ { print }
+' "$repo/skills/meridian/SKILL.md" | lost SKILL.md
+if [ -s "$tmp/why" ]; then bad "no doctrine line is lost"; else ok "no doctrine line is lost"; fi
+
+# Every section reaches some skill; only a file's Purpose, which says what the file is for, stays out.
+: > "$tmp/why"
+for f in "$refs"/*.md; do
+  sections "$f" > "$tmp/sections"
+  while IFS='|' read -r name heading law; do
+    [ "$heading" != "## Purpose" ] || continue
+    [ -n "$(routed "$name" "$heading")" ] || echo "$name: $heading reaches no skill" >> "$tmp/why"
+  done < "$tmp/sections"
+done
+if [ -s "$tmp/why" ]; then bad "every section reaches a skill"; else ok "every section reaches a skill"; fi
+
+# The one-line Laws list and the sections stating a Law name each other, and every section the list names reaches all four routines,
+# in a folder each one reads.
+: > "$tmp/why"
+: > "$tmp/law-names"
+law_items "$repo/skills/meridian/SKILL.md" > "$tmp/law-items"
+for skill in spec go cycle slop-hunt; do
+  copy=$repo/skills/$skill/references/rules/always/laws.md
+  if [ -f "$copy" ]; then
+    law_items "$copy" > "$tmp/copy-items"
+    cmp -s "$tmp/law-items" "$tmp/copy-items" || printf "%s: rules/always/laws.md doesn't hold the Laws list's items\n" "$skill" >> "$tmp/why"
+  else
+    printf '%s has no rules/always/laws.md\n' "$skill" >> "$tmp/why"
+  fi
+done
+while IFS= read -r item; do
+  named=$(printf '%s\n' "$item" | sed -n -E 's/^.*\[([^][]+)\]$/\1/p')
+  if [ -z "$named" ]; then
+    printf 'this Laws line names no section: %s\n' "$item" >> "$tmp/why"
+    continue
+  fi
+  printf '%s\n' "$named" >> "$tmp/law-names"
+  rows_for "## $named" > "$tmp/rows"
+  [ -s "$tmp/rows" ] || printf '[%s] is in the Laws list and not in the manifest\n' "$named" >> "$tmp/why"
+  while IFS='|' read -r wanted area; do
+    for skill in spec go cycle slop-hunt; do
+      case " $wanted " in
+        *" $skill "*) grep -qF "<rules>/$area/" "$repo/skills/$skill/SKILL.md" || printf '[%s] is in %s, and %s/SKILL.md never names <rules>/%s/\n' "$named" "$area" "$skill" "$area" >> "$tmp/why" ;;
+        *) printf "[%s] doesn't reach %s\n" "$named" "$skill" >> "$tmp/why" ;;
+      esac
+    done
+  done < "$tmp/rows"
+done < "$tmp/law-items"
+for f in "$refs"/*.md "$repo/skills/meridian/SKILL.md"; do
+  sections "$f" > "$tmp/sections"
+  while IFS='|' read -r name heading law; do
+    [ "$law" = 1 ] || continue
+    grep -qxF -- "${heading#"## "}" "$tmp/law-names" || printf "%s: %s states a Law and the Laws list doesn't name it\n" "$name" "$heading" >> "$tmp/why"
+  done < "$tmp/sections"
+done
+if [ -s "$tmp/why" ]; then bad "the Laws list and the Laws match and reach every routine"; else ok "the Laws list and the Laws match and reach every routine"; fi
+
+# No routine points at another skill. The GitHub organisation and the analyzers package carry the word, and name no skill.
+: > "$tmp/why"
+for skill in spec go cycle slop-hunt waypoint readme; do
+  find "$repo/skills/$skill" -type f -name '*.md' | while IFS= read -r file; do
+    sed -E 's/maxanstey-meridian//g; s/Meridian\.Analyzers//g' "$file" |
+      grep -n -i -E 'meridian|skills/(go|spec|cycle|slop-hunt|readme|waypoint)/|\.\./(go|spec|cycle|slop-hunt|readme|waypoint)|<skills folder>|/go step|step [0-9]+ of /go|read .*go.*reference|use .*go.*step|(coding-philosophy|testing-philosophy|invariants-and-concurrency|backend-pa-vsa|frontend-pa-vsa|frontend-ui)\.md' |
+      sed "s|^|${file#"$repo"/}:|" >> "$tmp/why"
+  done
+done
+if [ -s "$tmp/why" ]; then bad "no routine names another skill"; else ok "no routine names another skill"; fi
+
+# Every references/ or rules/ path a routine names exists inside that routine.
+: > "$tmp/why"
+for skill in spec go cycle slop-hunt waypoint readme; do
+  dir=$repo/skills/$skill
+  find "$dir" -maxdepth 2 -type f -name '*.md' -not -path '*/rules/*' | while IFS= read -r file; do
+    grep -o -E '(references/|rules/|<rules>/)[a-z0-9./-]*[a-z0-9]' "$file" | sort -u | while IFS= read -r named; do
+      case $named in
+        '<rules>/'*) target=$dir/references/rules/${named#'<rules>/'} ;;
+        rules/*) target=$dir/references/$named ;;
+        *) target=$dir/$named ;;
+      esac
+      [ -e "$target" ] || echo "${file#"$repo"/} names $named, which doesn't exist" >> "$tmp/why"
+    done
+  done
+done
+if [ -s "$tmp/why" ]; then bad "every path a routine names exists"; else ok "every path a routine names exists"; fi
+
+echo "$passes ok, $fails FAIL"
+[ "$fails" -eq 0 ]

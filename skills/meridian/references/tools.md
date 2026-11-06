@@ -105,12 +105,12 @@ Typed DI / explicit assembly examples:
 - [composition.ts](https://github.com/maxanstey-meridian/rivet-ts/blob/main/templates/example/apps/api/src/composition.ts):
   the composition root
 
-Concrete `typed-inject` class shape: see `backend-pa-vsa.md` "TypeScript style".
+Concrete `typed-inject` class shape: see the backend Coding Style Rules, "TypeScript style".
 
 ### Notes
 
 - Prettier is not the current default in newer repos.
-- Older repos may still contain heavier ESLint/Prettier/plugin stacks; do not treat those as the preferred Meridian baseline.
+- Older repos may still contain heavier ESLint/Prettier/plugin stacks; do not treat those as the preferred baseline.
 
 ## .NET
 
@@ -223,4 +223,4 @@ For local orchestration:
 
 - rivet-ts's `scaffold` starts a new workspace:
   https://maxanstey-meridian.github.io/rivet-ts/getting-started
-- Hono with `typed-inject` is the TS backend default (`backend-pa-vsa.md` "Purpose").
+- Hono with `typed-inject` is the TS backend default.

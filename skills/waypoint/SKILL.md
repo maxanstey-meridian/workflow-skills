@@ -21,7 +21,7 @@ AGENTS.md is the workflow-skills shared rules file your agent loads as its rules
      - `git log -1 --format='%h %s (%cr)'`
    - Files this session changed: from your own edits in this conversation, cross-checked against `git status --short`.
    - The plan doc being worked to, if any (usually in `<main checkout>/.plans/`, as AGENTS.md 'Routines' defines it).
-   - The phase: the last `/spec`, `/go`, or `/cycle` the user invoked in this conversation. It is mid that phase if its final report hasn't been given, and `none` otherwise.
+   - The phase: the last `/spec`, `/go`, or `/cycle` the user invoked in this conversation. It is mid that phase if its final report hasn't been given, and `none` otherwise. When it's mid a phase, also note the exact command the user started it with, the absolute path of the `SKILL.md` it was loaded from, and its scratch folder. A session resumed after a compaction relies on these: for `/go` and `/cycle`, this record is what keeps the user's start, so write it only for a routine the user started in this conversation, or one an earlier waypoint of this session already records.
    - The worktree: when `git rev-parse --git-dir` and `--git-common-dir` differ, or this session worked in another worktree, note its path. Otherwise it's the main checkout.
 
 2. **Write `waypoint-<id8>.md` to your memory directory**: the directory your instructions give for memories you keep about this project, if you have one. If you have none, it's switched off, or it isn't kept per project, write it to `<main checkout>/.plans/waypoints/waypoint-<id8>.md` instead, skip step 3, and say where it went in your reply. `<main checkout>` is as AGENTS.md 'Routines' defines it. Overwrite the file every time; there is one per session. Use this format and keep it under 60 lines:
@@ -38,9 +38,9 @@ metadata:
   updated: <YYYY-MM-DD HH:MM>
 ---
 
-**Read first:** <absolute AGENTS.md path>, <absolute meridian SKILL.md path>, this waypoint, <plan doc, if any>
+**Read first:** <absolute AGENTS.md path>, this waypoint, <the routine's absolute SKILL.md path, when mid a phase>, <plan doc, if any>
 **TLDR:** <1–2 plain-English sentences: what this session is doing and where it's at>
-**Phase:** <spec | go | cycle | none> — <the step it stopped on (a cycle's round, say), or the last phase that finished ("none, after cycle → e0b4603")>
+**Phase:** <spec | go | cycle | none> — <the step it stopped on (a cycle's round, say), or the last phase that finished ("none, after cycle → e0b4603")>; when mid a phase: started by the user as `<exact command>` · scratch: <absolute folder>
 
 **Done this stretch:** <bullets, each with commit hash if committed>
 **Doing now:** <the in-flight item, and exactly where it stopped>

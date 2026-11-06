@@ -2,7 +2,7 @@
 
 **Agree the work before the agent builds it, and never let it review its own code.**
 
-These are the house routines for any agent that loads [Agent Skills](https://agentskills.io/specification) (`SKILL.md` folders). `/spec` writes the work you agreed into one file, `/go` builds it through subagents and leaves it uncommitted, and `/cycle` has fresh subagents review it, fix it, and commit it. Around them, `/waypoint` carries a session across a compaction, `/slop-hunt` finds weight the code hasn't earned, and `/readme` keeps a README true to the code. They all check the work against Meridian, the house doctrine, and `AGENTS.md` holds the shared rules, in every session and between routines.
+These are the house routines for any agent that loads [Agent Skills](https://agentskills.io/specification) (`SKILL.md` folders). `/spec` writes the work you agreed into one file, `/go` builds it through subagents and leaves it uncommitted, and `/cycle` has fresh subagents review it, fix it, and commit it. Around them, `/waypoint` carries a session across a compaction, `/slop-hunt` finds weight the code hasn't earned, and `/readme` keeps a README true to the code. Each skill carries the procedure and the doctrine rules it needs, generated into its own folder, and `AGENTS.md` holds the shared rules, in every session and between routines.
 
 It does the job of typing "usual process; subagents, don't commit, then we'll cycle" at the end of every conversation, without the agent improvising what you meant. The agent commits only when you say "commit" or run `/cycle`, and pushes, tags, or deploys only when you name that action. That's a rule the agent follows, not a lock on git.
 
@@ -31,11 +31,11 @@ Then, for each agent you use, run the install with its name:
 sh ~/src/workflow-skills/install.sh <agent>
 ```
 
-It links all seven skills and the shared rules, `AGENTS.md`, into the places that agent reads, so `git pull` updates them. Your own personal rules keep loading beside the shared ones. Anything left for you to do prints under "To finish", followed by how to check the install.
+It links the workflow skills and the shared rules, `AGENTS.md`, into the places that agent reads, so `git pull` updates them. Your own personal rules keep loading beside the shared ones. Anything left for you to do prints under "To finish", followed by how to check the install.
 
 The install never replaces a file, a folder, or a link of yours, and never edits a config file. It replaces a broken link only when it pointed into this clone. It says what it skipped and why, and exits non-zero when it skipped something you asked for. A link of yours that already leads to this repo, through another link, say, counts as installed. Rerunning it is safe. A copy run from outside the clone changes nothing.
 
-Install the seven skills together: `/cycle` reads `/go`'s critic reference by name, and the routines share `AGENTS.md` and Meridian. If a folder the install links into, or one an agent reads beside it, already holds a skill called `spec`, `go`, `cycle`, `waypoint`, `slop-hunt`, `readme`, or `meridian`, the install skips that one and names the folder; rename yours and rerun.
+Install the workflow skills together: the installer links each by name and links the shared rules, `AGENTS.md`. If a folder the install links into, or one an agent reads beside it, already holds a skill called `spec`, `go`, `cycle`, `waypoint`, `slop-hunt`, `readme`, or `meridian`, the install skips that one and names the folder; rename yours and rerun.
 
 ### Claude Code
 
@@ -45,9 +45,9 @@ sh ~/src/workflow-skills/install.sh claude-code
 
 - **Skills:** linked into `~/.claude/skills`. Claude Code doesn't read `~/.agents/skills`.
 - **Rules:** linked as `~/.claude/rules/workflow-skills.md`. Every `.md` file in `~/.claude/rules/` loads beside your `~/.claude/CLAUDE.md`, so your own rules stay where they are. If you already have a `workflow-skills.md` there, rename yours and rerun.
-- **After a compaction:** add the hook the install prints under "To finish" to `~/.claude/settings.json`. It's a `SessionStart` hook on `compact` that runs `hooks/after-compaction.sh`, which puts the session's waypoint back and has the agent read `AGENTS.md`, the meridian skill, and the files the waypoint names. See [After a compaction](#after-a-compaction).
+- **After a compaction:** add the hook the install prints under "To finish" to `~/.claude/settings.json`. It's a `SessionStart` hook on `compact` that runs `hooks/after-compaction.sh`, which puts the session's waypoint back and has the agent read `AGENTS.md` and the files the waypoint names. See [After a compaction](#after-a-compaction).
 - **Call a skill:** `/name`.
-- **Check:** in a new session, `/skills` lists the seven skills, and `/context` lists the rules file under Memory files, beside your `CLAUDE.md`.
+- **Check:** in a new session, `/skills` lists the workflow skills, and `/context` lists the rules file under Memory files, beside your `CLAUDE.md`.
 - Cowork desktop sessions load neither: they skip personal skills, and linked rules that point outside the working folder. Cloud sessions have no `~/.claude` at all. The skills reach both only when they're enabled on your claude.ai account. The skills take their shared definitions from `AGENTS.md`, so those sessions also need its text added to their instructions.
 
 ### Codex
@@ -70,7 +70,7 @@ sh ~/src/workflow-skills/install.sh codex
   Never edit `~/.codex/AGENTS.md` once it's linked: an edit there changes the clone. If you already have a `~/.codex/AGENTS.md` of your own, a file or a link to your dotfiles (working or broken), the install leaves it alone and says so: move its lines into `developer_instructions`, remove it, and rerun. The same goes for `~/.codex/AGENTS.override.md`, which Codex reads in place of `AGENTS.md` while it holds anything but blank lines.
 - **After a compaction:** add the lines the install prints under "To finish" to the end of `~/.codex/config.toml`: a `SessionStart` hook on `compact` that runs `hooks/after-compaction.sh`, with `additionalContextLimit = 0` so Codex passes the whole waypoint rather than a preview. Codex asks you to review a new hook at startup before it runs ("hooks need review before they can run"), so approve it once. See [After a compaction](#after-a-compaction).
 - **Call a skill:** `$name`, or pick it from `/skills`.
-- **Check:** start a new session: `/skills` lists the seven skills, `/status` lists `~/.codex/AGENTS.md` on its `Agents.md` row, and asking "List the instruction sources you loaded" names your `developer_instructions`.
+- **Check:** start a new session: `/skills` lists the workflow skills, `/status` lists `~/.codex/AGENTS.md` on its `Agents.md` row, and asking "List the instruction sources you loaded" names your `developer_instructions`.
 - Codex's default sandbox keeps `.git` read-only, so it asks before `/cycle` commits and before a routine adds `.plans/` to `.git/info/exclude`. Approve those, or allow `.git` writes in your sandbox settings.
 
 ### Cursor
@@ -82,7 +82,7 @@ sh ~/src/workflow-skills/install.sh cursor
 - **Skills:** linked into `~/.agents/skills`, not `~/.cursor/skills`, which Cursor's "Sync Skills for Cloud Agents" moves into synced storage, where `git pull` no longer reaches. Cursor also reads `~/.claude/skills` and `~/.codex/skills`, so if you install for Claude Code too, Cursor finds each skill twice; the Cursor CLI lists each once. Linked skill folders need Cursor CLI 2026.06.22 or later.
 - **Rules:** linked as `~/.cursor/rules/workflow-skills.mdc`. `AGENTS.md` starts with `alwaysApply: true` frontmatter, so Cursor loads it on every request, beside your own User Rules and rule files. `cursor-agent` reads it only in projects under your home folder. If you already have a `workflow-skills.mdc` there, rename yours and rerun. If you pasted `AGENTS.md` into Customize → Rules → User Rules for an earlier install, remove it: the install reminds you once.
 - **Call a skill:** type `/` in Agent chat and pick it.
-- **Check:** in a new Agent chat or `cursor-agent` session, `/` lists the seven skills; in the IDE, Customize → Rules lists `workflow-skills`.
+- **Check:** in a new Agent chat or `cursor-agent` session, `/` lists the workflow skills; in the IDE, Customize → Rules lists `workflow-skills`.
 
 ### Copilot CLI
 
@@ -93,7 +93,7 @@ sh ~/src/workflow-skills/install.sh copilot
 - **Skills:** linked into `~/.copilot/skills`, or `$COPILOT_HOME/skills` when you've set `COPILOT_HOME`. Copilot also reads `~/.agents/skills` unless `COPILOT_HOME` is set; the install checks both for a skill of yours with the same name.
 - **Rules:** linked as `~/.copilot/instructions/workflow-skills.instructions.md` (or in `$COPILOT_HOME/instructions`), which loads in every repo beside your own `~/.copilot/copilot-instructions.md` (or `$COPILOT_HOME/copilot-instructions.md`). If you already have a `workflow-skills.instructions.md` there, rename yours and rerun. Changes to instruction files apply in a new or resumed session. If your shell profile sets `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` to the clone from an earlier install, the install says so: remove the clone from it, or the rules load twice.
 - **Call a skill:** `/name`.
-- **Check:** start a new or resumed `copilot` session: `/skills list` shows the seven skills, and `/instructions` lists `workflow-skills.instructions.md` beside your `~/.copilot/copilot-instructions.md`.
+- **Check:** start a new or resumed `copilot` session: `/skills list` shows the workflow skills, and `/instructions` lists `workflow-skills.instructions.md` beside your `~/.copilot/copilot-instructions.md`.
 
 ### OpenCode
 
@@ -112,7 +112,7 @@ sh ~/src/workflow-skills/install.sh opencode
 
   Your own rules stay in `AGENTS.md` in that folder.
 - **Call a skill:** mention it in your prompt as `@name`.
-- **Check:** in a new session, ask "Which skills can you load, and which instruction files did you load?": it names the seven skills, the clone's `AGENTS.md`, and your own.
+- **Check:** in a new session, ask "Which skills can you load, and which instruction files did you load?": it names the workflow skills, the clone's `AGENTS.md`, and your own.
 
 ### Gemini CLI
 
@@ -131,7 +131,7 @@ sh ~/src/workflow-skills/install.sh gemini
 
   Your own rules stay in `~/.gemini/GEMINI.md`; if you already keep them in `~/.gemini/AGENTS.md`, the install says so: move them into `GEMINI.md`, remove it, and rerun. Gemini then also loads a repo's `AGENTS.md`, which is what it's for, once you trust the repo's folder. If you installed for Antigravity CLI first, the install removes its rules link, because Antigravity CLI also loads `~/.gemini/AGENTS.md`. An `@` import in `GEMINI.md` won't do instead: Gemini refuses imports from outside `~/.gemini`.
 - **Call a skill:** `/name`. Gemini asks before it starts a skill by itself.
-- **Check:** `/skills list` shows the seven skills, and `/memory list` names `~/.gemini/GEMINI.md` and `~/.gemini/AGENTS.md`.
+- **Check:** `/skills list` shows the workflow skills, and `/memory list` names `~/.gemini/GEMINI.md` and `~/.gemini/AGENTS.md`.
 
 ### Antigravity CLI
 
@@ -142,7 +142,7 @@ sh ~/src/workflow-skills/install.sh antigravity
 - **Skills:** linked into `~/.gemini/antigravity-cli/skills`.
 - **Rules:** linked as `~/.gemini/antigravity-cli/rules/workflow-skills.md`, which loads beside your own rules; if `~/.gemini/AGENTS.md` already leads to the clone (from a Gemini install), the install uses that instead. If you already have a `workflow-skills.md` there, rename yours and rerun.
 - **Call a skill:** `/name`.
-- **Check:** start a new session: `/skills` lists the seven skills, and `/context` lists `~/.gemini/antigravity-cli/rules/workflow-skills.md` under System files, or `~/.gemini/AGENTS.md` when the install used that.
+- **Check:** start a new session: `/skills` lists the workflow skills, and `/context` lists `~/.gemini/antigravity-cli/rules/workflow-skills.md` under System files, or `~/.gemini/AGENTS.md` when the install used that.
 - Checked against Antigravity's docs only, not in a live session.
 
 ### Other agent
@@ -190,37 +190,39 @@ The skills keep their working files in the main checkout's `.plans/`, and add `.
 
 | Skill | Arguments | What it does | What it never does |
 |---|---|---|---|
-| `/spec` | none | Turns the agreed work into one `.plans/spec.md` that `/go` builds from and `/cycle` reviews against. | Edits code, runs builds or the gate, or commits. |
+| `/spec` | none | Turns the agreed work into one named `.plans/spec-<slug>.md` that `/go` builds from and `/cycle` reviews against. | Edits code, runs builds or the gate, or commits. |
 | `/go` | `<spec path>` | Builds the agreed work through subagents, with a critic after every builder brief, checks it narrowly with one end-of-`/go` mutation run when a command exists, and leaves it uncommitted. It stops before building when subagents are unavailable. | Commits, pushes, runs `/cycle`'s review, or runs the full gate. |
-| `/cycle` | `[full \| diff]` | Reviews all uncommitted work with fresh subagents, commits, fixes, re-reviews, commits again, and runs the full gate once, with a critic after every fix brief and one mutation run per fix round when a command exists. `diff` is the default. | Pushes, tags, or publishes. |
+| `/cycle` | `[<spec path>] [full \| diff]` | Reviews all uncommitted work with fresh subagents, commits, fixes, re-reviews, commits again, and runs the full gate once, with a critic after every fix brief and one mutation run per fix round when a command exists. With a spec, it also checks the work against that spec; without one, it reviews the work on its own merits. `diff` is the default. | Pushes, tags, or publishes. |
 | `/waypoint` | none | Saves the session's state to a note before you compact or step away. | Commits, pushes, or tidies. |
 | `/slop-hunt` | none | Hunts the repository containing the current working directory for weight the code hasn't earned: capabilities that cost more than they give users (weighed first by a design reader, or by the hunter itself in a one-area hunt), then hand-rolled machinery, silent failures, speculative abstraction, duplication, dead code, and test slop. Ranks each by the weight it removes, with its replacement and what users would lose. | Edits anything outside `.plans/`, or runs builds, tests, or the gate. |
 | `/readme` | `[path]` | Brings the README up to date with what users can see changed since it was last committed and moves it into the house shape and voice, checking every command, path, count, and link against the repo. With no README, it writes one. | Commits, pushes, or tags. |
-| `meridian` | (loaded by the skills) | The house doctrine (architecture, invariants, UI, testing, and tooling) that the other skills load and send their subagents to read. Where a spec leaves a UI's accessibility, formatting, or validation open, it follows the GOV.UK Design System and style guide, unless the repo's UI skill decides. | |
+| `meridian` | | The house doctrine (architecture, invariants, UI, testing, and tooling), and the source of the routines' rules: `scripts/build-doctrine.sh` copies the sections `scripts/doctrine-manifest.txt` names into each routine's `references/rules/`, one file per rule. After editing the doctrine, run it, and run `sh tests/doctrine.sh`, which fails on a stale rule file or on a Law that doesn't reach every routine. Where a spec leaves a UI's accessibility, formatting, or validation open, it follows the GOV.UK Design System and style guide, unless the repo's UI skill decides. | |
 
 `/go` and `/cycle` are yours to start. The skills tell the agent never to start them itself. They say so in prose rather than with `disable-model-invocation`: that flag takes the skill's description out of the agent's context, so it no longer recognises "then we'll go" as the routine and improvises one instead. This README writes each skill as `/name`; your agent's section under [Install](#install) says how yours calls one.
 
 ## The routine in practice
 
-Talk the work through, then run `/spec` and answer its asks. Run `/go .plans/spec.md`, review the diff yourself, and run `/cycle`. Run `/waypoint` before you compact a session (your agent's compact or summarise command, which shrinks the conversation to a summary) or step away.
+Talk the work through, then run `/spec` and answer its asks. Run `/go <spec path>` with the path `/spec` reports, review the diff yourself, and run `/cycle <spec path> [full | diff]`. For work that has no spec, run `/cycle [full | diff]`. Run `/waypoint` before you compact a session (your agent's compact or summarise command, which shrinks the conversation to a summary) or step away.
 
-`/go` starts a fresh subagent for each item of each piece of the spec, and a critic after every builder brief, which reruns the builder's tests, format, and lint in a throwaway worktree. When the repo names a mutation command, `/go` runs it once at the end. `/cycle` starts a reviewer per slice plus two doctrine-compliance passes (backend and frontend), then a fixer per slice with a critic after every fix brief, and re-reviewers. It runs one mutation run per fix round when a command exists, round 0 and the gate-fix round included, and one full gate run. That uses plan quota or API spend, and a cycle can take as long as the repo's gate. Which model each kind of subagent runs on is yours to set: see "Subagent models" in `AGENTS.md`.
+A full run can use plan quota or API spend and can take as long as the repo's gate. Which model each kind of subagent runs on is yours to set: see “Subagent models” in `AGENTS.md`.
 
 At the end, agents that didn't write the work (critics for every `/go` builder brief, then `/cycle`'s reviewers) have checked it, the work is committed with each round of fixes in a commit of its own, and the repo's gate has run once over the result.
 
 ## After a compaction
 
-`AGENTS.md` tells the agent to read the shared rules, the meridian skill, and its waypoint after a compaction. In 40 compactions that carried the rule, it never did.
+`AGENTS.md` tells the agent to read the shared rules and its waypoint after a compaction. In 40 compactions that carried the rule, it never did.
 
-[`hooks/after-compaction.sh`](hooks/after-compaction.sh) makes it. After a compaction, it puts the session's waypoint back into context, headed by a `STOP. NON-NEGOTIABLE` list of files to read in full: `AGENTS.md`, the meridian skill, and whatever the waypoint's "Read first" line names. If there's no waypoint, it tells you.
+[`hooks/after-compaction.sh`](hooks/after-compaction.sh) makes it. After a compaction, it puts the session's waypoint back into context, headed by a `STOP. NON-NEGOTIABLE` list of files to read in full: `AGENTS.md` and whatever the waypoint's "Read first" line names. If there's no waypoint, it tells you.
 
 The shouting is deliberate. Claude Code's docs say current models don't need IMPORTANT or ALL CAPS, but plainer wording, and the hook on its own, were read past. "In full, even if it's already in your context" is there because the agent then read 5 lines of `AGENTS.md` and called it done.
+
+A waypoint written mid-routine names that routine's `SKILL.md`, so it's read again too, and records that you started it. That record is what lets a resumed `/cycle` keep committing: with no waypoint, the agent stops and asks.
 
 Claude Code and Codex can run it; their install sections say how. The other agents have no hook that runs after a compaction, so for them the rule in `AGENTS.md` is all there is.
 
 ## Also in the box
 
-- [`AGENTS.md`](AGENTS.md): the shared rules, loaded in every project beside your own personal rules, within the limits your agent's install section gives. They say what the approval words mean ("commit" commits, "push" pushes, and nothing more), that "we'll cycle" authorises nothing, the report shape, and to read AGENTS.md, the meridian skill, and the waypoint back after a compaction. The skills hold their own steps and take the shared definitions (Reports, Routines) from it, and every subagent brief stays self-contained. Your preferences go in your personal rules, not here; change `AGENTS.md` through this repo.
+- [`AGENTS.md`](AGENTS.md): the shared rules, loaded in every project beside your own personal rules, within the limits your agent's install section gives. They say what the approval words mean ("commit" commits, "push" pushes, and nothing more), that "we'll cycle" authorises nothing, the report shape, and to read AGENTS.md and the waypoint back after a compaction. The skills hold their own steps and take the shared definitions (Reports, Routines) from it, and every subagent brief stays self-contained. Your preferences go in your personal rules, not here; change `AGENTS.md` through this repo.
 - [`hooks/after-compaction.sh`](hooks/after-compaction.sh): puts the session's waypoint back after a compaction, in agents that can run a hook then. See [After a compaction](#after-a-compaction).
 - [`examples/`](examples/): one-shot runs, a small model given these skills and a single prompt with no `/spec`, `/go`, or `/cycle`, its output kept as built, unreviewed and unedited. They show what the doctrine alone gets you, and each README gives the prompt, the cost, and the defects a first check found. Several are what the routine is for: the .NET run turned an ambiguous requirement into a double-booking rule and wrote tests asserting it, a choice `/spec` would have set out as a Decision for you to agree, and its error-handling and setup defects are the kind `/cycle`'s reviewers and gate look for.
   - [Room booking, .NET 10 and Nuxt 4](examples/room-booking-dotnet/), by GLM 5.3 Flash.

@@ -1,5 +1,7 @@
 # Rivet (.NET)
 
+## Purpose
+
 Use this reference when designing or reviewing .NET APIs that use Rivet.
 
 ## What Rivet Is
@@ -100,7 +102,7 @@ list; the rule also covers each case a polymorphic base names with
 field is added, and the client type matches what the server always sends (a
 nullable field arrives as `null`, never missing). Requests may have optional
 fields. The canonical `ErrorResponse` keeps
-`Errors = null`; its shape is owned by backend-pa-vsa.md "Error Envelope" (MER-BE-054).
+`Errors = null`; its shape is owned by the backend Coding Style Rules, "Error Envelope" (MER-BE-054).
 
 Schema names are global and built from the simple type name, so every type a
 contract reaches needs a unique one. Two `Response` records nested in different
