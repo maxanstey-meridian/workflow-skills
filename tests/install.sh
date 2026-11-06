@@ -164,11 +164,11 @@ cases() {
   scenario c4
   make_skill dotfiles/skills/go
   make_link "$H/dotfiles/skills/go" .claude/skills/go
-  make_link "$H/dotfiles/skills/where-not-cloned-yet" .claude/skills/where
+  make_link "$H/dotfiles/skills/readme-not-cloned-yet" .claude/skills/readme
   run claude-code; exits 1
-  skills_in .claude/skills go where
+  skills_in .claude/skills go readme
   is_link .claude/skills/go "$H/dotfiles/skills/go"; says skipped "$H/.claude/skills/go"
-  is_link .claude/skills/where "$H/dotfiles/skills/where-not-cloned-yet"; says skipped "$H/.claude/skills/where"
+  is_link .claude/skills/readme "$H/dotfiles/skills/readme-not-cloned-yet"; says skipped "$H/.claude/skills/readme"
   verdict
 
   scenario c5
@@ -528,9 +528,9 @@ cases() {
   scenario u5
   clone
   run codex
-  rm -rf "$H/clone/skills/where"
+  rm -rf "$H/clone/skills/readme"
   run codex; exits 0
-  skills_in .agents/skills where; is_missing .agents/skills/where; says removed "$H/.agents/skills/where"
+  skills_in .agents/skills readme; is_missing .agents/skills/readme; says removed "$H/.agents/skills/readme"
   verdict
 
   scenario u6

@@ -266,7 +266,7 @@ case $1 in
       "rename yours (every .md file in $HOME/.claude/rules loads, whatever its name) and rerun"
     ask_for_hook "add this hook to $HOME/.claude/settings.json, so the waypoint comes back after a compaction, inside its \"hooks\" block if it has one (and into its SessionStart list if that exists): \"hooks\": { \"SessionStart\": [{ \"matcher\": \"compact\", \"hooks\": [{ \"type\": \"command\", \"command\": \"sh \\\"$hook\\\"\" }] }] }" \
       "$HOME/.claude/settings.json"
-    check="start a new session: /skills lists the eight skills, and /context lists the rules file in $HOME/.claude/rules under Memory files, beside your own CLAUDE.md"
+    check="start a new session: /skills lists the seven skills, and /context lists the rules file in $HOME/.claude/rules under Memory files, beside your own CLAUDE.md"
     ;;
   codex)
     [ $# -eq 1 ] || usage
@@ -285,7 +285,7 @@ case $1 in
     command = 'sh \"$hook\"'
     additionalContextLimit = 0" \
       "$codex_home/config.toml" "$codex_home/hooks.json"
-    check="start a new session: /skills lists the eight skills, /status lists $codex_home/AGENTS.md on its Agents.md row, and asking \"List the instruction sources you loaded\" names your developer_instructions"
+    check="start a new session: /skills lists the seven skills, /status lists $codex_home/AGENTS.md on its Agents.md row, and asking \"List the instruction sources you loaded\" names your developer_instructions"
     ;;
   cursor)
     [ $# -eq 1 ] || usage
@@ -297,7 +297,7 @@ case $1 in
     if [ -z "$was_link" ] && [ -L "$mdc" ]; then
       add_todo "if you pasted AGENTS.md into Cursor's Customize → Rules → User Rules for an earlier install, remove it: the rules now load from $mdc"
     fi
-    check="in a new Agent chat or cursor-agent session, / lists the eight skills; in the IDE, Customize → Rules lists workflow-skills"
+    check="in a new Agent chat or cursor-agent session, / lists the seven skills; in the IDE, Customize → Rules lists workflow-skills"
     ;;
   copilot)
     [ $# -eq 1 ] || usage
@@ -311,7 +311,7 @@ case $1 in
     case $dirs in
       *",$repo,"* | *",$repo/,"*) add_todo "remove $repo from COPILOT_CUSTOM_INSTRUCTIONS_DIRS in your shell profile and open a new terminal: the rules now load from $copilot_home/instructions/workflow-skills.instructions.md, and with both they load twice" ;;
     esac
-    check="start a new or resumed copilot session: /skills list shows the eight skills, and /instructions lists workflow-skills.instructions.md beside your $copilot_home/copilot-instructions.md"
+    check="start a new or resumed copilot session: /skills list shows the seven skills, and /instructions lists workflow-skills.instructions.md beside your $copilot_home/copilot-instructions.md"
     ;;
   opencode)
     [ $# -eq 1 ] || usage
@@ -323,7 +323,7 @@ case $1 in
     else
       add_todo "create $opencode_home/opencode.json holding: { \"instructions\": [\"$repo/AGENTS.md\"] }"
     fi
-    check="start a new session and ask \"Which skills can you load, and which instruction files did you load?\": it names the eight skills, $repo/AGENTS.md, and your own $opencode_home/AGENTS.md"
+    check="start a new session and ask \"Which skills can you load, and which instruction files did you load?\": it names the seven skills, $repo/AGENTS.md, and your own $opencode_home/AGENTS.md"
     ;;
   gemini)
     [ $# -eq 1 ] || usage
@@ -339,7 +339,7 @@ case $1 in
     else
       add_todo "create $HOME/.gemini/settings.json holding: { \"context\": { \"fileName\": [\"GEMINI.md\", \"AGENTS.md\"] } }"
     fi
-    check="start a new session: /skills list shows the eight skills, and /memory list names $HOME/.gemini/GEMINI.md and $HOME/.gemini/AGENTS.md"
+    check="start a new session: /skills list shows the seven skills, and /memory list names $HOME/.gemini/GEMINI.md and $HOME/.gemini/AGENTS.md"
     ;;
   antigravity)
     [ $# -eq 1 ] || usage
@@ -352,7 +352,7 @@ case $1 in
       link_rules_in_folder "$HOME/.gemini/antigravity-cli/rules" workflow-skills.md '*.md' 1 "rename yours and rerun"
       ag_rules=$HOME/.gemini/antigravity-cli/rules/workflow-skills.md
     fi
-    check="start a new session: /skills lists the eight skills, and /context lists $ag_rules under System files"
+    check="start a new session: /skills lists the seven skills, and /context lists $ag_rules under System files"
     ;;
   "~"*)
     echo "skipped $1: the shell didn't expand the ~, so write it unquoted or use \$HOME"

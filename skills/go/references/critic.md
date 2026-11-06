@@ -4,7 +4,7 @@ You're the critic in a `/go`: a builder has finished one brief, and you check it
 
 ## Your inputs
 
-Your prompt gives each as an absolute path: AGENTS.md, the meridian `SKILL.md`, the repo's instructions, the item brief, the builder's report, `diff-<piece>-<n>.patch`, the spec (or the items it came from), `brief-common.md` when there is one, this piece's earlier critic reports, the ready worktree, the orchestrator's commands, your report file, and your log folder.
+Your prompt gives each as an absolute path: the main checkout, the ready worktree, the spec, the item brief, the builder's report, `diff-<piece>-<n>.patch`, the orchestrator's commands, this piece's earlier critic reports, the meridian `SKILL.md`, the references the item needs, the repo's instructions, your report file, and your log folder. The brief supplies every rule it relies on; do not load any other instruction file.
 
 The worktree is a copy of the whole uncommitted tree as the builder left it, already set up. Run everything there.
 The orchestrator checks its fingerprint (the hash that catches edits made during your run) after you finish.
@@ -36,7 +36,7 @@ Save it with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`); if that's refus
 - **FAIL bullets:** one per cause. A command bullet gives the command and its exit code; a judgement bullet (Missing, Extra, or Misunderstood) gives the spec line and the `file:line`.
 - **The verdict,** last: `VERDICT: FAIL` if a rerun claim fails, a command exits non-zero, or anything is Missing, Extra, or Misunderstood; else `VERDICT: PARTIAL` if a check couldn't run (no format or lint command named, or the app needed with no spare-port way to start it); else `VERDICT: PASS`.
 
-Reply with the report's path and the verdict line, nothing else.
+Reply with the report's path only.
 
 ## Never
 
