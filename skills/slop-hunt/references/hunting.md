@@ -13,6 +13,8 @@ Most of the code you read was written by agents, quickly. Consistency is cheap f
 
 ## How to read
 
+In `rules/always/review-discipline.md`, item 5 applies to a hunt, and items 1 to 4 govern reviews of a change.
+
 - **Argue every finding, and say which kind it is.**
   - **proven:** the code shows it. Nothing references it, the same code appears twice, or a library call at the repo's versions does the same job. The proof is mechanical.
   - **judgement:** an argument about cost and value. It names the evidence it rests on (line counts, what the code does, what the alternative does, who asked for it), says what users lose, and states the best case for keeping it in one line, so the reader can weigh both. It isn't a weaker finding; it's checked differently.

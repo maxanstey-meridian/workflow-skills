@@ -6,7 +6,7 @@
 possible. First state the invariant and show a concrete interleaving that would
 violate it.
 
-For a demonstrated race, prefer in order:
+For a demonstrated race, prefer in order, this ladder:
 
 1. explicitly accept last-writer-wins when it violates no invariant
 2. database constraints

@@ -40,7 +40,7 @@ the same authority as an atomicity or dependency rule.
 
 ## Coding Style
 
-Defaults unless the item states a hard boundary:
+Defaults unless the spec or a Law states a hard boundary:
 
 - **Data transforms over object hierarchies** — prefer plain `type` (TS),
   `sealed record` (C#), object spread, and pure functions. Behavioral entities
@@ -86,7 +86,7 @@ Before writing custom machinery:
 The application still owns its product rules, capability contracts, idempotency
 semantics, transaction boundaries, failure interpretation, and orchestration.
 The database or established library owns concurrency arbitration and atomic
-persistence mechanics; Invariant Enforcement defines that boundary.
+persistence mechanics; Invariant Enforcement and Concurrency Review define that boundary.
 The library owns commodity protocol and runtime mechanics. Do not fork an SDK's
 job into application code, and do not wrap a library one-for-one merely to hide
 that it is a dependency.
@@ -140,8 +140,6 @@ Prefer fixing:
 - the real config
 - the real dependency direction
 
-Use shims only as deliberate, temporary last resorts.
-
 **Law:** a gap with a doc page is still a gap. Writing a problem down does not
 resolve it. A decision record, an `INVARIANTS.md` `Accepts`, a changelog "known
 issue", a README caveat or a code comment never stands in for a fix.
@@ -156,7 +154,7 @@ issue", a README caveat or a code comment never stands in for a fix.
   it is a gap.
 - A doc may say a gap exists only while a tracked fix for it is open, and names
   that fix.
-- What to do with one: the workflow-skills shared rules (AGENTS.md), 'Gaps get fixed'.
+- What to do with one: fix it now when this work caused or promised it, or the fix is trivial; otherwise report it as new work, never as a decision or a note.
 
 ## Local Before Shared
 
@@ -206,7 +204,7 @@ Defaults:
 Avoid:
 
 - `any` as convenience
-- type assertions and non-null assertions (a law; see Type Safety below)
+- type assertions and non-null assertions (a law; see Type Safety (All Stacks))
 - optional-chaining away modelling problems
 - nullish-coalescing away unclear state
 
@@ -262,9 +260,9 @@ introduce the capability without a requirement.
   activation, inbox/outbox, and transport. It is not the default in-process
   mediator.
 
-Concurrency Review owns the admission rules and failure-model
-qualifications for concurrency and messaging furniture. The furniture list grows
-only by explicit ruling, never by precedent creep.
+Concurrency Review owns the admission rules, and Established Furniture the
+failure-model qualifications, for concurrency and messaging furniture. The
+furniture list grows only by explicit ruling, never by precedent creep.
 
 ## Generated Code
 
@@ -323,7 +321,7 @@ When reviewing a diff or change:
 
 3. **Fix-first heuristic.** When the review is also asked to fix: mechanical fixes (dead code, stale comments, missing includes, unused variables) are just fixed, without asking. In a read-only review, list them as mechanical. Ambiguous fixes (security, design decisions, removing functionality, >20 lines) are batched into one question with recommendations.
 
-4. A documented gap is a finding. A known gap excused in a doc, `Accepts`, changelog or comment is a `fix`, as if the doc did not exist (see Root Cause). Never resolve a finding by documenting it: a fix round that only rewords the doc to describe the defect accurately has not fixed it.
+4. A documented gap is a finding. A known gap excused in a doc, `Accepts`, changelog or comment must be fixed, as if the doc did not exist (see Root Cause). Never resolve a finding by documenting it: a fix round that only rewords the doc to describe the defect accurately has not fixed it.
 
 5. **Suppress noise.** Do not flag: harmless redundancy that aids readability, threshold values tuned empirically, assertions that could theoretically be tighter but already cover the behaviour.
 

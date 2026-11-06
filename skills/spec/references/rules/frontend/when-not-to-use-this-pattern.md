@@ -2,7 +2,7 @@
 
 ## When Not To Use This Pattern
 
-Do not force full PA/VSA frontend structure when the feature is tiny.
+Do not force the full page-colocated ports-and-adapters structure when the feature is tiny.
 
 Skip ceremony when:
 

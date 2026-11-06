@@ -2,7 +2,7 @@
 
 ## Coding Style
 
-Defaults unless the item states a hard boundary:
+Defaults unless the spec or a Law states a hard boundary:
 
 - **Data transforms over object hierarchies** — prefer plain `type` (TS),
   `sealed record` (C#), object spread, and pure functions. Behavioral entities

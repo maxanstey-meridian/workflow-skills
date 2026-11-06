@@ -55,7 +55,7 @@ The map decides how the reading is shared out, never how much of it is done: eve
 5. **Run the mechanical finders** that the repo already has, or that run without adding files to it, scoped to `<root>`. Their output is leads, never findings: a hunter checks each lead by reading the code. Save each one's output to `<hunt folder>/leads-<tool>.txt`.
    - TypeScript: `knip` (unused files, exports, and dependencies; run it from `<root>`, and on Nuxt run it only when `.nuxt/` is already prepared, since without it every auto-import reads as unused), and `npx jscpd@5 --reporters console --ignore '**/Migrations/**,**/migrations/**,**/generated/**,**/*.g.cs,**/*.Designer.cs,**/__snapshots__/**,**/vendor/**,**/fixtures/**,**/__fixtures__/**,**/*.txt,**/*.csv,**/*.tsv,**/*lock.json,**/*.lock,**/*-lock.yaml,**/*.snap' <root>` (duplication; jscpd 5 respects `.gitignore` by default, but not the generated-code excludes, and without them migration snapshots and generated contracts swamp the real clones). Use the repo's own install of either, else `npx` with a pinned major (`npx knip@5`).
    - .NET: `dotnet format style <solution> --verify-no-changes --no-restore --severity hidden --diagnostics IDE0051 IDE0052 IDE0060 --include .` (unused private members and parameters, which IDE0051 and IDE0052 report only at `hidden`; it changes no source, and it needs the solution already restored). It also prints import-ordering and whitespace errors, so keep only the lines naming the three rules (`grep -E 'IDE00(51|52|60)'`). It writes design-time build output to `obj/` (git-ignored), so don't run it while another session's build or gate is running. `jscpd` covers C# too. JetBrains `jb inspectcode <solution> --no-build --swea -o=<hunt folder>/inspectcode.sarif` finds unused public and internal members, if it's installed.
-   - The repo's own linter or doctrine checker (plumb, when its instructions name it).
+   - The repo's own linter or doctrine checker (plumb, when its instructions name it or the repo defines a Plumb task or script).
 
    Never add a config file, package, or analyzer setting to the repo, or run a restore, build, or `nuxi prepare`, to make a finder run. One that can't run as things stand is skipped, and the report says so.
    - Check what the finders can't see: an analyzer or lint config that marks hand-written code as generated or excluded (an `.editorconfig` glob, a lint ignore) leaves those files out of the finder's results. Name them in the leads file, so an empty result isn't read as a clean one.
@@ -70,7 +70,7 @@ Before writing a design-reader, hunter, or verifier brief, resolve every path an
 
 - **Locations:** the resolved absolute `<main checkout>`, `<root>`, and `<hunt folder>`, and `<repo>`.
 - **Repository facts:** the resolved absolute path of the repo's instructions, the resolved paths of its README, `docs/`, ADRs, and the specs in `<main checkout>/.plans/`, and exactly which projects or packages are published.
-- **Doctrine:** the resolved absolute paths of `<base directory>/references/hunting.md` and of `<rules>`, which `hunting.md` cites its files from, and the role's folders below.
+- **Doctrine:** the resolved absolute paths of `<base directory>/references/hunting.md` and of `<rules>`, which `hunting.md` cites its files from, and the role's folders below. A section a rule file names is found by searching `<rules>` for its heading, and is read when the rule being followed points at it.
 - **Read-only scope:** the role edits nothing outside its named report, runs no tests, builds, or gate, and never commits, stages, or publishes.
 - **Report protocol:** the resolved absolute report path; save the report with a shell heredoc, `cat > <path> <<'EOF'` … `EOF`, not a file-writing tool; if saving is refused, reply with the whole report; otherwise reply with only the report path.
 
@@ -78,7 +78,7 @@ The design reader's brief gives, in addition to the common facts:
 
 - the resolved absolute paths of `<hunt folder>/capabilities.md`, `<hunt folder>/baseline.md`, `<hunt folder>/cloc.csv`, and the hotspot list;
 - `<base directory>/references/hunting.md`, to read first: what slop is, how to read, signs 1, 4, 11, 12, and 13 above all, and the report format;
-- every file in `<rules>/always/`, `<rules>/invariants/`, and `<rules>/tools/`, plus `<rules>/backend/`, and `<rules>/frontend/` with `<rules>/ui/`, for each stack the repo has;
+- every file in `<rules>/always/`, `<rules>/invariants/`, `<rules>/tools/`, and `<rules>/tests/`, plus `<rules>/backend/`, and `<rules>/frontend/` with `<rules>/ui/`, for each stack the repo has, and `<rules>/rivet/` when the repo has .NET API contracts;
 - the job: for every capability over about 5% of scope, and any capability that forces machinery on others (a check that rules libraries out, a format others must write to), say what it gives users, what the cheapest shape that gives them that is (the platform, a library, the host's or caller's job, a smaller design, or nothing), what users would lose, and what the change would cost. It reads the entry points, the composition root, and as much of each capability as it needs to judge it; the area hunters do the full read. Its report opens with `HEAD <short hash>`, then the weight map over every line of `capabilities.md` (hunting.md, "Your report"), then its findings in the same finding line, numbered `D1`, `D2`, and so on, and ends with `Capabilities weighed: <n>/<n>`;
 - its resolved absolute report path, `<hunt folder>/report-design.md`.
 
@@ -87,7 +87,7 @@ The design reader's brief gives, in addition to the common facts:
 - the area's exact files, every one to be read in full, with each file's size from `cloc.csv` and the area's uncommitted files;
 - the resolved absolute paths of `<hunt folder>/baseline.md` and `<hunt folder>/capabilities.md`;
 - `<base directory>/references/hunting.md`, to read first: what slop is, how to read, the signs, the proof each needs, what not to flag, and the report format;
-- every file in `<rules>/always/`, `<rules>/invariants/`, and `<rules>/tools/`, plus `<rules>/backend/`, or `<rules>/frontend/` with `<rules>/ui/`, for the area's stack (all of them for the cross-cutting area), and `<rules>/tests/` when the area holds tests;
+- every file in `<rules>/always/`, `<rules>/invariants/`, and `<rules>/tools/`, plus `<rules>/backend/`, or `<rules>/frontend/` with `<rules>/ui/`, for the area's stack (all of them for the cross-cutting area), `<rules>/tests/` when the area holds tests, and `<rules>/rivet/` when the repo has .NET API contracts;
 - its exact lead files from step 2;
 - when the separate design reader ran, `<hunt folder>/report-design.md`, whose findings that touch its area it confirms, prices more exactly, or contradicts with what it reads, rather than reporting them again;
 - the short hash of the repository's HEAD, which opens its report;
@@ -134,7 +134,7 @@ Save the report to `<hunt folder>/report.md`, as AGENTS.md 'Routines' says to sa
 **Cleanup:** <#N file:line what; …>, or none
 **Start with:** the design decision to settle first, then 3–5 lowest-risk code wins, by number
 **Also noticed:** <bugs the hunters tripped over, one line each, file:line, (unchecked)>, or none
-**Needs from you:** 1. … (rec: …), one item per design finding; then say which code findings (and any Also-noticed bugs) to take on, then run /spec in this conversation with the findings you want turned into work
+**Needs from you:** 1. … (rec: …), one item per design finding; then say which code findings (and any Also-noticed bugs) to take on, then run /spec in this conversation, which takes no arguments and reads them from it
 ```
 
 **Needs from you** is as AGENTS.md 'Reports' defines it.

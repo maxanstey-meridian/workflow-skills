@@ -2,7 +2,7 @@
 
 ## Established Furniture
 
-Furniture is available only after the preceding ladder justifies its category:
+Furniture is available only after the Concurrency Review ladder justifies its category:
 
 - TypeScript with PostgreSQL session-level advisory coordination:
   [`pg-advisory-lock`](https://github.com/IlyaSemenov/pg-advisory-lock). It does

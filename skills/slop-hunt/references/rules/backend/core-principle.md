@@ -2,13 +2,15 @@
 
 ## Core Principle
 
-Use **VSA first, CA where needed**.
+Use **vertical slice architecture (VSA) first, clean architecture (CA) where needed**.
 
 That means:
 
 - every meaningful product capability gets its own feature module
 - modules are the primary structural unit
 - inside a module, use clean architecture only when the domain or infrastructure variability justifies it
+
+TypeScript modular backends use Hono and `typed-inject` by default, and Nest where a repo already uses it.
 
 Do not force full CA into every trivial CRUD slice.
 

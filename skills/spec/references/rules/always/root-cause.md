@@ -11,8 +11,6 @@ Prefer fixing:
 - the real config
 - the real dependency direction
 
-Use shims only as deliberate, temporary last resorts.
-
 **Law:** a gap with a doc page is still a gap. Writing a problem down does not
 resolve it. A decision record, an `INVARIANTS.md` `Accepts`, a changelog "known
 issue", a README caveat or a code comment never stands in for a fix.
@@ -27,4 +25,4 @@ issue", a README caveat or a code comment never stands in for a fix.
   it is a gap.
 - A doc may say a gap exists only while a tracked fix for it is open, and names
   that fix.
-- What to do with one: the workflow-skills shared rules (AGENTS.md), 'Gaps get fixed'.
+- What to do with one: fix it now when this work caused or promised it, or the fix is trivial; otherwise report it as new work, never as a decision or a note.

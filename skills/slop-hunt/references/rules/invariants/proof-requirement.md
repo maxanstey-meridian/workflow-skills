@@ -8,7 +8,7 @@ Before adding concurrency machinery:
 2. Show a concrete read/write interleaving that violates it.
 3. Explain why last-writer-wins is unacceptable.
 4. Identify the authoritative arbitration boundary.
-5. Explain why every earlier applicable rung is insufficient.
+5. Explain why every earlier applicable rung of the Concurrency Review ladder is insufficient.
 6. Test the interleaving against the production persistence or runtime substrate.
 
 More than 30 lines of custom coordination machinery requires an

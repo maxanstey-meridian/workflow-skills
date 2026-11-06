@@ -4,13 +4,13 @@
 
 A test asserts the behaviour the product intends, even when today's code fails
 it. A test written to match a known gap hides the gap: when a test reaches one,
-assert the correct behaviour, report the red step, and handle the gap as
-the workflow-skills shared rules (AGENTS.md), 'Gaps get fixed', say. If the gap is parked rather than fixed in the
-work, mark the test as an expected failure that names the park (Playwright's
-`test.fail()`, or the framework's equivalent; a skip isn't one, because it
-asserts nothing), so the suite goes red the day the gap is fixed and the mark
-comes off. Weakening the assertion instead breaks the same rules' 'Never make a
-check pass by shrinking what it checks'.
+assert the correct behaviour, report the red step, and fix the gap if this work
+caused it or the fix is trivial; otherwise park it as new work. If the gap is
+parked rather than fixed in the work, mark the test as an expected failure that
+names the park (Playwright's `test.fail()`, or the framework's equivalent; a skip
+isn't one, because it asserts nothing), so the suite goes red the day the gap is
+fixed and the mark comes off. Weakening the assertion instead shrinks the check to
+make it pass, which is never allowed.
 
 In an end-to-end run, a fake adapter's failure modes are reached through agreed
 trigger values in the fake (a postcode that always means "no results", another

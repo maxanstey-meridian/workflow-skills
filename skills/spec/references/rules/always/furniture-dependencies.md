@@ -19,6 +19,6 @@ introduce the capability without a requirement.
   activation, inbox/outbox, and transport. It is not the default in-process
   mediator.
 
-Concurrency Review owns the admission rules and failure-model
-qualifications for concurrency and messaging furniture. The furniture list grows
-only by explicit ruling, never by precedent creep.
+Concurrency Review owns the admission rules, and Established Furniture the
+failure-model qualifications, for concurrency and messaging furniture. The
+furniture list grows only by explicit ruling, never by precedent creep.

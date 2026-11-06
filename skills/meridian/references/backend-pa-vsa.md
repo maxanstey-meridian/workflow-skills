@@ -12,7 +12,7 @@ Use this when designing, reviewing, or refactoring a backend toward a modular-mo
 This is the Meridian backend default for both:
 
 - .NET modular monoliths
-- TypeScript modular backends (Hono + `typed-inject` by default; Nest where a repo already uses it)
+- TypeScript modular backends
 
 It is distilled from the house's .NET and TypeScript modular monoliths and their architecture tests.
 
@@ -31,13 +31,15 @@ The stable boundary is the **module**, not the class and not the package.
 
 ## Core Principle
 
-Use **VSA first, CA where needed**.
+Use **vertical slice architecture (VSA) first, clean architecture (CA) where needed**.
 
 That means:
 
 - every meaningful product capability gets its own feature module
 - modules are the primary structural unit
 - inside a module, use clean architecture only when the domain or infrastructure variability justifies it
+
+TypeScript modular backends use Hono and `typed-inject` by default, and Nest where a repo already uses it.
 
 Do not force full CA into every trivial CRUD slice.
 
@@ -186,7 +188,7 @@ src/modules/<feature>/
 │   ├── ports/
 │   └── <use-case>.ts
 ├── infrastructure/
-├── <feature>.controller.ts
+├── interface/http/<feature>-routes.ts
 └── <feature>.module.ts
 ```
 
@@ -211,7 +213,7 @@ Prefer:
 - `UserRepository`
 - `PasswordHasher`
 - `PaymentGateway`
-- `FeatureToggleProvider`
+- `FeatureToggles`
 - `WorkflowStarter`
 
 Avoid:
@@ -574,9 +576,10 @@ root — but each module owns its entities' mapping:
 
 ## Consistency, Concurrency, and Events
 
-Invariant Enforcement and Concurrency Review are authoritative for invariant
-enforcement, concurrency admission, escalation, proof, locks, queues, workflows,
-and outboxes. Apply them before selecting persistence or messaging infrastructure.
+Invariant Enforcement, Concurrency Review, Proof Requirement, the invariant Laws,
+and Established Furniture are authoritative for invariant enforcement, concurrency
+admission, escalation, proof, locks, queues, workflows, and outboxes. Apply them
+before selecting persistence or messaging infrastructure.
 
 Backend placement consequences:
 

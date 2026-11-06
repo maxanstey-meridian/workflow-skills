@@ -13,11 +13,6 @@ ports-and-adapters shape with:
 
 This is the Meridian frontend default.
 
-**Meridian frontends are SPAs**: assume `ssr: false`
-throughout. SSR idioms (hydration-aware `useAsyncData` patterns, server
-components) are not house style, and nothing in this reference should be read
-as ruling on them.
-
 ## Default Recommendation
 
 Treat **`app.vue`, layouts, and pages** as the only composition roots.
@@ -38,9 +33,13 @@ not the component.
 
 ## Core Principle
 
+Frontends are SPAs: assume `ssr: false` throughout. SSR idioms (hydration-aware
+`useAsyncData` patterns, server components) are not house style, and nothing in
+these rules should be read as ruling on them.
+
 Keep views dumb and dependencies explicit.
 
-The point of this pattern is not “do DI on the frontend”.
+The point of page-colocated ports and adapters is not “do DI on the frontend”.
 
 The point is:
 
@@ -698,7 +697,7 @@ Bad:
 
 ## When Not To Use This Pattern
 
-Do not force full PA/VSA frontend structure when the feature is tiny.
+Do not force the full page-colocated ports-and-adapters structure when the feature is tiny.
 
 Skip ceremony when:
 

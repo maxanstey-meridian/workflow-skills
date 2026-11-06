@@ -13,7 +13,7 @@ Prefer:
 - `UserRepository`
 - `PasswordHasher`
 - `PaymentGateway`
-- `FeatureToggleProvider`
+- `FeatureToggles`
 - `WorkflowStarter`
 
 Avoid:

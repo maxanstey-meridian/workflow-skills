@@ -15,4 +15,4 @@ cover the substituted adapter. State that scope honestly. Verifying only the
 double's calls, rather than an observable result or state transition, usually
 manufactures confidence.
 
-The rule is the workflow-skills shared rules' (AGENTS.md) 'A check that can't fail is a defect'; here it means compare a check's result with something the code under test didn't produce.
+A check that can't fail is a defect: compare a check's result with something the code under test didn't produce.

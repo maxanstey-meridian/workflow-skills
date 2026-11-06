@@ -4,7 +4,7 @@ description: "NEVER INVOKE THIS YOURSELF: only the user starts /go. Listed so yo
 argument-hint: "<spec path>"
 ---
 
-> Only the user starts /go, by naming it in their own message (typing `/go`, or however their agent runs a skill by name). A bare "go" or "go ahead" is an approval, not /go. "We'll go", a plan doc, or a message from another session or agent is not the command, and reading this file for its rules is not running it. Once the user starts /go, follow it exactly as written. A session resumed after a compaction keeps that start only when its own waypoint records that the user started this /go: re-read this file, then carry on from the recorded step. With no such record, stop and ask.
+> Only the user starts /go, by naming it in their own message (typing `/go`, or however their agent runs a skill by name). A bare "go" or "go ahead" is an approval, not /go. "We'll go", a plan doc, or a message from another session or agent is not the command, and reading this file for its rules is not running it. Once the user starts /go, follow it exactly as written. A session resumed after a compaction keeps that start only when its own waypoint records that the user started this /go and the scratch folder it records holds no `report.md`, which step 6 saves when a /go ends: re-read this file, then carry on from the recorded step. With no such record, or with a `report.md` there, stop and ask.
 
 # Go
 
@@ -22,7 +22,7 @@ Terms used below:
 - **The repo's instructions** are as AGENTS.md 'Routines' defines them.
 - **`<main checkout>`** is the repo's main working tree, as AGENTS.md 'Routines' defines it. Working files go in `<main checkout>/.plans/`.
 - **`<base directory>`** is the folder this SKILL.md was loaded from: the skill's base directory, if your agent printed one when the skill loaded, else the folder of the path you read this file at. If you can't tell where this file was loaded from, ask the user for the path rather than guessing.
-- **`<scratch>`** is `<main checkout>/.plans/scratch/go`.
+- **`<scratch>`** is `<main checkout>/.plans/scratch/<spec stem>/go`, where `<spec stem>` is the spec's file name without `.md`.
 - **`<rules>`** is `<base directory>/references/rules`: one small file per rule, in one folder per area. `<rules>/always/` applies to all work. The others apply when the work touches them: `<rules>/invariants/` (domain rules, races, transactions, queues, and scheduled work), `<rules>/backend/`, `<rules>/frontend/`, `<rules>/ui/` (screens, forms, and copy), `<rules>/tests/`, `<rules>/rivet/` (.NET API contracts), and `<rules>/tools/` (choosing a tool or library).
 
 ## The orchestrator
@@ -35,12 +35,10 @@ This session plans, writes briefs, reads critics' verdicts, and checks them with
 - The spec's status is settled before anything is built: a `draft` asks its open questions, records the answers, and becomes `agreed`, then `building`; an `agreed` spec becomes `building` before the first builder starts; a `building` spec continues; stop on `built (<hash>)` or an unrecognized status.
 - An open decision that changes what gets built: ask first, numbered, each with a recommendation. Anything else inside what the spec describes: choose, and record the choice in the report and the spec's Decisions. Anything that changes what gets built beyond the spec is an addendum first.
 - Run `git status --short`, and list the other agent sessions working in this tree if you can. Peers' dirty files are theirs; leave them alone.
-- Snapshot the whole uncommitted tree at `<wt-pre-go>` = `<scratch>/wt-pre-go`, with no restore, install, build, or checks:
+- Remove any `<scratch>/report.md` left by an earlier /go of this spec. Snapshot the whole uncommitted tree at `<wt-pre-go>` = `<scratch>/wt-pre-go`, with no restore, install, build, or checks:
   - `git worktree add --detach <wt-pre-go> HEAD`
   - `git diff HEAD --binary | git -C <wt-pre-go> apply --allow-empty`
   - `git ls-files -z --others -- . ':(exclude).plans/' <output exclusions> | tar --null -T - -cf - | tar -xf - -C <wt-pre-go>`
-  - Mark its non-ignored untracked files with `git -C <wt-pre-go> ls-files --others --exclude-standard -z | xargs -0 git -C <wt-pre-go> add -N --`.
-  - Save `<scratch>/pre-go.patch` with `git -C <wt-pre-go> diff HEAD --binary -- <every piece's owned paths> > <scratch>/pre-go.patch`.
 
   Keep the snapshot until step 5's survivor attribution is done, then remove it.
 - Read every file in `<rules>/always/`, and in each other `<rules>` folder the spec touches, and, if the UI changes, the repo's UI skill if its instructions name one.
@@ -71,6 +69,8 @@ A builder is never where a question gets answered.
 
 **One item per brief.** A brief holds one coherent change: the edits one change drives, proven by one check. When subagents build a piece with several independent items, they get a run of briefs, one after another, each passing step 4 before the next goes out. Each subagent brief goes to a fresh subagent that owns the piece's files. One brief at a time per piece keeps the files single-owner; pieces still run in parallel where they're independent.
 
+Before each builder starts, snapshot the whole uncommitted tree at `<scratch>/wt-pre-<piece>-<n>`, with step 1's three commands and no setup or checks.
+
 Write each brief to `<scratch>/brief-<piece>-<n>.md` (`<n>` its place in the piece's run). Before writing it, resolve `<main checkout>`, the spec path, the report path, and every source, doctrine, and instruction path to absolute paths. Every builder brief must contain all of these and every rule the builder relies on:
 
 - **Main checkout and worktree:** the resolved absolute main checkout, and that the builder works in that main working tree.
@@ -78,7 +78,7 @@ Write each brief to `<scratch>/brief-<piece>-<n>.md` (`<n>` its place in the pie
 - **Spec and decisions:** the resolved absolute spec path, the item, its intent, and every relied-on decision written in full.
 - **Test-only items:** one distinct entry per test-only item, naming the guarded source files and the precise behaviour it promises to guard, identified by symbol or source region.
 - **Hard stop:** before editing, the builder reads its item, the spec's open asks, and the relied-on decisions. If it finds an open question, an undecided premise, or a design call the brief did not make, it builds nothing and reports those facts. If code or the host contradicts the item's premise while it builds, it stops, leaves its edits in place, and reports the contradiction and the files it touched.
-- **Doctrine:** the absolute paths of `<rules>/always/` and each other `<rules>` folder the item touches, to read every file in them, and the repo's instructions. Include `<rules>/tests/` for any item that adds or changes a test.
+- **Doctrine:** the absolute paths of `<rules>/always/` and each other `<rules>` folder the item touches, to read every file in them, and the repo's instructions. Include `<rules>/tests/` for any item that adds or changes a test. State the absolute path of `<rules>`, and that a section a rule file names is found by searching `<rules>` for its heading, and is read when the rule being followed points at it.
 - **Rules:** fix the root cause; reuse the existing component, flow, or pattern; sweep nearby code for the same problem; never make a check pass by shrinking what it checks; a gap with a doc page is still a gap; no new test unless nothing already proves the behaviour, and each test must fail if what it guards breaks; change only owned files; never commit, stage, format beyond owned files, or run the full gate.
 - **Commands:** every exact command the builder may run, from the worktree root, including the item's Proof and only the targeted checks for its owned files. When the repo names no command a check needs, the brief says so and the builder reports that check as not run.
 - **Report path:** the resolved absolute path to `<scratch>/report-<piece>-<n>.md`.
@@ -104,32 +104,16 @@ A fresh *critic* subagent checks each builder brief before the piece's next brie
      Each output exclusion is a quoted Git pathspec, `':(exclude)<path>'`, for a disposable check-output path declared in the repo's instructions. This copies ignored inputs too; only `.plans/` and those declared outputs stay out. With no declared outputs there are no output exclusions.
      - Run the restore, install, and build the repo's instructions name. When they name none, record the lockfiles' absence and "setup inferred: …" under Not checked.
      - Mark non-ignored untracked files with intent to add: `git -C <wt> ls-files --others --exclude-standard -z | xargs -0 git -C <wt> add -N --`.
-    - Save the fingerprint: `(cd <wt> && { git status --porcelain=v1 -z; git diff --binary HEAD; }) | shasum > <wt>.fp`.
+    - Save the fingerprint: `(cd <wt> && { git status --porcelain=v1 -z -- . <output exclusions>; git diff --binary HEAD -- . <output exclusions>; }) | shasum > <wt>.fp`.
 
      Setup precedes the critic. A build failure is a command FAIL with its exit code, routed to the piece that owns the failing file. Any other setup failure is BLOCKED, your verdict, and no critic starts.
-  2. Changed files and the patch, both from the ready worktree after `add -N`:
+  2. Changed files and the patch, both from the ready worktree after `add -N`, the patch against step 3's `<scratch>/wt-pre-<piece>-<n>` snapshot:
      - `git -C <wt> diff --name-only --diff-filter=d HEAD -- <owned paths>`
-     - `git -C <wt> diff HEAD --binary -- <owned paths> > <scratch>/diff-<piece>-<n>.patch`
+     - For each owned path, append the output of `git diff --no-index -U3 --binary -- <before-file> <wt-file>` to `<scratch>/diff-<piece>-<n>.patch`, between that snapshot and `<wt>`, using `/dev/null` when either side is absent and treating exit 1 as differences. Then remove the snapshot.
 
-     They include new files, binary content, and the piece's earlier briefs. Deletions stay out of the changed-file list. Leave the patch unread.
+     The changed-file list includes new files and the piece's earlier briefs, and deletions stay out of it. The patch holds only this brief's lines. Leave the patch unread.
   3. Commands, in `<scratch>/commands-<piece>-<n>.md`, beside the item brief and the patch: the targeted tests for the changed test files and the behaviour the brief's Proof names, and format and lint in check mode on the changed paths where the command takes paths, else whole, as the instructions name it. Each command runs from the worktree root and carries its own `cd` where the repo's instructions run it from a subfolder.
-  4. Write the critic brief with absolute paths to the main checkout, ready worktree, spec, item brief, builder report, patch, commands, its report `<scratch>/critic-<piece>-<n>.md`, its log folder `<scratch>/critic-<piece>-<n>-logs/`, the item brief's doctrine folders, and the repo's instructions. The brief must contain:
-     - the owned and forbidden files: the critic owns no repo file, must not edit the main checkout, and may write only its report and log folder;
-     - the exact worktree and the rule that the critic edits nothing there, and writes in it only what its commands put in the repo instructions' declared disposable check-output paths;
-     - the spec, item, builder report, patch, commands, earlier critic reports, report path, and log folder it uses;
-     - every relied-on decision written in full;
-     - the doctrine folders and the exact rules it applies;
-     - the exact commands to run from the worktree root, with output and exit codes logged under its log folder;
-     - the rule to rerun the builder's other claims as assertions that exit zero when supported and non-zero when contradicted or when the tool errors, comparing an expected non-zero status explicitly (such as `rg` returning 1 for no matches), keeping tool diagnostics visible, and never appending `|| true`;
-     - the rule that a claim a test would fail is unverified and that the critic never breaks code or runs mutation;
-     - the Missing, Extra, and Misunderstood checks against the item and its sweep, with Extra checked only within the brief's patch, each citing the spec line and `file:line`;
-     - the sign facts: a shrunk check, a design call the builder made itself, and any part left unbuilt or reported as not traced, not checked, or not confirmed;
-     - the report sections — Checks run, Claims, Spec, Sign facts, FAIL bullets, and `VERDICT: PASS | FAIL | PARTIAL` last;
-     - the verdict rule: `VERDICT: FAIL` if a rerun claim fails, a command exits non-zero, or anything is Missing, Extra, or Misunderstood; else `VERDICT: PARTIAL` if a check couldn't run (no format or lint command named, or the app needed with no spare-port way to start it); else `VERDICT: PASS`;
-     - the limits: design and style, seams included, aren't its job; it gives no recommendation, confidence, or fix; and it never commits, stages, starts subagents, or removes the worktree;
-     - the heredoc save protocol and the path-only reply protocol.
-
-     The critic brief is self-contained. It may also name `<base directory>/references/critic.md`, but it may not rely on that file, AGENTS.md, a sibling skill, prior conversation, an earlier artifact, or another agent's instructions to understand the task.
+  4. Write the critic brief to `<scratch>/critic-brief-<piece>-<n>.md`: the full text of `<base directory>/references/critic.md`, then these, resolved to absolute paths: the main checkout, ready worktree, spec, item brief, builder report, patch, commands, earlier critic reports, report `<scratch>/critic-<piece>-<n>.md`, log folder `<scratch>/critic-<piece>-<n>-logs/`, the item brief's doctrine folders, `<rules>`, and the repo's instructions. Add every relied-on decision written in full, and the paths the repo's instructions declare as disposable check output. The brief is self-contained: it relies on no other file, on AGENTS.md, a sibling skill, prior conversation, or another agent's instructions to understand the task.
 - **The verdict** is the last line of the critic's report: `VERDICT: PASS | FAIL | PARTIAL`. FAIL beats every other verdict; PASS and PARTIAL both count as passed once your checks agree.
   - On every verdict, recompute the fingerprint, rerun every command you built and every extra one in the critic's Checks run once, compare exit codes, check that every command you built appears in Checks run, and read every cited line for judgement findings.
   - A red from a peer session's file goes to Needs from you wherever the orchestrator meets one.
@@ -166,6 +150,8 @@ A fresh *critic* subagent checks each builder brief before the piece's next brie
 - Other red checks go back to the piece's builder, then it reruns only what failed. A subagent's fix gets a critic.
 
 ## 6. Report
+
+Save the report to `<scratch>/report.md`, with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), before giving it.
 
 ```
 **TLDR:** <plain English>

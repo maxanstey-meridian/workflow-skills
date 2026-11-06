@@ -2,6 +2,16 @@
 
 ## Invariant Enforcement
 
+The governing sequence is:
+
+1. State the invariant independently of implementation.
+2. Put enforcement at the narrowest owner with enough information.
+3. Consider concurrency only when a concrete interleaving can violate it.
+4. Use the smallest established mechanism that keeps it true.
+5. Prove the interleaving at the real arbitration boundary.
+
+Do not let concurrency machinery become a substitute for modelling the rule.
+
 **Law:** important product invariants are established by the domain and encoded
 at an authoritative enforcement boundary. An LLM, controller, UI, prompt,
 comment, or test suite is not the authority that decides what the invariant is.

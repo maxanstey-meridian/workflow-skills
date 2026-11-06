@@ -14,7 +14,7 @@ Defaults:
 Avoid:
 
 - `any` as convenience
-- type assertions and non-null assertions (a law; see Type Safety below)
+- type assertions and non-null assertions (a law; see Type Safety (All Stacks))
 - optional-chaining away modelling problems
 - nullish-coalescing away unclear state
 

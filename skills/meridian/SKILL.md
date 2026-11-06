@@ -160,4 +160,4 @@ review.
 - For backend/frontend structure, do not restate generic clean architecture from scratch; use the Meridian references directly.
 - For testing and coding questions, prefer the doctrine here over generic framework advice.
 - AGENTS.md is the workflow-skills shared rules file your agent loads as its rules, not the repo's own AGENTS.md.
-- The routines carry generated copies of these rules, section by section. After editing this file's Laws, Defaults, Preferences, or Mechanical Checking, or a reference, run `sh scripts/build-doctrine.sh` in the workflow-skills repo.
+- The routines carry generated copies of these rules, section by section. After editing this file's Laws, Defaults, Preferences, or Mechanical Checking, or a reference, run `sh scripts/build-doctrine.sh`, then `sh tests/doctrine.sh`, in the workflow-skills repo. A new heading also needs a line in `scripts/doctrine-manifest.txt`.

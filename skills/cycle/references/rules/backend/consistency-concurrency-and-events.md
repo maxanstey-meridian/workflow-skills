@@ -2,9 +2,10 @@
 
 ## Consistency, Concurrency, and Events
 
-Invariant Enforcement and Concurrency Review are authoritative for invariant
-enforcement, concurrency admission, escalation, proof, locks, queues, workflows,
-and outboxes. Apply them before selecting persistence or messaging infrastructure.
+Invariant Enforcement, Concurrency Review, Proof Requirement, the invariant Laws,
+and Established Furniture are authoritative for invariant enforcement, concurrency
+admission, escalation, proof, locks, queues, workflows, and outboxes. Apply them
+before selecting persistence or messaging infrastructure.
 
 Backend placement consequences:
 

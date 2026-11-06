@@ -10,6 +10,6 @@ When reviewing a diff or change:
 
 3. **Fix-first heuristic.** When the review is also asked to fix: mechanical fixes (dead code, stale comments, missing includes, unused variables) are just fixed, without asking. In a read-only review, list them as mechanical. Ambiguous fixes (security, design decisions, removing functionality, >20 lines) are batched into one question with recommendations.
 
-4. A documented gap is a finding. A known gap excused in a doc, `Accepts`, changelog or comment is a `fix`, as if the doc did not exist (see Root Cause). Never resolve a finding by documenting it: a fix round that only rewords the doc to describe the defect accurately has not fixed it.
+4. A documented gap is a finding. A known gap excused in a doc, `Accepts`, changelog or comment must be fixed, as if the doc did not exist (see Root Cause). Never resolve a finding by documenting it: a fix round that only rewords the doc to describe the defect accurately has not fixed it.
 
 5. **Suppress noise.** Do not flag: harmless redundancy that aids readability, threshold values tuned empirically, assertions that could theoretically be tighter but already cover the behaviour.

@@ -33,7 +33,7 @@ Before writing custom machinery:
 The application still owns its product rules, capability contracts, idempotency
 semantics, transaction boundaries, failure interpretation, and orchestration.
 The database or established library owns concurrency arbitration and atomic
-persistence mechanics; Invariant Enforcement defines that boundary.
+persistence mechanics; Invariant Enforcement and Concurrency Review define that boundary.
 The library owns commodity protocol and runtime mechanics. Do not fork an SDK's
 job into application code, and do not wrap a library one-for-one merely to hide
 that it is a dependency.

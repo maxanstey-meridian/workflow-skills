@@ -5,6 +5,8 @@
 Use this when deciding where a domain rule belongs, whether a domain model has
 earned its place, or whether a race requires coordination infrastructure.
 
+## Invariant Enforcement
+
 The governing sequence is:
 
 1. State the invariant independently of implementation.
@@ -14,8 +16,6 @@ The governing sequence is:
 5. Prove the interleaving at the real arbitration boundary.
 
 Do not let concurrency machinery become a substitute for modelling the rule.
-
-## Invariant Enforcement
 
 **Law:** important product invariants are established by the domain and encoded
 at an authoritative enforcement boundary. An LLM, controller, UI, prompt,
@@ -142,7 +142,7 @@ concurrency control.
 possible. First state the invariant and show a concrete interleaving that would
 violate it.
 
-For a demonstrated race, prefer in order:
+For a demonstrated race, prefer in order, this ladder:
 
 1. explicitly accept last-writer-wins when it violates no invariant
 2. database constraints
@@ -190,7 +190,7 @@ Before adding concurrency machinery:
 2. Show a concrete read/write interleaving that violates it.
 3. Explain why last-writer-wins is unacceptable.
 4. Identify the authoritative arbitration boundary.
-5. Explain why every earlier applicable rung is insufficient.
+5. Explain why every earlier applicable rung of the Concurrency Review ladder is insufficient.
 6. Test the interleaving against the production persistence or runtime substrate.
 
 More than 30 lines of custom coordination machinery requires an
@@ -272,7 +272,7 @@ revisit the module boundary before adding coordination machinery.
 
 ## Established Furniture
 
-Furniture is available only after the preceding ladder justifies its category:
+Furniture is available only after the Concurrency Review ladder justifies its category:
 
 - TypeScript with PostgreSQL session-level advisory coordination:
   [`pg-advisory-lock`](https://github.com/IlyaSemenov/pg-advisory-lock). It does

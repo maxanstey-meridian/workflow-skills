@@ -4,7 +4,8 @@
 # Usage: sh scripts/build-doctrine.sh           rebuilds them
 #        sh scripts/build-doctrine.sh --check   changes nothing, and exits 1 if a file differs from what a rebuild would write
 # A section is its heading line down to the next heading at its level or above, ignoring # lines inside code fences.
-# A heading the manifest names and the source doesn't have stops the build, so renaming one can't silently drop a rule.
+# A heading the manifest names and the source doesn't have, or has more than once, stops the build, so renaming or repeating one can't
+# silently drop a rule. So do a missing manifest, a routine with no rows, a row with no skills, and an unknown area, before anything is deleted.
 # Hand-rolled on purpose. Checked first: pandoc re-renders Markdown, so a section isn't copied verbatim; markdown-it-py and remark each
 # need a Python or Node runtime and a script around them to slice lines, in a repo with no package manifest whose install and tests
 # need only sh. The constraint is verbatim line ranges with nothing beyond sh and awk; the job is ATX headings and fenced code in files
@@ -20,14 +21,16 @@ case ${1:-} in
   "" | --check) mode=${1:-} ;;
   *) echo "usage: sh scripts/build-doctrine.sh [--check]"; exit 2 ;;
 esac
+[ -r "$manifest" ] || { echo "no manifest at $manifest"; exit 2; }
 
-section() { # <file> <heading line>: prints the section; exits 1 when the file has no such heading
+section() { # <file> <heading line>: prints the section; exits 1 when the file has no such heading and 3 when it has more than one
   awk -v want="$2" '
     function level(s) { match(s, /^#+/); return RLENGTH }
     # CommonMark fences: 1 for a line in a fence, opener and closer included.
+    # The indent is an alternation because mawk 1.3.4 strips only one space given / ? ? ?/.
     function fenced(s,    t, c, run, rest) {
       t = s
-      sub(/^ ? ? ?/, "", t)
+      sub(/^(   |  | )/, "", t)
       c = ""
       if (t ~ /^```/) { c = "`"; match(t, /^`+/) }
       else if (t ~ /^~~~/) { c = "~"; match(t, /^~+/) }
@@ -44,12 +47,13 @@ section() { # <file> <heading line>: prints the section; exits 1 when the file h
     }
     { in_fence = fenced($0) }
     !in_fence && /^#+ / {
-      if (found) { if (level($0) <= depth) exit }
-      else if ($0 == want) { found = 1; depth = level($0) }
+      if ($0 == want) { if (!seen++) { inside = 1; depth = level($0) } }
+      else if (inside && level($0) <= depth) inside = 0
     }
-    found { lines[++n] = $0 }
+    inside { lines[++n] = $0 }
     END {
-      if (!found) exit 1
+      if (!seen) exit 1
+      if (seen > 1) exit 3
       while (n > 0 && lines[n] == "") n--
       for (i = 1; i <= n; i++) print lines[i]
     }
@@ -61,13 +65,19 @@ slug() { # <heading line>: its text, lowercase, with every run of other characte
 }
 
 result=0
-while IFS='|' read -r wanted area origin heading; do
-  case $wanted in "#"* | "") continue ;; esac
+while IFS='|' read -r wanted area origin heading || [ -n "$wanted$area$origin$heading" ]; do
   wanted=$(printf '%s' "$wanted" | tr -d '[:space:]')
   area=$(printf '%s' "$area" | tr -d '[:space:]')
   origin=$(printf '%s' "$origin" | tr -d '[:space:]')
   heading=${heading# }
+  [ -n "$(printf '%s' "$wanted$area$origin$heading" | tr -d '[:space:]')" ] || continue
+  case $wanted in "#"*) continue ;; esac
+  [ -n "$(printf '%s' "$wanted" | tr -d ',')" ] || { echo "manifest: no skills on the line for $origin: $heading"; result=2; continue; }
   [ "$wanted" != all ] || wanted=spec,go,cycle,slop-hunt
+  case $area in
+    always | backend | frontend | invariants | rivet | tests | tools | ui) ;;
+    *) echo "manifest: unknown area $area on the line for $origin: $heading"; result=2; continue ;;
+  esac
   case $origin in
     SKILL.md) from=$repo/skills/meridian/SKILL.md ;;
     *) from=$repo/skills/meridian/references/$origin ;;
@@ -90,12 +100,18 @@ while IFS='|' read -r wanted area origin heading; do
       echo
       section "$from" "$heading"
     } > "$out"
-    if ! section "$from" "$heading" > /dev/null; then
-      echo "manifest: $origin has no heading \"$heading\""
-      result=2
-    fi
+    case $? in
+      0) ;;
+      3) echo "manifest: $origin has \"$heading\" more than once"; result=2 ;;
+      *) echo "manifest: $origin has no heading \"$heading\""; result=2 ;;
+    esac
   done
 done < "$manifest"
+[ "$result" -eq 0 ] || exit "$result"
+
+for skill in spec go cycle slop-hunt; do
+  [ -d "$tmp/$skill" ] || { echo "manifest: no rows for $skill"; result=2; }
+done
 [ "$result" -eq 0 ] || exit "$result"
 
 for skill in spec go cycle slop-hunt; do

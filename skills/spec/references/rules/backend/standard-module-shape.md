@@ -35,7 +35,7 @@ src/modules/<feature>/
 │   ├── ports/
 │   └── <use-case>.ts
 ├── infrastructure/
-├── <feature>.controller.ts
+├── interface/http/<feature>-routes.ts
 └── <feature>.module.ts
 ```
 

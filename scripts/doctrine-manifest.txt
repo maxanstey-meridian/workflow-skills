@@ -27,16 +27,16 @@ go,cycle,slop-hunt     | always     | coding-philosophy.md          | ## Smell C
 
 all                    | invariants | invariants-and-concurrency.md | ## Invariant Enforcement
 all                    | invariants | invariants-and-concurrency.md | ## Concurrency Review
-spec,go,cycle          | invariants | invariants-and-concurrency.md | ## Scheduled Work
+all                    | invariants | invariants-and-concurrency.md | ## Scheduled Work
 all                    | invariants | invariants-and-concurrency.md | ## Proof Requirement
-spec,go,cycle          | invariants | invariants-and-concurrency.md | ## Recording Invariants
+all                    | invariants | invariants-and-concurrency.md | ## Recording Invariants
 all                    | invariants | invariants-and-concurrency.md | ## Laws
 all                    | invariants | invariants-and-concurrency.md | ## Established Furniture
 
-spec                   | backend    | backend-pa-vsa.md             | ## Default Recommendation
+all                    | backend    | backend-pa-vsa.md             | ## Default Recommendation
 all                    | backend    | backend-pa-vsa.md             | ## Core Principle
 all                    | backend    | backend-pa-vsa.md             | ## Non-Negotiable Dependency Rules
-spec,go,cycle          | backend    | backend-pa-vsa.md             | ## Standard Module Shape
+all                    | backend    | backend-pa-vsa.md             | ## Standard Module Shape
 all                    | backend    | backend-pa-vsa.md             | ## Ports and Adapters
 all                    | backend    | backend-pa-vsa.md             | ## Coding Style Rules
 all                    | backend    | backend-pa-vsa.md             | ## What Goes Where
@@ -47,11 +47,11 @@ all                    | backend    | backend-pa-vsa.md             | ## Securit
 all                    | backend    | backend-pa-vsa.md             | ## Use Cases vs Direct Services
 all                    | backend    | backend-pa-vsa.md             | ## CQRS-Lite
 all                    | backend    | backend-pa-vsa.md             | ## Common Failure Modes
-cycle,slop-hunt        | backend    | backend-pa-vsa.md             | ## Enforcement
+all                    | backend    | backend-pa-vsa.md             | ## Enforcement
 all                    | backend    | backend-pa-vsa.md             | ## Decision Heuristics
 all                    | backend    | backend-pa-vsa.md             | ## Observability
 
-spec                   | frontend   | frontend-pa-vsa.md            | ## Default Recommendation
+all                    | frontend   | frontend-pa-vsa.md            | ## Default Recommendation
 all                    | frontend   | frontend-pa-vsa.md            | ## Core Principle
 all                    | frontend   | frontend-pa-vsa.md            | ## Dependency Rule
 all                    | frontend   | frontend-pa-vsa.md            | ## Standard Layout
@@ -60,13 +60,13 @@ all                    | frontend   | frontend-pa-vsa.md            | ## Ports
 all                    | frontend   | frontend-pa-vsa.md            | ## Provide / Inject Pattern
 all                    | frontend   | frontend-pa-vsa.md            | ## Adapters
 all                    | frontend   | frontend-pa-vsa.md            | ## Composables
-spec,go                | frontend   | frontend-pa-vsa.md            | ## Two Valid Implementation Styles
+all                    | frontend   | frontend-pa-vsa.md            | ## Two Valid Implementation Styles
 all                    | frontend   | frontend-pa-vsa.md            | ## Nuxt Shells As Composition Roots
 all                    | frontend   | frontend-pa-vsa.md            | ## Components
 all                    | frontend   | frontend-pa-vsa.md            | ## Rivet Rules
-spec                   | frontend   | frontend-pa-vsa.md            | ## When Not To Use This Pattern
+all                    | frontend   | frontend-pa-vsa.md            | ## When Not To Use This Pattern
 all                    | frontend   | frontend-pa-vsa.md            | ## Failure Modes
-go,cycle,slop-hunt     | frontend   | frontend-pa-vsa.md            | ## Testing Bias
+all                    | frontend   | frontend-pa-vsa.md            | ## Testing Bias
 
 all                    | ui         | frontend-ui.md                | ## Core Law
 spec,go,cycle          | ui         | frontend-ui.md                | ## Start With The User's Job
@@ -80,39 +80,39 @@ spec,go,cycle          | ui         | frontend-ui.md                | ## Use Dom
 spec,go,cycle          | ui         | frontend-ui.md                | ## Treat Disabled States As Explanations
 spec,go,cycle          | ui         | frontend-ui.md                | ## Group One Decision At A Time
 spec,go,cycle          | ui         | frontend-ui.md                | ## When The Detail Is Unspecified
-cycle                  | ui         | frontend-ui.md                | ## Review Method
-cycle                  | ui         | frontend-ui.md                | ## Review Questions
-go,cycle               | ui         | frontend-ui.md                | ## Testing Bias
+go,cycle               | ui         | frontend-ui.md                | ## Review Method
+go,cycle               | ui         | frontend-ui.md                | ## Review Questions
+spec,go,cycle          | ui         | frontend-ui.md                | ## Testing Bias
 
 all                    | tests      | testing-philosophy.md         | ## Core Principle
-go,cycle,slop-hunt     | tests      | testing-philosophy.md         | ## Default Bias
+all                    | tests      | testing-philosophy.md         | ## Default Bias
 all                    | tests      | testing-philosophy.md         | ## What To Test
-go,cycle               | tests      | testing-philosophy.md         | ## Near-Metal Rule
-go,cycle               | tests      | testing-philosophy.md         | ## Backend Bias
-go,cycle               | tests      | testing-philosophy.md         | ## Frontend Bias
-go,cycle,slop-hunt     | tests      | testing-philosophy.md         | ## Mocks
-go,cycle,slop-hunt     | tests      | testing-philosophy.md         | ## Test Doubles
+all                    | tests      | testing-philosophy.md         | ## Near-Metal Rule
+all                    | tests      | testing-philosophy.md         | ## Backend Bias
+all                    | tests      | testing-philosophy.md         | ## Frontend Bias
+all                    | tests      | testing-philosophy.md         | ## Mocks
+all                    | tests      | testing-philosophy.md         | ## Test Doubles
 all                    | tests      | testing-philosophy.md         | ## Test Substrate
 all                    | tests      | testing-philosophy.md         | ## Concurrency Proof
-go,cycle               | tests      | testing-philosophy.md         | ## Test Location
+all                    | tests      | testing-philosophy.md         | ## Test Location
 all                    | tests      | testing-philosophy.md         | ## Coverage Honesty
 all                    | tests      | testing-philosophy.md         | ## Tests State Intent
-go,cycle               | tests      | testing-philosophy.md         | ## Suite Size
+all                    | tests      | testing-philosophy.md         | ## Suite Size
 all                    | tests      | testing-philosophy.md         | ## Risk and Test Shape
-go,cycle,slop-hunt     | tests      | testing-philosophy.md         | ## Smell Checks
+all                    | tests      | testing-philosophy.md         | ## Smell Checks
 
-spec,go,cycle          | rivet      | rivet.md                      | ## What Rivet Is
-spec,go,cycle          | rivet      | rivet.md                      | ## Azure Functions
-spec,go,cycle          | rivet      | rivet.md                      | ## Contract Location
-spec,go,cycle          | rivet      | rivet.md                      | ## Route Payload Ownership
-spec,go,cycle          | rivet      | rivet.md                      | ## Endpoint Composition
-go,cycle               | rivet      | rivet.md                      | ## Generated Output
-go,cycle               | rivet      | rivet.md                      | ## TypeScript Client Package
-go,cycle               | rivet      | rivet.md                      | ## Frontend Result Handling
-go,cycle               | rivet      | rivet.md                      | ## Practical Rules
-go,cycle               | rivet      | rivet.md                      | ## Anti-patterns
+all                    | rivet      | rivet.md                      | ## What Rivet Is
+all                    | rivet      | rivet.md                      | ## Azure Functions
+all                    | rivet      | rivet.md                      | ## Contract Location
+all                    | rivet      | rivet.md                      | ## Route Payload Ownership
+all                    | rivet      | rivet.md                      | ## Endpoint Composition
+all                    | rivet      | rivet.md                      | ## Generated Output
+all                    | frontend   | rivet.md                      | ## TypeScript Client Package
+all                    | frontend   | rivet.md                      | ## Frontend Result Handling
+all                    | rivet      | rivet.md                      | ## Practical Rules
+all                    | rivet      | rivet.md                      | ## Anti-patterns
 
 all                    | tools      | tools.md                      | ## TypeScript / Vue / Nuxt
 all                    | tools      | tools.md                      | ## .NET
-spec,go                | tools      | tools.md                      | ## Workspace / orchestration
+all                    | tools      | tools.md                      | ## Workspace / orchestration
 spec                   | tools      | tools.md                      | ## Starting a new project

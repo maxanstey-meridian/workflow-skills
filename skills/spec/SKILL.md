@@ -17,7 +17,7 @@ Working files go in `<main checkout>/.plans/`, as AGENTS.md 'Routines' defines i
 
 `<base directory>` is the folder this `SKILL.md` was loaded from: the skill's base directory, if your agent printed one when the skill loaded, else the folder of the path you read this file at. If you can't tell where this file was loaded from, ask the user for the path rather than guessing.
 
-`<rules>` is `<base directory>/references/rules`: one small file per rule, in one folder per area. `<rules>/always/` applies to all work. The others apply when the work touches them: `<rules>/invariants/` (domain rules, races, transactions, queues, and scheduled work), `<rules>/backend/`, `<rules>/frontend/`, `<rules>/ui/` (screens, forms, and copy), `<rules>/tests/`, `<rules>/rivet/` (.NET API contracts), and `<rules>/tools/` (choosing a tool or library).
+`<rules>` is `<base directory>/references/rules`: one small file per rule, in one folder per area. `<rules>/always/` applies to all work. The others apply when the work touches them: `<rules>/invariants/` (domain rules, races, transactions, queues, and scheduled work), `<rules>/backend/`, `<rules>/frontend/`, `<rules>/ui/` (screens, forms, and copy), `<rules>/tests/` (any piece with a Proof), `<rules>/rivet/` (.NET API contracts), and `<rules>/tools/` (choosing a tool or library).
 
 ## 1. Gather
 
@@ -26,13 +26,13 @@ Working files go in `<main checkout>/.plans/`, as AGENTS.md 'Routines' defines i
 
 ## 2. Choose and manage the named spec
 
-After gathering, derive the title identity and slug from the agreed title. If gathering did not settle a title, ask for one before choosing a file.
+After gathering, derive the title identity and slug from the agreed title. When the conversation, a waypoint, or a document names an existing spec, its `# Spec:` title is the title. Otherwise write a title from the intent and state it in a line.
 
 To derive the title identity, normalize the title to Unicode NFC, lowercase it, replace every character that is neither a Unicode letter nor a Unicode digit with a hyphen, collapse hyphen runs, and trim boundary hyphens. An empty title identity stops the routine and asks for a title that can form a slug.
 
-To derive the slug, truncate the title identity to 48 characters, cutting at the last hyphen inside that range when one exists, then trim any trailing hyphen.
+To derive the slug: if the title identity is longer than 48 characters, cut it to the first 48, then back to the last hyphen in them when there is one, and trim any trailing hyphen. Otherwise the slug is the title identity.
 
-Examine candidates in order as `<main checkout>/.plans/spec-<slug>.md`, `<main checkout>/.plans/spec-<slug>-2.md`, `<main checkout>/.plans/spec-<slug>-3.md`, and so on. Stop at an existing candidate that is unreadable or has no readable title. If an existing candidate's title identity matches, use that candidate. Otherwise use the first missing candidate.
+List every `<main checkout>/.plans/spec-<slug>.md` and `<main checkout>/.plans/spec-<slug>-<n>.md`, in number order. Stop at one that is unreadable or has no readable title. Use the first whose title identity matches. Otherwise use the lowest free name, with `<n>` starting at 2.
 
 For a matching existing candidate, parse:
 
@@ -50,12 +50,15 @@ Then apply the status rule:
 
 ## 3. Check the premise against HEAD
 
+Create `<main checkout>/.plans/scratch/<spec stem>/` with `mkdir -p`, after AGENTS.md's `.plans/` ignore check.
+
 When you can start subagents, a fresh fact-gatherer does the reading. Before writing its brief, resolve `<main checkout>`, the report path, the source paths, the repo's instructions, and the doctrine folders to absolute paths. The brief must contain all of these and every rule the fact-gatherer relies on:
 
 - **Main checkout:** the resolved absolute main working tree.
+- **Ask:** the agreed work, written in full.
 - **Scope:** read the ask and the source files the work touches; never edit code, run builds, run the gate, or commit.
 - **Source paths:** the exact absolute files to read.
-- **Doctrine:** the absolute paths of `<rules>/always/` and each other `<rules>` folder the work touches, to read every file in them, and the repo's instructions.
+- **Doctrine:** the absolute paths of `<rules>/always/` and each other `<rules>` folder the work touches, to read every file in them, and the repo's instructions. State the absolute path of `<rules>`, and that a section a rule file names is found by searching `<rules>` for its heading, and is read when the rule being followed points at it.
 - **Rules:** report facts with `file:line` and the short SHA; facts come from files, not memory; for any code the work skips, replaces, or changes, record everything that code does today; trace any feature, gate, or tool the work relies on from input to output; report facts only, with no recommendation, option, confidence, or ask.
 - **Report path:** the resolved absolute path to `<main checkout>/.plans/scratch/<spec stem>/premise.md`.
 - **Save protocol:** save the report with a shell heredoc, `cat > <path> <<'EOF'` … `EOF`, not a file-writing tool; if saving is refused, reply with the whole report.
@@ -148,7 +151,7 @@ Start one fresh cold-reader subagent whenever subagents are available. Before wr
 - **Main checkout:** the resolved absolute main working tree.
 - **Spec:** the resolved absolute path to the chosen named spec.
 - **Source paths:** every source file the spec cites that the cold reader must read.
-- **Doctrine:** the absolute paths of `<rules>/always/` and each other `<rules>` folder the spec touches, to read every file in them, and the repo's instructions.
+- **Doctrine:** the absolute paths of `<rules>/always/` and each other `<rules>` folder the spec touches, to read every file in them, and the repo's instructions. State the absolute path of `<rules>`, and that a section a rule file names is found by searching `<rules>` for its heading, and is read when the rule being followed points at it.
 - **Scope:** read the spec and its cited files; never edit code, run builds, run the gate, or commit.
 - **Rules:** list anything that could not be built without asking; any `file:line` that does not say what the spec claims; any two pieces that touch the same file; any decision restated or contradicted in the body; any existing code the spec skips, replaces, or changes without listing everything that code does; any Done-means check that cannot be run as written; any ambiguous source the spec cites; any missing tracer bullet; and any Decision or Piece that breaks a house Law in those folders, naming the Law. Report facts and findings only, with no recommendation, option, confidence, or ask.
 - **Report path:** the resolved absolute path to `<main checkout>/.plans/scratch/<spec stem>/cold-read.md`.
