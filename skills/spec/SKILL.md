@@ -18,7 +18,6 @@ Working files go in `<main checkout>/.plans/`, as AGENTS.md 'Routines' defines i
 `<base directory>` is the folder this `SKILL.md` was loaded from: the skill's base directory, if your agent printed one when the skill loaded, else the folder of the path you read this file at. If you can't tell where this file was loaded from, ask the user for the path rather than guessing.
 
 `<bundle>` is `<base directory>/references/bundles/spec.md`: the house rules this routine and its subagents read, in one file, the Laws first. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
-
 ## 1. Gather
 
 - Find the intent in this conversation, the user's answers, and any document, backlog, or waypoint the work names. If there is none, stop: say that `/spec` needs the work agreed in the conversation first, and write nothing.
@@ -58,8 +57,7 @@ When you can start subagents, a fresh fact-gatherer does the reading. Before wri
 - **Ask:** the agreed work, written in full.
 - **Scope:** read the ask and the source files the work touches; never edit code, run builds, run the gate, or commit.
 - **Source paths:** the exact absolute files to read.
-- **Doctrine:** the absolute path of `<bundle>`, to read in full before anything else, and the repo's instructions. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
-- **Rules:** report facts with `file:line` and the short SHA; facts come from files, not memory; for any code the work skips, replaces, or changes, record everything that code does today; trace any feature, gate, or tool the work relies on from input to output; report facts only, with no recommendation, option, confidence, or ask.
+- **Doctrine:** the absolute path of `<bundle>`, to read in full before anything else, and the repo's instructions. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.- **Rules:** report facts with `file:line` and the short SHA; facts come from files, not memory; for any code the work skips, replaces, or changes, record everything that code does today; trace any feature, gate, or tool the work relies on from input to output; report facts only, with no recommendation, option, confidence, or ask.
 - **Report path:** the resolved absolute path to `<main checkout>/.plans/scratch/<spec stem>/premise.md`.
 - **Save protocol:** save the report with a shell heredoc, `cat > <path> <<'EOF'` … `EOF`, not a file-writing tool; if saving is refused, reply with the whole report.
 - **Reply protocol:** reply with only the report path.
@@ -143,7 +141,7 @@ Rules for the doc:
 - Anything that comes up after the spec is agreed is an addendum, whoever finds it. It gets the same premise check as a piece and a cold read of its own. One that holds a decision waits for the user's answer. Nothing in an addendum is built until then.
 - One `/go` per spec, with as few pieces as the files allow. Work that ships together stays in one spec. Fold pieces that share files, or that exist only for each other, into one piece.
 - A shared change applied in three or more places starts with a tracer bullet: the shared change plus one consumer, built end to end first. Pieces applying it elsewhere name that tracer in `after:`.
-- Check every Decision and Piece against the house Laws, the first rule in `<bundle>`, and the full rules behind them, in the bundle. A design that breaks one is not an option: change the design. If no design inside the Laws does the job, report that as a finding for the user, naming the Law.
+- Check every Decision and Piece against the house Laws, at the top of `<bundle>`, and the full rules behind them, in the bundle. A design that breaks one is not an option: change the design. If no design inside the Laws does the job, report that as a finding for the user, naming the Law.
 - Point at code by symbol and a short quoted fragment everywhere but the Premise check ("the `Suppress` block around `RunModelPassAsync`"), never by line number: every builder edit shifts line numbers, and a stale one points at the wrong code while looking precise. Line numbers belong only in the Premise check, read at the `**Written:**` commit or with the commit they were read at beside them ("throws at `CohortSchemaValidator.cs:29` at 6bd7eab").
 - No runbooks or long scripts inline. Link to a file in `<main checkout>/.plans/scratch/` instead.
 - Plain English; gloss jargon on first use.
@@ -155,8 +153,7 @@ Start one fresh cold-reader subagent whenever subagents are available. Before wr
 - **Main checkout:** the resolved absolute main working tree.
 - **Spec:** the resolved absolute path to the chosen named spec.
 - **Source paths:** every source file the spec cites that the cold reader must read.
-- **Doctrine:** the absolute path of `<bundle>`, to read in full before anything else, and the repo's instructions. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
-- **Scope:** read the spec and its cited files; never edit code, run builds, run the gate, or commit.
+- **Doctrine:** the absolute path of `<bundle>`, to read in full before anything else, and the repo's instructions. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.- **Scope:** read the spec and its cited files; never edit code, run builds, run the gate, or commit.
 - **Rules:** list anything that could not be built without asking; any `file:line` in the Premise check that does not say what the spec claims at the commit it was read at; any line number outside the Premise check; any symbol or quoted fragment that doesn't lead to the code the spec means; any two pieces that touch the same file; any decision restated or contradicted in the body; any Decision that names an alternative, a rejected option, or its cost; any existing code the spec skips, replaces, or changes without listing everything that code does; any Done-means check that cannot be run as written; any ambiguous source the spec cites; any missing tracer bullet; and any Decision or Piece that breaks a house Law in the bundle, naming the Law. Report facts and findings only, with no recommendation, option, confidence, or ask.
 - **Report path:** the resolved absolute path to `<main checkout>/.plans/scratch/<spec stem>/cold-read.md`.
 - **Save protocol:** save the report with a shell heredoc, `cat > <path> <<'EOF'` … `EOF`, not a file-writing tool; if saving is refused, reply with the whole list.

@@ -24,8 +24,7 @@ Terms used below:
 - **`<main checkout>`** is what `dirname "$(git -C <root> rev-parse --path-format=absolute --git-common-dir)"` prints. A linked worktree's hunt files still go in this main checkout.
 - **`<solution>`** is the `.sln` or `.slnx` that contains the hunted projects; with none, each hunted project file in turn.
 - **`<base directory>`** is the folder this SKILL.md was loaded from: the skill's base directory, if your agent printed one when the skill loaded, else the folder of the path you read this file at. If you can't tell where this file was loaded from, ask the user for the path rather than guessing.
-- **`<bundles>`** is `<base directory>/references/bundles`: the rules each role reads, one bundle file per role (`backend-hunter.md`, `frontend-hunter.md`, `design-reader.md`), built from the `.list` beside it by `sh scripts/build-bundles.sh` in the workflow-skills repo. A hunter reads the bundle for its area's stack, and both for the cross-cutting area or an area holding both stacks; work in neither stack (scripts, docs, configuration) counts as backend. The design reader and the verifiers read `design-reader.md`. A rule a bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
-- **`<id8>`** is the last 8 characters of this session's id, found as AGENTS.md 'Routines' describes (if it prints nothing, use the id this conversation states, else `openssl rand -hex 4` once). **`<hunt folder>`** is `<main checkout>/.plans/scratch/slop-hunt-<id8>`. Create it (`mkdir -p`, after AGENTS.md's `.plans/` ignore check) and name it in your first message, so it survives a compaction.
+- **`<bundles>`** is `<base directory>/references/bundles`: the rules each role reads, one bundle file per role (`backend-hunter.md`, `frontend-hunter.md`, `design-reader.md`), built from the `.list` beside it by `sh scripts/build-bundles.sh` in the workflow-skills repo. A hunter reads the bundle for its area's stack, and both for the cross-cutting area or an area holding both stacks; work in neither stack (scripts, docs, configuration) counts as backend. The design reader and the verifiers read `design-reader.md`. A rule a bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.- **`<id8>`** is the last 8 characters of this session's id, found as AGENTS.md 'Routines' describes (if it prints nothing, use the id this conversation states, else `openssl rand -hex 4` once). **`<hunt folder>`** is `<main checkout>/.plans/scratch/slop-hunt-<id8>`. Create it (`mkdir -p`, after AGENTS.md's `.plans/` ignore check) and name it in your first message, so it survives a compaction.
 
 ## 0. Preflight
 
@@ -37,7 +36,7 @@ Resolve the repository and print one line before starting: `<root> → <repo> ·
 
 ## 1. Read the doctrine
 
-Read `<base directory>/references/hunting.md` and `<bundles>/design-reader.md` in full (its first rule is the Laws), then read the repository's instructions. Don't read earlier hunts or review docs until your own pass is done (step 4), so they don't steer it.
+Read `<base directory>/references/hunting.md` and `<bundles>/design-reader.md` in full (it opens with the Laws), then read the repository's instructions. Don't read earlier hunts or review docs until your own pass is done (step 4), so they don't steer it.
 
 ## 2. Map before you hunt
 
@@ -70,8 +69,7 @@ Before writing a design-reader, hunter, or verifier brief, resolve every path an
 
 - **Locations:** the resolved absolute `<main checkout>`, `<root>`, and `<hunt folder>`, and `<repo>`.
 - **Repository facts:** the resolved absolute path of the repo's instructions, the resolved paths of its README, `docs/`, ADRs, and the specs in `<main checkout>/.plans/`, and exactly which projects or packages are published.
-- **Doctrine:** the resolved absolute paths of `<base directory>/references/hunting.md` and of the role's bundle or bundles below, to read in full before anything else. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
-- **Read-only scope:** the role edits nothing outside its named report, runs no tests, builds, or gate, and never commits, stages, or publishes.
+- **Doctrine:** the resolved absolute paths of `<base directory>/references/hunting.md` and of the role's bundle or bundles below, to read in full before anything else. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.- **Read-only scope:** the role edits nothing outside its named report, runs no tests, builds, or gate, and never commits, stages, or publishes.
 - **Report protocol:** the resolved absolute report path; save the report with a shell heredoc, `cat > <path> <<'EOF'` … `EOF`, not a file-writing tool; if saving is refused, reply with the whole report; otherwise reply with only the report path.
 
 The design reader's brief gives, in addition to the common facts:

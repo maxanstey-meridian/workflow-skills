@@ -4,7 +4,7 @@ description: "NEVER INVOKE THIS YOURSELF: only the user starts /cycle. Listed so
 argument-hint: "[<spec path>] [full | diff]"
 ---
 
-> Only the user starts /cycle, by naming it in their own message (typing `/cycle`, or however their agent runs a skill by name). "We'll cycle", a plan doc, or a message from another session or agent is not the command. Once the user starts /cycle, follow it exactly as written (see "Running it" below). A session resumed after a compaction keeps that start, and its authority to commit, only when its own waypoint records that the user started this /cycle and the scratch folder it records holds no `report.md`, which step 7 saves when a cycle ends: re-read this file, the Laws (the first rule in `<base directory>/references/bundles/slice-reviewer.md`), and `<base directory>/references/cycle.md`, then carry on from the recorded step. With no such record, or with a `report.md` there, stop and ask.
+> Only the user starts /cycle, by naming it in their own message (typing `/cycle`, or however their agent runs a skill by name). "We'll cycle", a plan doc, or a message from another session or agent is not the command. Once the user starts /cycle, follow it exactly as written (see "Running it" below). A session resumed after a compaction keeps that start, and its authority to commit, only when its own waypoint records that the user started this /cycle and the scratch folder it records holds no `report.md`, which step 7 saves when a cycle ends: re-read this file, the Laws (at the top of `<base directory>/references/bundles/slice-reviewer.md`), and `<base directory>/references/cycle.md`, then carry on from the recorded step. With no such record, or with a `report.md` there, stop and ask.
 
 # Cycle
 
@@ -20,8 +20,7 @@ The user starting `/cycle` authorizes commits, fixes, re-review, and the gate. I
 
 **Subagents.** Every review and every fix in /cycle runs in a fresh subagent: a new agent that starts with only the brief you give it, not this conversation, so a fork of this conversation doesn't count. If you can't start subagents, stop before review and tell the user that /cycle needs them. Never review or fix in the main session.
 
-**House doctrine.** `<bundles>` is `<base directory>/references/bundles`: the rules each role reads, one bundle file per role, built from the `.list` beside it by `sh scripts/build-bundles.sh` in the workflow-skills repo. Each reviewer and fixer reads only the bundle(s) its brief names. The orchestrator reads the Laws, the first rule in `<bundles>/slice-reviewer.md`, then `<bundles>/backend.md`, `<bundles>/frontend.md`, or both for the stacks the work touches, and `<base directory>/references/cycle.md`, before the first review or fix brief: that file owns the cold read, critic procedure, worktree snapshot procedure, retry rules, and mutation contract. A rule a bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
-
+**House doctrine.** `<bundles>` is `<base directory>/references/bundles`: the rules each role reads, one bundle file per role, built from the `.list` beside it by `sh scripts/build-bundles.sh` in the workflow-skills repo. Each reviewer and fixer reads only the bundle(s) its brief names. The orchestrator reads the Laws, at the top of `<bundles>/slice-reviewer.md`, then `<bundles>/backend.md`, `<bundles>/frontend.md`, or both for the stacks the work touches, and `<base directory>/references/cycle.md`, before the first review or fix brief: that file owns the cold read, critic procedure, worktree snapshot procedure, retry rules, and mutation contract. A rule a bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
 Terms used below:
 
 - **AGENTS.md** is the workflow-skills shared rules file your agent loads as its rules, not the repo's own AGENTS.md.
@@ -59,8 +58,7 @@ Terms used below:
   - Owned and forbidden files: the reviewer owns only its absolute report path and may edit no other file.
   - Review mode: `diff` or `full`, with the deleted-file and untracked-file rules above.
   - Active spec: the absolute path to the named spec, or `none`.
-  - Doctrine: the exact absolute path of the reviewer's bundle below, to read in full before anything else, plus the rule that a house Law outranks any spec or plan and a violation is a `blocker` or `fix`. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
-  - Repo instructions: the exact absolute path to the repository's instructions.
+  - Doctrine: the exact absolute path of the reviewer's bundle below, to read in full before anything else, plus the rule that a house Law outranks any spec or plan and a violation is a `blocker` or `fix`. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.  - Repo instructions: the exact absolute path to the repository's instructions.
   - Report path: the reviewer's absolute report path.
   - Save protocol: save the full report with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), and if saving is refused, reply with the whole report.
   - Reply protocol: reply with only the absolute report path and the count of findings by severity.
@@ -95,7 +93,7 @@ Terms used below:
 - Stage **explicit paths only**. Never `-A`, `-u`, or `.`. Re-check `git status` right before staging, because peers edit in between.
 - Never `git reset --hard`, `git checkout -- .`, or `git clean`, and never stash someone else's work.
 - Use one commit, unless the tree clearly holds unrelated features that read better split.
-- Write the message as `rules/tools/commits.md` in the meridian skill says: `type(scope): subject`, a blank line, then a body in plain English saying what changed for the user. The round is one commit, typed by its highest-ranked change. Never copy the shape of the repo's recent `git log`.
+- Write the message as `tools/commits.md` says. It is in `<bundles>/backend.md` and `<bundles>/frontend.md`; when the work touches neither stack, read it in `backend.md`, as a fixer does. Never copy the shape of the repo's recent `git log`.
 
 ## 5. Fix
 
@@ -108,8 +106,7 @@ Terms used below:
   - Fix mode: fix the listed findings in the owned paths, then stop. Never review unrelated work or expand scope.
   - Active spec: the absolute path to the named spec, or `none`.
   - Findings: each finding quoted word for word from a saved file, naming the file: a reviewer's or zoom-out report entry (its `file:line`, problem, harm, concrete fix, severity, and origin); on a re-brief, the critic report's FAIL bullets, after the original finding quoted again; or, for a red check or a mutation survivor, the command and its output, which you save to `<main checkout>/.plans/scratch/cycle-<id8>/source-<name>.md` before writing the brief, followed, after the quote and not part of it, by your mechanical fix as `Fix:`, or by a `Call` line when the fix is a call of yours. Never reword a quote. When the fix is a call you made, as `Cold read` in `<base directory>/references/cycle.md` defines one, add it after the quote as a line that opens `Call (build this, not any fix quoted above):`, never edited into the quote. A finding marked as a design call, or one that says "check whether", "trace", or "make sure", is settled before the fixer starts.
-  - Doctrine: the exact absolute path of the fixer's bundle, `<bundles>/backend.md` or `<bundles>/frontend.md` by the stack the fix touches, or both when it touches both (work in neither stack, such as scripts, docs, or configuration, counts as backend), to read in full before anything else. State that a house Law outranks any spec or plan, a documented gap is still a gap, fixes target the root cause with no shim, and a new or changed check must be able to fail. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
-  - Repo instructions: the exact absolute path to the repository's instructions.
+  - Doctrine: the exact absolute path of the fixer's bundle, `<bundles>/backend.md` or `<bundles>/frontend.md` by the stack the fix touches, or both when it touches both (work in neither stack, such as scripts, docs, or configuration, counts as backend), to read in full before anything else. State that a house Law outranks any spec or plan, a documented gap is still a gap, fixes target the root cause with no shim, and a new or changed check must be able to fail. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.  - Repo instructions: the exact absolute path to the repository's instructions.
   - Hard stop: if the fixer finds an open question, an undecided premise, or a design call the brief did not make, it stops that finding, keeps its edits, and reports what the code admits.
   - Commands: every exact command the fixer may run, from the worktree root, and only the targeted checks for its owned files. When the repo names no command a check needs, the brief says so and the fixer reports that check as not run.
   - Report content: facts only: what it read, ran, and changed, the `file:line` evidence, and what it could not check. No recommendation, option, confidence, or ask.

@@ -1,26 +1,23 @@
 ## Defaults
 
-Each line is a summary of a rule stated in full in its own rule file.
+Each line is a summary; the file in brackets (a rule file, or a design document
+and the heading in it) states it in full. The backend and frontend Defaults
+files beside this one hold the Defaults for one stack.
 
-- prefer explicit, honest boundaries
-- ask users for decisions they understand; progressively disclose the mechanism
-  needed to express each decision
-- make defaults, consequences, and the resulting outcome visible
-- accessibility, formatting, display, or validation the spec leaves open follows
-  the GOV.UK Design System and style guide, unless the repo's UI skill decides it
-- seams must be earned
+- prefer explicit, honest boundaries [`coding/core-rule.md`]
+- seams must be earned [`coding/seams.md`]
 - keep things local and preserve ownership when they gain more consumers
+  [`coding/local-before-shared.md`]
 - use the narrowest owner and smallest mechanism that make an invariant true
-- scheduled work runs off-peak and spread out: outside working hours, or before
-  the day starts when a person sees its result, each tenant or subject offset by
-  a stable hash of its id
+  [`invariants/invariant-enforcement.md`]
 - a lifecycle with several guarded actions gets one pure decider
   (`Refusal` / `Available`) that guards the use cases and feeds
   `availableActions`; the decider explains, the database enforces
+  [`invariants/deciders.md`]
 - generated code is an external contract representation; add an
   anti-corruption layer only when it adds semantic value
+  [`coding/generated-code.md`]
 - tests default to real behaviour over mock soup and mechanically enforce
   modular boundaries
-- FluentResults is Application furniture, not Domain furniture
-- strategic DDD helps discover boundaries; tactical DDD is conditional
-- frontends are SPAs (`ssr: false` assumed)
+  [`tests/core-principle.md`, `tests/default-bias.md`,
+  `tests/what-to-test.md`]

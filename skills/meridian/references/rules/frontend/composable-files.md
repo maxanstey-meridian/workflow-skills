@@ -1,29 +1,4 @@
-## Composables
-
-Composables are the framework-rich layer.
-
-They may own:
-
-- `ref` / `reactive` / `computed` / `watch`
-- VueUse
-- Pinia when appropriate
-- generated Rivet client calls
-- side effects
-- loading flags
-- local UI orchestration
-
-Composables should:
-
-- inject a port with `injectX` when they depend on a provided capability
-- keep pure logic out of themselves where feasible
-- expose a clean capability-shaped surface
-
-Composables should not:
-
-- grow into god-objects
-- hide large amounts of pure business logic
-
-If a composable gets too large, pull pure logic down into `logic/`.
+## Composable Files
 
 ### File naming
 

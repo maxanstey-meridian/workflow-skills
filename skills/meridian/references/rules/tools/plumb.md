@@ -15,10 +15,10 @@ If the repo uses Plumb but it won't run, say so in your report rather than
 skipping the check silently. Setup is in its README.
 
 Each finding's `docRef` (`rules/<folder>/<file>.md#<slug>`) names the rule file
-under the meridian skill's `references/` and the heading it enforces; read that rule
-before fixing. Fix `error` findings unprompted. For `warn` findings, fix them or
-state the exception that applies. Do not re-run Plumb in a loop on a repo you
-have not changed.
+or design document under the meridian skill's `references/` and the heading it
+enforces; read that rule before fixing. Fix `error` findings unprompted. For
+`warn` findings, fix them or state the exception that applies. Do not re-run
+Plumb in a loop on a repo you have not changed.
 
 Plumb's findings are the floor, not the review. A clean Plumb run is not a
 review.

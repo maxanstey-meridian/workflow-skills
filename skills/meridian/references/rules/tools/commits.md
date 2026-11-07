@@ -41,19 +41,18 @@ only the user names.
 Good:
 
 ```
-fix(meridian): say what a port file may hold
+refactor(meridian): merge each design's sections into one document
 
-frontend/ports.md now states that a port file holds only the port's type
-and its [injectX, provideX] pair from useProvideInject, and cites
-frontend/provide-inject-pattern.md, so every bundle that carries ports.md
-carries the pattern. The spec, backend-hunter, and design-reader lists
-gain it, and the bundles are rebuilt.
+Each multi-part design is now one document, read whole, and every
+bundle that carries part of a design carries all of it.
+
+BREAKING CHANGE: rule files renamed and merged; docRefs move with them
 ```
 
 Bad:
 
 - a 500-character subject with no body
-- `Review fixes: …` or `Update ports.md`: no type, and the subject names the
+- `Review fixes: …` or `Update laws.md`: no type, and the subject names the
   activity or the file, not the change
 - a subject copied from the repo's recent log: the log is the output of this
   rule, never its source

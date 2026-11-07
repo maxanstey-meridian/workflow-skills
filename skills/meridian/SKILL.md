@@ -23,22 +23,22 @@ Use this skill for Meridian-style engineering doctrine across backend, frontend,
 
 ## How to Use It
 
-The doctrine is a library of rule files under `references/rules/`, one rule per file, each opening with its `##` heading. Read the folders the task touches:
+The doctrine is a library under `references/rules/` of rule files, one rule per file, and design documents, each holding every section of one design and read whole, named by path below. Every file opens with its `##` heading. Read the folders the task touches:
 
 - `references/rules/core/`: the Laws, Defaults, Preferences, and what each rule strength means
 - `references/rules/coding/`: cross-cutting coding doctrine, TypeScript and C# defaults, seam discipline, review discipline
 - `references/rules/invariants/`: invariant ownership, deciders, recording invariants (INVARIANTS.md), concurrency, transactions, locks, queues, outboxes, and when scheduled work runs
-- `references/rules/backend/`: backend structure, module boundaries, ports/adapters
-- `references/rules/frontend/`: frontend structure, page composition roots, provide/inject, dumb views
+- `references/rules/backend/`: backend structure, module boundaries, ports/adapters (module layout: `backend/module-layout.md`)
+- `references/rules/frontend/`: frontend structure, page composition roots, provide/inject, dumb views (page ports and adapters: `frontend/page-ports-and-adapters.md`)
 - `references/rules/ui/`: outcome-oriented UI, information hierarchy, form journeys, progressive disclosure, and accessibility, formatting, or validation details the spec leaves open
 - `references/rules/tests/`: testing defaults and mock/fake bias
-- `references/rules/rivet/`: Rivet backend doctrine for `.NET` contracts, minimal APIs, controllers, and transport-edge patterns
+- `references/rules/rivet/`: Rivet: the .NET server shape (`rivet/server-shape.md`), Azure Functions, and the TypeScript client package UIs consume (`rivet/client-package.md`)
 - `references/rules/tools/`: tool choices and config defaults for TS and .NET, Plumb, and the commit and version convention
 - `references/rules/workflow/`: the critic procedure the routines' critic subagents follow
 
 ## Core Rules
 
-The Laws are `references/rules/core/laws.md`; read them first. Defaults and Preferences are beside it, in `references/rules/core/defaults.md` and `references/rules/core/preferences.md`, and `references/rules/core/rule-strength.md` says what a law, a default, a preference, and a tooling rule each mean.
+The Laws are `references/rules/core/laws.md` (cross-stack), `references/rules/core/backend-laws.md`, and `references/rules/core/frontend-laws.md`; read the cross-stack file first, then the file for each stack the task touches. The Defaults are split the same way, in `references/rules/core/defaults.md`, `references/rules/core/backend-defaults.md`, and `references/rules/core/frontend-defaults.md`. Preferences are in `references/rules/core/preferences.md`, and `references/rules/core/rule-strength.md` says what a law, a default, a preference, and a tooling rule each mean.
 
 ## Mechanical Checking
 

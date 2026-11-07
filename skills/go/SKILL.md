@@ -24,7 +24,6 @@ Terms used below:
 - **`<base directory>`** is the folder this SKILL.md was loaded from: the skill's base directory, if your agent printed one when the skill loaded, else the folder of the path you read this file at. If you can't tell where this file was loaded from, ask the user for the path rather than guessing.
 - **`<scratch>`** is `<main checkout>/.plans/scratch/<spec stem>/go`, where `<spec stem>` is the spec's file name without `.md`.
 - **`<bundles>`** is `<base directory>/references/bundles`: the rules each role reads, one bundle file per role, built from the `.list` beside it by `sh scripts/build-bundles.sh` in the workflow-skills repo. A builder reads `backend-builder.md` or `frontend-builder.md` and a critic `backend-critic.md` or `frontend-critic.md`, by the stack its piece touches; a piece touching both stacks names both. Work in neither stack (scripts, docs, configuration, this repository) counts as backend. A rule a bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
-
 ## The orchestrator
 
 This session plans, writes briefs, reads critics' verdicts, and checks them with its own runs. It writes no code and adds nothing to a piece that the spec doesn't already say. A problem it finds goes back to the subagent whose piece it is. A problem no piece covers becomes a spec addendum, and then a subagent builds it.
@@ -42,7 +41,7 @@ This session plans, writes briefs, reads critics' verdicts, and checks them with
   On a continued `building` spec, run only the first of those three commands: every uncommitted change in owned files is this spec's work, so HEAD is the baseline, and no dirty diff is applied and no untracked file copied.
 
   Keep the snapshot until step 5's survivor attribution is done, then remove it.
-- Read the Laws, the first rule in `<bundles>/backend-builder.md`, then the builder bundle(s) for the stacks the spec touches, in full, and, if the UI changes, the repo's UI skill if its instructions name one.
+- Read the builder bundle(s) for the stacks the spec touches, in full (each opens with the Laws), and, if the UI changes, the repo's UI skill if its instructions name one.
 
 ## 2. Split
 
@@ -58,7 +57,7 @@ Hard block: no builder starts on a question. Before you start any builder, its p
 - a "hangs on", "waits on", or "if ask N is yes/no" that isn't settled;
 - an "or", "TBD", "check whether", or "if the hosts show…" that leaves what gets built undecided;
 - a premise about framework or host behaviour that nobody has checked against the real thing;
-- a Decision or Piece that breaks a house Law (the first rule in a builder bundle), or any other rule in the bundle(s) for the stacks it touches (it goes back to the spec as an addendum, not to a builder).
+- a Decision or Piece that breaks a house Law (at the top of a builder bundle), or any other rule in the bundle(s) for the stacks it touches (it goes back to the spec as an addendum, not to a builder).
 
 If there is one, settle it before the builder starts:
 
@@ -81,8 +80,7 @@ Write each brief to `<scratch>/brief-<piece>-<n>.md` (`<n>` its place in the pie
 - **Spec and decisions:** the resolved absolute spec path, the item, its Proof, its intent, and every relied-on decision, each quoted word for word from the spec, naming the Piece, Addendum, Decision, or section it comes from. Never reword the spec in a brief: a call of yours is written into the spec's Decisions first, as Scope says for your choices, and is then quoted.
 - **Test-only items:** one distinct entry per test-only item, naming the guarded source files and the precise behaviour it promises to guard, identified by symbol or source region.
 - **Hard stop:** before editing, the builder reads its item, the spec's open asks, and the relied-on decisions. If it finds an open question, an undecided premise, or a design call the brief did not make, it builds nothing and reports those facts. If code or the host contradicts the item's premise while it builds, it stops, leaves its edits in place, and reports the contradiction and the files it touched.
-- **Doctrine:** the absolute path of the builder bundle for each stack the item touches (`<bundles>/backend-builder.md`, `<bundles>/frontend-builder.md`, or both), to read in full before anything else, and the repo's instructions. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
-- **Rules:** fix the root cause; reuse the existing component, flow, or pattern; sweep nearby code for the same problem; never make a check pass by shrinking what it checks; a gap with a doc page is still a gap; no new test unless nothing already proves the behaviour, and each test must fail if what it guards breaks; change only owned files; never commit, stage, format beyond owned files, or run the full gate.
+- **Doctrine:** the absolute path of the builder bundle for each stack the item touches (`<bundles>/backend-builder.md`, `<bundles>/frontend-builder.md`, or both), to read in full before anything else, and the repo's instructions. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.- **Rules:** fix the root cause; reuse the existing component, flow, or pattern; sweep nearby code for the same problem; never make a check pass by shrinking what it checks; a gap with a doc page is still a gap; no new test unless nothing already proves the behaviour, and each test must fail if what it guards breaks; change only owned files; never commit, stage, format beyond owned files, or run the full gate.
 - **Commands:** every exact command the builder may run, from the worktree root, including the item's Proof and only the targeted checks for its owned files. When the repo names no command a check needs, the brief says so and the builder reports that check as not run.
 - **Report path:** the resolved absolute path to `<scratch>/report-<piece>-<n>.md`.
 - **Save protocol:** save the report with a shell heredoc, `cat > <path> <<'EOF'` … `EOF`, not a file-writing tool; if saving is refused, reply with the whole report.

@@ -54,7 +54,9 @@ Reply with the report's path only.
 <!-- rule: core/laws.md -->
 ## Laws
 
-Each line is a summary; the rule file in brackets states it in full.
+Each line is a summary; the file in brackets (a rule file, or a design document
+and the heading in it) states it in full. The backend and frontend Laws files
+beside this one hold the Laws for one stack.
 
 - a gap with a doc page is still a gap: a known defect, an unchecked promise or
   a path that only works "because nothing does X today" gets fixed, not written
@@ -63,28 +65,9 @@ Each line is a summary; the rule file in brackets states it in full.
 - model the invariant before choosing enforcement or concurrency; the domain,
   not a caller, decides what the invariant is
   [`invariants/invariant-enforcement.md`]
-- declared failures are results; undeclared failures are exceptions
-  [`backend/results-vs-exceptions.md`]
 - callers never re-derive a server rule: a UI reads the read model's
   `availableActions`, capabilities or named flag; a second use case calls the
   same decision [`frontend/server-rules-stay-on-the-server.md`]
-- modules integrate through consumer-owned required ports, provider-owned
-  published contracts, or a deliberately shared kernel; Domain never consumes
-  a sibling's published contract [`backend/dependency-rules.md`]
-- the API is not the information architecture: UI language and ordering follow
-  the user's journey and desired outcomes, not transport models, backend
-  operations, configuration variants, or implementation sequence
-  [`ui/core-law.md`]
-- provide implementations, not projections: a page that needs more of a
-  capability widens its port; it doesn't unpack it, repack it, or add getters
-  to hand out pieces [`frontend/provide-implementations-not-projections.md`]
-- frontend composition happens only in Nuxt shells: `app.vue`, layouts, and
-  pages provide capabilities/contexts with `provideX`; components and
-  composables only inject them with `injectX`
-  [`frontend/nuxt-shells-as-composition-roots.md`]
-- adapter integration tests run on the production database engine — EF
-  InMemory is banned (a fake engine manufactures confidence); fake the port
-  when the adapter is not under test [`tests/test-substrate.md`]
 - do not hand-roll commodity infrastructure, protocols, or dev tooling when a
   suitable maintained framework, library, official SDK, or generated client
   exists; custom machinery carries the same burden of proof as a new dependency
@@ -98,6 +81,21 @@ Each line is a summary; the rule file in brackets states it in full.
 
 A Law beats any spec or plan Decision: when a design and a Law conflict, the
 design changes, and a Decision that breaks one is a defect, not a choice.
+<!-- rule: core/backend-laws.md -->
+## Backend Laws
+
+Each line is a summary; the file in brackets (a rule file, or a design document
+and the heading in it) states it in full. These Laws apply together with the
+cross-stack Laws in the Laws file beside this one.
+
+- declared failures are results; undeclared failures are exceptions
+  [`backend/results-vs-exceptions.md`]
+- modules integrate through consumer-owned required ports, provider-owned
+  published contracts, or a deliberately shared kernel; Domain never consumes
+  a sibling's published contract [`backend/dependency-rules.md`]
+- adapter integration tests run on the production database engine — EF
+  InMemory is banned (a fake engine manufactures confidence); fake the port
+  when the adapter is not under test [`tests/test-substrate.md`]
 <!-- rule: core/rule-strength.md -->
 ## Rule Strength
 
@@ -118,30 +116,41 @@ the same authority as an atomicity or dependency rule.
 <!-- rule: core/defaults.md -->
 ## Defaults
 
-Each line is a summary of a rule stated in full in its own rule file.
+Each line is a summary; the file in brackets (a rule file, or a design document
+and the heading in it) states it in full. The backend and frontend Defaults
+files beside this one hold the Defaults for one stack.
 
-- prefer explicit, honest boundaries
-- ask users for decisions they understand; progressively disclose the mechanism
-  needed to express each decision
-- make defaults, consequences, and the resulting outcome visible
-- accessibility, formatting, display, or validation the spec leaves open follows
-  the GOV.UK Design System and style guide, unless the repo's UI skill decides it
-- seams must be earned
+- prefer explicit, honest boundaries [`coding/core-rule.md`]
+- seams must be earned [`coding/seams.md`]
 - keep things local and preserve ownership when they gain more consumers
+  [`coding/local-before-shared.md`]
 - use the narrowest owner and smallest mechanism that make an invariant true
-- scheduled work runs off-peak and spread out: outside working hours, or before
-  the day starts when a person sees its result, each tenant or subject offset by
-  a stable hash of its id
+  [`invariants/invariant-enforcement.md`]
 - a lifecycle with several guarded actions gets one pure decider
   (`Refusal` / `Available`) that guards the use cases and feeds
   `availableActions`; the decider explains, the database enforces
+  [`invariants/deciders.md`]
 - generated code is an external contract representation; add an
   anti-corruption layer only when it adds semantic value
+  [`coding/generated-code.md`]
 - tests default to real behaviour over mock soup and mechanically enforce
   modular boundaries
+  [`tests/core-principle.md`, `tests/default-bias.md`,
+  `tests/what-to-test.md`]
+<!-- rule: core/backend-defaults.md -->
+## Backend Defaults
+
+Each line is a summary; the file in brackets (a rule file, or a design document
+and the heading in it) states it in full. These Defaults apply together with the
+cross-stack Defaults in the Defaults file beside this one.
+
+- scheduled work runs off-peak and spread out: outside working hours, or before
+  the day starts when a person sees its result, each tenant or subject offset by
+  a stable hash of its id [`invariants/scheduled-work.md`]
 - FluentResults is Application furniture, not Domain furniture
+  [`coding/furniture-dependencies.md`]
 - strategic DDD helps discover boundaries; tactical DDD is conditional
-- frontends are SPAs (`ssr: false` assumed)
+  [`backend/module-layout.md#core-principle`]
 <!-- rule: core/preferences.md -->
 ## Preferences
 
@@ -729,8 +738,23 @@ Where applicable, these libraries remove the justification for a private version
 of the capability they provide. They do not remove the need to prove the
 invariant, choose the correct boundary, or understand each provider's failure
 model.
-<!-- rule: backend/default-recommendation.md -->
-## Default Recommendation
+<!-- rule: backend/module-layout.md -->
+## Backend Module Layout
+
+Use this when designing, reviewing, or refactoring a backend toward a
+modular-monolith shape with:
+
+- vertical slice architecture at the module boundary
+- clean architecture applied inside modules where it earns its place
+- ports and adapters for external variability
+- strict dependency direction
+
+This is the Meridian backend default for both .NET modular monoliths and
+TypeScript modular backends. It is distilled from the house's .NET and
+TypeScript modular monoliths and their architecture tests. Its sections are one
+design and are read together: each assumes the others.
+
+### Default Recommendation
 
 Build a **single-project or single-package modular monolith** first.
 
@@ -742,8 +766,8 @@ Do not start with:
 - fake microservice boundaries
 
 The stable boundary is the **module**, not the class and not the package.
-<!-- rule: backend/core-principle.md -->
-## Core Principle
+
+### Core Principle
 
 Use **vertical slice architecture (VSA) first, clean architecture (CA) where needed**.
 
@@ -753,8 +777,6 @@ That means:
 - modules are the primary structural unit
 - inside a module, use clean architecture only when the domain or infrastructure variability justifies it
 
-TypeScript modular backends use Hono and `typed-inject` by default, and Nest where a repo already uses it.
-
 Do not force full CA into every trivial CRUD slice.
 
 Use strategic DDD to discover boundaries and language: bounded contexts,
@@ -763,7 +785,7 @@ anti-corruption layers, and shared kernels. Use tactical DDD — aggregates,
 entities, value objects, domain services, specifications — only where domain
 complexity earns it. House doctrine is not an anemic-domain rule and not DDD purity.
 
-### When CA is warranted inside a module
+#### When CA is warranted inside a module
 
 Use ports/use-cases/domain types when at least one is true:
 
@@ -773,6 +795,236 @@ Use ports/use-cases/domain types when at least one is true:
 - testability matters because the capability is important or brittle
 
 If none of those are true, stay simpler.
+
+### Shared Kernel
+
+Code in `shared/` or `Common/` belongs to no module; these rules keep it that way.
+
+#### Shared/common rule
+
+Shared locations exist for genuine cross-cutting concerns only.
+
+Use them for:
+
+- base error types
+- common middleware/filters
+- shared value types that are truly cross-module
+- deliberately shared-kernel contracts
+
+Do not use shared/common as:
+
+- a dumping ground
+- a backdoor around module boundaries
+- a place to hide poorly named feature logic
+
+#### Common/module shadowing
+
+`Common/<Feature>/` must not mirror an existing `Modules/<Feature>/`. That
+topology erases the feature's ownership even when several modules consume the
+types. Organize genuine shared-kernel or host concerns by their shared role;
+keep feature-owned published language with the feature.
+
+### Standard Module Shape
+
+#### .NET
+
+```text
+Modules/<Feature>/
+├── Contracts/          # deliberately published module API, when needed
+├── Domain/
+├── Application/
+│   ├── Ports/
+│   └── <UseCaseName>/
+│       └── <UseCaseName>UseCase.cs
+├── Infrastructure/
+├── <Feature>Controller.cs
+└── <Feature>Module.cs
+```
+
+Rules:
+
+- controllers live at the module root
+- no `Interface/` folder by default
+- ports live in `Application/Ports`
+- infrastructure implements those ports
+- module registration is explicit in `<Feature>Module.cs`
+
+#### TypeScript
+
+```text
+src/modules/<feature>/
+├── contracts/          # deliberately published module API, when needed
+├── domain/
+├── application/
+│   ├── ports/
+│   └── <use-case>.ts
+├── infrastructure/
+├── interface/http/<feature>-routes.ts
+└── <feature>.module.ts
+```
+
+Rules:
+
+- same dependency direction as .NET
+- module registration is explicit in the module file (`<feature>.module.ts`)
+- do not hide boundaries behind barrel files or magic provider discovery
+- ports live in `application/ports`
+- adapters live in `infrastructure`
+
+### What Goes Where
+
+#### Domain
+
+Put in domain:
+
+- entities/value objects if they earn their place
+- pure rules
+- invariants
+- calculations
+- policy decisions, including a lifecycle's decider (`Refusal` / `Available`)
+
+Prefer plain data and pure functions for transformations. Put behavior on an
+entity or aggregate when doing so protects lifecycle invariants and prevents
+invalid mutation. Avoid inheritance-heavy domain models; methods themselves are
+not the problem.
+
+Do not put in domain:
+
+- repositories
+- HTTP
+- database access
+- framework imports
+- SDK clients
+- logging (`ILogger<T>` belongs in application and infrastructure; domain
+  decisions are values, not log lines)
+
+#### Application
+
+Put in application:
+
+- use cases
+- orchestration
+- ports
+- DTOs/results local to the use case when appropriate
+
+Application should make side effects visible in sequence.
+
+#### Infrastructure
+
+Put in infrastructure:
+
+- EF/Prisma repositories
+- HTTP clients
+- queue adapters
+- storage adapters
+- auth provider integrations
+- third-party SDK wrappers
+
+Infrastructure may depend on frameworks and libraries freely.
+
+### Common Failure Modes
+
+Watch for these:
+
+1. Shared dumping ground
+- `Common/` or `shared/` starts absorbing feature logic
+
+2. Cross-module leakage
+- one module imports another module’s infrastructure or internal application types
+
+3. Fake repositories everywhere
+- ports with no real variability or boundary value
+
+4. Application logic hiding in controllers
+- transport layer becomes orchestration layer
+
+5. Domain logic hiding in use cases
+- business rules are inline `if/else` branches instead of explicit domain decisions
+- the same guard is written in several use cases, in slightly different shapes
+
+6. Rules re-derived by callers
+- the UI or a second use case re-implements a guard instead of calling the
+  decision or reading its projection; the copies drift and the UI offers
+  actions the server refuses
+
+7. Package/project sprawl
+- splitting modules into separate packages before a real runtime or deployment boundary exists
+
+### Enforcement
+
+Document the rules, then enforce them.
+
+#### .NET enforcement
+
+Prefer architecture tests for:
+
+- domain not depending on application/infrastructure
+- application not depending on infrastructure
+- modules not referencing sibling Domain/Infrastructure or non-public
+  Application types
+- required ports, published contracts, and shared-kernel dependencies following
+  their declared ownership
+
+#### TypeScript enforcement
+
+Use whatever is lightest and enforceable:
+
+- lint/import-boundary rules
+- dependency-cruiser
+- architectural tests
+- workspace package boundaries where they are real
+
+The point is not tooling purity. The point is to stop the drift.
+
+### Decision Heuristics
+
+#### Should this become a new module?
+
+Yes if:
+
+- it is a real product capability
+- it has its own language, workflow, or lifecycle
+- it can be reasoned about as a bounded context
+
+No if:
+
+- it is only an infrastructure concern
+- it is just a utility/helper
+- it is an implementation detail of another module
+
+#### Should this become a port?
+
+Yes if:
+
+- it crosses I/O or infrastructure boundaries
+- there is plausible variability
+- the use case should not know implementation details
+
+No if:
+
+- it is pure computation
+- it is incidental indirection
+- the abstraction is wider than the actual capability
+
+#### Should this go in shared/common?
+
+Yes if:
+
+- it is genuinely cross-cutting
+- it is a deliberately shared-kernel contract
+- it is genuinely co-owned rather than required or published by one module
+
+No if:
+
+- it exists only because one module is leaking
+- it would erase a meaningful feature boundary
+<!-- rule: tools/starting-a-new-project.md -->
+## Starting a new project
+
+- rivet-ts's `scaffold` starts a new workspace:
+  https://maxanstey-meridian.github.io/rivet-ts/getting-started
+- Hono with `typed-inject` is the TS backend default, and Nest where a repo
+  already uses it.
 <!-- rule: backend/dependency-rules.md -->
 ## Non-Negotiable Dependency Rules
 
@@ -842,81 +1094,6 @@ internal concepts or require atomic changes to both models, the boundary is
 probably false. Merge or redraw it rather than accumulating integration ports.
 A "module" every other module needs but that owns no product capability is an
 infrastructure concern wearing a module costume.
-<!-- rule: backend/shared-kernel.md -->
-## Shared Kernel
-
-Code in `shared/` or `Common/` belongs to no module; these rules keep it that way.
-
-### Shared/common rule
-
-Shared locations exist for genuine cross-cutting concerns only.
-
-Use them for:
-
-- base error types
-- common middleware/filters
-- shared value types that are truly cross-module
-- deliberately shared-kernel contracts
-
-Do not use shared/common as:
-
-- a dumping ground
-- a backdoor around module boundaries
-- a place to hide poorly named feature logic
-
-### Common/module shadowing
-
-`Common/<Feature>/` must not mirror an existing `Modules/<Feature>/`. That
-topology erases the feature's ownership even when several modules consume the
-types. Organize genuine shared-kernel or host concerns by their shared role;
-keep feature-owned published language with the feature.
-<!-- rule: backend/standard-module-shape.md -->
-## Standard Module Shape
-
-### .NET
-
-```text
-Modules/<Feature>/
-├── Contracts/          # deliberately published module API, when needed
-├── Domain/
-├── Application/
-│   ├── Ports/
-│   └── <UseCaseName>/
-│       └── <UseCaseName>UseCase.cs
-├── Infrastructure/
-├── <Feature>Controller.cs
-└── <Feature>Module.cs
-```
-
-Rules:
-
-- controllers live at the module root
-- no `Interface/` folder by default
-- ports live in `Application/Ports`
-- infrastructure implements those ports
-- module registration is explicit in `<Feature>Module.cs`
-
-### TypeScript
-
-```text
-src/modules/<feature>/
-├── contracts/          # deliberately published module API, when needed
-├── domain/
-├── application/
-│   ├── ports/
-│   └── <use-case>.ts
-├── infrastructure/
-├── interface/http/<feature>-routes.ts
-└── <feature>.module.ts
-```
-
-Rules:
-
-- same dependency direction as .NET
-- module registration is explicit in the module file (`<feature>.module.ts`)
-- do not hide boundaries behind barrel files or magic provider discovery
-- ports live in `application/ports`
-- adapters live in `infrastructure`
 <!-- rule: backend/ports-and-adapters.md -->
 ## Ports and Adapters
 
@@ -1227,57 +1404,6 @@ etc. — any `*.config.{ts,mts,cts}` at a package root) are build-time tooling,
 not production runtime source. Outside those roots, do not read `process.env`,
 `globalThis.process.env`, `Bun.env`, `Deno.env`, or import named `env` from
 `process`/`node:process`; inject the validated config object.
-<!-- rule: backend/what-goes-where.md -->
-## What Goes Where
-
-### Domain
-
-Put in domain:
-
-- entities/value objects if they earn their place
-- pure rules
-- invariants
-- calculations
-- policy decisions, including a lifecycle's decider (`Refusal` / `Available`)
-
-Prefer plain data and pure functions for transformations. Put behavior on an
-entity or aggregate when doing so protects lifecycle invariants and prevents
-invalid mutation. Avoid inheritance-heavy domain models; methods themselves are
-not the problem.
-
-Do not put in domain:
-
-- repositories
-- HTTP
-- database access
-- framework imports
-- SDK clients
-- logging (`ILogger<T>` belongs in application and infrastructure; domain
-  decisions are values, not log lines)
-
-### Application
-
-Put in application:
-
-- use cases
-- orchestration
-- ports
-- DTOs/results local to the use case when appropriate
-
-Application should make side effects visible in sequence.
-
-### Infrastructure
-
-Put in infrastructure:
-
-- EF/Prisma repositories
-- HTTP clients
-- queue adapters
-- storage adapters
-- auth provider integrations
-- third-party SDK wrappers
-
-Infrastructure may depend on frameworks and libraries freely.
 <!-- rule: backend/persistence.md -->
 ## Persistence
 
@@ -1410,103 +1536,6 @@ capabilities computed from the named authorization policies the endpoints use.
 If a client would otherwise compare status strings, timestamps, counters,
 version lists or roles to work out what the user may do, the read model is
 missing a field.
-<!-- rule: backend/common-failure-modes.md -->
-## Common Failure Modes
-
-Watch for these:
-
-1. Shared dumping ground
-- `Common/` or `shared/` starts absorbing feature logic
-
-2. Cross-module leakage
-- one module imports another module’s infrastructure or internal application types
-
-3. Fake repositories everywhere
-- ports with no real variability or boundary value
-
-4. Application logic hiding in controllers
-- transport layer becomes orchestration layer
-
-5. Domain logic hiding in use cases
-- business rules are inline `if/else` branches instead of explicit domain decisions
-- the same guard is written in several use cases, in slightly different shapes
-
-6. Rules re-derived by callers
-- the UI or a second use case re-implements a guard instead of calling the
-  decision or reading its projection; the copies drift and the UI offers
-  actions the server refuses
-
-7. Package/project sprawl
-- splitting modules into separate packages before a real runtime or deployment boundary exists
-<!-- rule: backend/enforcement.md -->
-## Enforcement
-
-Document the rules, then enforce them.
-
-### .NET
-
-Prefer architecture tests for:
-
-- domain not depending on application/infrastructure
-- application not depending on infrastructure
-- modules not referencing sibling Domain/Infrastructure or non-public
-  Application types
-- required ports, published contracts, and shared-kernel dependencies following
-  their declared ownership
-
-### TypeScript
-
-Use whatever is lightest and enforceable:
-
-- lint/import-boundary rules
-- dependency-cruiser
-- architectural tests
-- workspace package boundaries where they are real
-
-The point is not tooling purity. The point is to stop the drift.
-<!-- rule: backend/decision-heuristics.md -->
-## Decision Heuristics
-
-### Should this become a new module?
-
-Yes if:
-
-- it is a real product capability
-- it has its own language, workflow, or lifecycle
-- it can be reasoned about as a bounded context
-
-No if:
-
-- it is only an infrastructure concern
-- it is just a utility/helper
-- it is an implementation detail of another module
-
-### Should this become a port?
-
-Yes if:
-
-- it crosses I/O or infrastructure boundaries
-- there is plausible variability
-- the use case should not know implementation details
-
-No if:
-
-- it is pure computation
-- it is incidental indirection
-- the abstraction is wider than the actual capability
-
-### Should this go in shared/common?
-
-Yes if:
-
-- it is genuinely cross-cutting
-- it is a deliberately shared-kernel contract
-- it is genuinely co-owned rather than required or published by one module
-
-No if:
-
-- it exists only because one module is leaking
-- it would erase a meaningful feature boundary
 <!-- rule: backend/observability.md -->
 ## Observability
 
@@ -1556,100 +1585,6 @@ Mapping a server value to a label, colour, icon or ordering is presentation and
 belongs in `logic/`. The test: if the UI's copy were wrong, could the user
 attempt something the server refuses, or miss something it allows? If so, it is
 a rule, not presentation.
-<!-- rule: frontend/provide-implementations-not-projections.md -->
-## Provide implementations, not projections
-
-**Law:** A composition root should not unpack a composable and manually repack selected
-members into a port-shaped object. Pass the implementation directly to `provideX`;
-the preserved concrete return type lets the root retain persistence and orchestration
-capabilities while injected consumers receive only the narrow port. A page that needs more of a capability widens its port; it doesn't unpack it, repack it, or add getters to hand out pieces.
-
-```ts
-// Wrong: the page has become a hand-written adapter.
-const effects = useFormEffects();
-
-provideFieldEffects({
-  effects: effects.effects,
-  fields: sections.allFields,
-  connectors: discovery.connectors,
-  add: effects.add,
-  remove: effects.removeEffect,
-});
-
-// Right: provide the owned implementation directly.
-const effects = provideFieldEffects(useFormEffects());
-```
-
-This keeps pages as wiring shells rather than dependency assemblers. If direct
-provision is impossible because a page must gather and forward state from several
-unrelated composables, treat that as evidence that ownership is unclear, the port
-republishes capabilities it does not own, or a dependent composable should inject
-those capabilities itself.
-
-Do not merely move that page-level assembly into a
-`useFoo({ dependencyA, dependencyB, ... })` options bag. Runtime collaborators
-should normally be obtained through their typed injected capabilities; constructor
-arguments are reserved for identity and genuine per-instance configuration.
-<!-- rule: frontend/nuxt-shells-as-composition-roots.md -->
-## Nuxt Shells As Composition Roots
-
-Compose capabilities only in:
-
-- `app.vue` for application-wide lifetime
-- layouts for shell/session lifetime spanning pages
-- pages for route lifetime
-
-Components and composables never call `provideX`. Local component dependencies
-use props/events. This is a traceability law, not a preference. Test harnesses
-(`*.spec.ts`, `*.test.ts`, `__tests__/**`, and a `tests/`, `test/` or `e2e/` tree
-at the root of the frontend or of its package) may call `provideX` to stand in for the shell.
-
-Composition roots may:
-
-- create implementation composables
-- provide ports
-- compose presentational components
-
-Composition roots should not:
-
-- become a dump for business logic
-- reimplement pure transforms inline
-- hide composition behind global setup unless it is genuinely app-wide
-
-Example:
-
-```ts
-import { provideSectionState } from "../ports/section-state";
-import { sectionStateAdapter } from "../adapters/section-state";
-
-const sectionState = provideSectionState(sectionStateAdapter);
-```
-
-Or:
-
-```ts
-import { provideAuth } from "./index/ports/auth";
-import { useRivetAuth } from "./index/composables/useRivetAuth";
-
-const auth = provideAuth(useRivetAuth());
-```
-<!-- rule: ui/core-law.md -->
-## Core Law
-
-The API is not the information architecture.
-
-UI structure, terminology, grouping, and ordering follow the user's journey and
-desired outcomes. They do not follow:
-
-- API call order
-- DTO or database field order
-- configuration object shape
-- provider implementation boundaries
-- technical mechanism variants
-- the order in which the backend happens to validate or persist data
-
-Backend structure may constrain what is possible. It does not determine how the
-product explains it.
 <!-- rule: tests/core-principle.md -->
 ## Core Principle
 
@@ -1952,8 +1887,13 @@ A test strategy is probably wrong if:
 - boundaries are constantly discussed in reviews but never enforced in tests
 - the test suite is mostly mocks with very little real behaviour exercised
 - new decision branches or error paths have no direct test exercising them
-<!-- rule: rivet/what-rivet-is.md -->
-## What Rivet Is
+<!-- rule: rivet/server-shape.md -->
+## Rivet Server Shape
+
+Use this when designing or reviewing .NET APIs that use Rivet. Its sections are
+one design and are read together: each assumes the others.
+
+### What Rivet Is
 
 Rivet analyzes C# with Roslyn and emits an OpenAPI 3.1 spec. Runtime terminals
 construct and validate declared responses. Spec generation, implementation
@@ -1969,45 +1909,8 @@ Docs: README https://github.com/maxanstey-meridian/rivet#readme, contracts
 https://maxanstey-meridian.github.io/rivet/guides/contracts, builder reference
 https://github.com/maxanstey-meridian/rivet/blob/main/docs/reference/endpoint-builder.md, and RIV
 diagnostics reference https://maxanstey-meridian.github.io/rivet/reference/diagnostics.
-<!-- rule: rivet/azure-functions.md -->
-## Azure Functions
 
-Use isolated-worker ASP.NET integration (`ConfigureFunctionsWebApplication`),
-`HttpRequest`, `IActionResult`, and Rivet's `.ToActionResult()`.
-
-Own separate trigger/public route constants in the contract:
-
-```csharp
-public const string TriggerRoute = "images/{format}";
-public const string PublicRoute = "/api/" + TriggerRoute;
-```
-
-The trigger attribute consumes `TriggerRoute` **without a leading slash**;
-`Define` consumes the complete public path. `host.json` defaults to the `api`
-prefix; `extensions.http.routePrefix: ""` means `PublicRoute = "/" + TriggerRoute`.
-A custom prefix must likewise appear in the contract. A leading slash in the
-trigger can break ASP.NET-integrated Functions routing despite a valid spec.
-
-The checker (0.42.0+) reads the project-adjacent `host.json`, honors
-`AzureFunctionsJobHost__extensions__http__routePrefix`, and rejects leading slashes
-in trigger routes; 0.41.0 and older hardcode `api`. Static checks cannot discover
-remote deployment overrides. Align the check environment with deployment.
-
-Besides the trigger's `HttpRequest`, a parameter with no binding attribute is
-filled by name, ignoring case: a route value, else a query parameter, else a
-top-level property of a JSON body; never a header, cookie, or form field. A name
-nothing carries is `null` (a value type fails the call), so name each such
-parameter after a route token, a declared query parameter, or a property of the
-contract's JSON body; `--check` reports one the contract doesn't declare
-(`RIV4006`, from 0.50.0).
-
-The worked sample is
-https://github.com/maxanstey-meridian/rivet/tree/main/samples/FunctionsApi (guide:
-https://github.com/maxanstey-meridian/rivet/blob/main/docs/guides/azure-functions.md);
-the real-host gate is `task test:functions` in the rivet repo.
-Use real HTTP tests for the host/worker routing and serialization boundary.
-<!-- rule: rivet/contract-location.md -->
-## Contract Location
+### Contract Location
 
 Contracts live in a top-level `Contracts/{Module}/` folder with their DTOs
 alongside — never inside `Modules/`.
@@ -2023,8 +1926,8 @@ Contracts/
     ├── TranscriptionsContract.cs   # [RivetContract]: route constants + Define.* fields
     └── TranscriptionsModels.cs     # the request/response records those routes carry
 ```
-<!-- rule: rivet/route-payload-ownership.md -->
-## Route Payload Ownership
+
+### Route Payload Ownership
 
 Every direct request, success response, file input, and declared
 `.Returns<T>(...)` payload belongs to the same top-level
@@ -2063,8 +1966,8 @@ Code `dotnet-rivet --from-openapi` writes is exempt: it is an external
 contract's representation, not a hand-written transport contract. Imported
 polymorphic records use `required` init members, which still make the compiler
 find every builder of a required field.
-<!-- rule: rivet/endpoint-composition.md -->
-## Endpoint Composition
+
+### Endpoint Composition
 
 Minimal API groups expose `MapXEndpoints(this IEndpointRouteBuilder ...)` and
 `Program.cs` composes every such group in its project. `Program.cs` contains no
@@ -2076,21 +1979,8 @@ The receiver rule validates only the extension target: the ordinary or fully
 qualified `Microsoft.AspNetCore.Routing.IEndpointRouteBuilder` type is valid;
 `WebApplication` is not. It does not by itself prove file placement, naming, or
 that `Program.cs` composed the group.
-<!-- rule: rivet/generated-output.md -->
-## Generated Output
 
-Generated Rivet output lives in a workspace package, `packages/contracts`,
-consumed through its `exports` map (`@<scope>/contracts`, or a `./client`
-subpath), never an in-app directory.
-
-- generated code is read-only; exclude from lint
-- regenerate via the repo's task convention (`task generate`, `pnpm rivet`, or `dotnet rivet --project ... --output ...`)
-- commit regenerated output with the contract change that caused it
-- `--verify` is the CI drift gate
-
-Source of the standard facade: https://github.com/maxanstey-meridian/rivet-ts/blob/main/src/infrastructure/codegen/client-package-emitter.ts
-<!-- rule: rivet/practical-rules.md -->
-## Practical Rules
+### Practical Rules
 
 - Contract first, in top-level `Contracts/{Module}/`; route constants belong there.
 - Request/response roots belong to that same transport feature.
@@ -2113,8 +2003,8 @@ Source of the standard facade: https://github.com/maxanstey-meridian/rivet-ts/bl
 - Do not copy legacy `.Invoke(...)`, `RivetResult<T>`, or `.SkipValidation()` examples into current code.
 - Functions-specific exception handling must be integrated and verified with that host if required.
 - Rivet does not enforce serialized JSON shape, member validation constraints, request parsing/binding, optional headers, auth policies, or file byte contents at runtime. Those remain host/application responsibilities. Handlers returning native results outside the terminals bypass Rivet's runtime checks. Coverage is static analysis, not proof that every request branch or deployment configuration is correct.
-<!-- rule: rivet/anti-patterns.md -->
-## Anti-patterns
+
+### Anti-patterns
 
 - duplicating route literals in handlers instead of using contract constants
 - treating OpenAPI security declarations as authentication enforcement (`--check`'s `RIV4008` catches a spec and a handler that disagree, but the handler's authorization is what enforces)
@@ -2131,6 +2021,120 @@ Source of the standard facade: https://github.com/maxanstey-meridian/rivet-ts/bl
 - `[JsonConverter]` on a property, or one Rivet can't model on a type (`RIV1111`); pin a primitive's wire with `[RivetSchemaType]` instead
 - `[JsonDerivedType]` with an int tag or none (`RIV1014`); polymorphic tags are strings
 - declaring `Authorization`, `Accept`, or `Content-Type` as a header input, or `Content-Type` as a response header (`RIV2009`; a response's media type is `.ProducesContentType(...)`)
+<!-- rule: rivet/azure-functions.md -->
+## Azure Functions
+
+Use isolated-worker ASP.NET integration (`ConfigureFunctionsWebApplication`),
+`HttpRequest`, `IActionResult`, and Rivet's `.ToActionResult()`.
+
+Own separate trigger/public route constants in the contract:
+
+```csharp
+public const string TriggerRoute = "images/{format}";
+public const string PublicRoute = "/api/" + TriggerRoute;
+```
+
+The trigger attribute consumes `TriggerRoute` **without a leading slash**;
+`Define` consumes the complete public path. `host.json` defaults to the `api`
+prefix; `extensions.http.routePrefix: ""` means `PublicRoute = "/" + TriggerRoute`.
+A custom prefix must likewise appear in the contract. A leading slash in the
+trigger can break ASP.NET-integrated Functions routing despite a valid spec.
+
+The checker (0.42.0+) reads the project-adjacent `host.json`, honors
+`AzureFunctionsJobHost__extensions__http__routePrefix`, and rejects leading slashes
+in trigger routes; 0.41.0 and older hardcode `api`. Static checks cannot discover
+remote deployment overrides. Align the check environment with deployment.
+
+Besides the trigger's `HttpRequest`, a parameter with no binding attribute is
+filled by name, ignoring case: a route value, else a query parameter, else a
+top-level property of a JSON body; never a header, cookie, or form field. A name
+nothing carries is `null` (a value type fails the call), so name each such
+parameter after a route token, a declared query parameter, or a property of the
+contract's JSON body; `--check` reports one the contract doesn't declare
+(`RIV4006`, from 0.50.0).
+
+The worked sample is
+https://github.com/maxanstey-meridian/rivet/tree/main/samples/FunctionsApi (guide:
+https://github.com/maxanstey-meridian/rivet/blob/main/docs/guides/azure-functions.md);
+the real-host gate is `task test:functions` in the rivet repo.
+Use real HTTP tests for the host/worker routing and serialization boundary.
+<!-- rule: rivet/client-package.md -->
+## Rivet Client Package
+
+The contracts package is the workspace package UI apps import the generated
+Rivet client and DTO types from. Its sections are one design and are read
+together: each assumes the others.
+
+### Generated Output
+
+Generated Rivet output lives in a workspace package, `packages/contracts`,
+consumed through its `exports` map (`@<scope>/contracts`, or a `./client`
+subpath), never an in-app directory.
+
+- generated code is read-only; exclude from lint
+- regenerate via the repo's task convention (`task generate`, `pnpm rivet`, or `dotnet rivet --project ... --output ...`)
+- commit regenerated output with the contract change that caused it
+- `--verify` is the CI drift gate
+
+Source of the standard facade: https://github.com/maxanstey-meridian/rivet-ts/blob/main/src/infrastructure/codegen/client-package-emitter.ts
+
+### TypeScript Client Package
+
+The frontend contract package has:
+
+- `generated/openapi.json` — OpenAPI 3.1 emitted from the authored Rivet contract
+- `generated/schema.d.ts` — `openapi-typescript` output over that spec
+- `src/index.ts` — the hand-owned client facade consumed by UI apps
+
+Standard facade shape:
+
+```ts
+import createOpenApiClient, { type Client, type ClientOptions } from "openapi-fetch";
+import type { paths } from "../generated/schema.js";
+
+export type { components, paths } from "../generated/schema.js";
+
+export type RivetFetch = (input: Request) => Promise<Response>;
+export type RivetConfig = Omit<ClientOptions, "baseUrl" | "fetch"> & {
+  readonly baseUrl?: string;
+  readonly fetch?: RivetFetch;
+};
+export type RivetClient = Client<paths>;
+
+export const createClient = (config: RivetConfig = {}): RivetClient =>
+  createOpenApiClient<paths>(config);
+
+export let client: RivetClient = createOpenApiClient<paths>();
+
+export const configureRivet = (config: RivetConfig): void => {
+  client = createClient(config);
+};
+```
+
+Rules:
+- UI imports `client`, `createClient`, `configureRivet`, and DTO types from the contracts package
+- UI does not create `openapi-fetch` clients directly
+- regeneration updates `generated/`; the facade is hand-owned after scaffold
+- do not wrap the generated client one-for-one in a fake API service
+
+### Frontend Result Handling
+
+The current v2 client is an `openapi-fetch` facade. Capture its `{ data, error,
+response }` result and inspect the error channel or response status explicitly:
+
+```ts
+const result = await client.GET("/api/mappings");
+if (result.response.status === 404) return null;
+if (result.error !== undefined) return { ok: false as const, error: result.error };
+return { ok: true as const, data: result.data };
+```
+
+Do not narrow on `result.data` truthiness: valid payloads may be `false`, `0`,
+an empty string, or null. `try/catch` is for transport/network failure only;
+never use catch for HTTP status branching.
+
+Legacy Rivet v1 clients use `{ unwrap: false }` plus `.isOk()` /
+`.isNotFound()`. Do not copy that API into v2 code.
 <!-- rule: tools/typescript-vue-nuxt.md -->
 ## TypeScript / Vue / Nuxt
 
@@ -2362,10 +2366,10 @@ If the repo uses Plumb but it won't run, say so in your report rather than
 skipping the check silently. Setup is in its README.
 
 Each finding's `docRef` (`rules/<folder>/<file>.md#<slug>`) names the rule file
-under the meridian skill's `references/` and the heading it enforces; read that rule
-before fixing. Fix `error` findings unprompted. For `warn` findings, fix them or
-state the exception that applies. Do not re-run Plumb in a loop on a repo you
-have not changed.
+or design document under the meridian skill's `references/` and the heading it
+enforces; read that rule before fixing. Fix `error` findings unprompted. For
+`warn` findings, fix them or state the exception that applies. Do not re-run
+Plumb in a loop on a repo you have not changed.
 
 Plumb's findings are the floor, not the review. A clean Plumb run is not a
 review.

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Runs after a compaction: puts this session's waypoint back into context and orders the reads: this clone's AGENTS.md and
-# the house Laws always, then the files the waypoint's "Read first" line names.
+# the house Laws (all three files) always, then the files the waypoint's "Read first" line names.
 # AGENTS.md 'Routines' says to read them; this makes it happen without the agent remembering to.
 # Input: the hook's JSON on stdin, with session_id and cwd, and transcript_path where the agent gives one.
 # Output: JSON with the text for the agent's context, and a message for the user when no waypoint is found.
@@ -13,11 +13,16 @@ set -eu
 repo=$(CDPATH= cd -P -- "$(dirname -- "$0")/.." && pwd)
 
 rules=$repo/AGENTS.md
-laws=$repo/skills/meridian/references/rules/core/laws.md
+core=$repo/skills/meridian/references/rules/core
+laws=$core/laws.md
+backend_laws=$core/backend-laws.md
+frontend_laws=$core/frontend-laws.md
 opening="STOP. NON-NEGOTIABLE: before anything else this turn, including answering the user's message, read each of these files in full with your read tool, in order, even if it's already in your context."
 reads="1. $rules
-2. $laws"
-i=2
+2. $laws
+3. $backend_laws
+4. $frontend_laws"
+i=4
 
 command -v jq >/dev/null 2>&1 || {
   printf '%s\n%s\n\nThen continue.\n\n' "$opening" "$reads"
@@ -73,7 +78,7 @@ $folders
 EOF
 fi
 
-# The reads: this clone's AGENTS.md and the house Laws always (built above), then the files the waypoint's "Read first"
+# The reads: this clone's AGENTS.md and the house Laws (all three files) always (built above), then the files the waypoint's "Read first"
 # line names: comma-separated; backticks, a closing full stop, and a trailing "(the index)" are dropped; ~/ and relative paths
 # are resolved; an entry that isn't a file but has prose after a path ("`/x.md`. It has the state") gives that path;
 # the waypoint itself, duplicates, and files that don't exist are left out.
@@ -120,6 +125,8 @@ if [ -n "$waypoint" ]; then
     [ "$entry" -ef "$waypoint" ] && continue
     [ "$entry" -ef "$rules" ] && continue
     [ "$entry" -ef "$laws" ] && continue
+    [ "$entry" -ef "$backend_laws" ] && continue
+    [ "$entry" -ef "$frontend_laws" ] && continue
     seen=""
     while IFS= read -r other; do
       [ -n "$other" ] && [ "$entry" -ef "$other" ] && seen=1

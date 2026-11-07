@@ -2,7 +2,9 @@
 <!-- rule: core/laws.md -->
 ## Laws
 
-Each line is a summary; the rule file in brackets states it in full.
+Each line is a summary; the file in brackets (a rule file, or a design document
+and the heading in it) states it in full. The backend and frontend Laws files
+beside this one hold the Laws for one stack.
 
 - a gap with a doc page is still a gap: a known defect, an unchecked promise or
   a path that only works "because nothing does X today" gets fixed, not written
@@ -11,28 +13,9 @@ Each line is a summary; the rule file in brackets states it in full.
 - model the invariant before choosing enforcement or concurrency; the domain,
   not a caller, decides what the invariant is
   [`invariants/invariant-enforcement.md`]
-- declared failures are results; undeclared failures are exceptions
-  [`backend/results-vs-exceptions.md`]
 - callers never re-derive a server rule: a UI reads the read model's
   `availableActions`, capabilities or named flag; a second use case calls the
   same decision [`frontend/server-rules-stay-on-the-server.md`]
-- modules integrate through consumer-owned required ports, provider-owned
-  published contracts, or a deliberately shared kernel; Domain never consumes
-  a sibling's published contract [`backend/dependency-rules.md`]
-- the API is not the information architecture: UI language and ordering follow
-  the user's journey and desired outcomes, not transport models, backend
-  operations, configuration variants, or implementation sequence
-  [`ui/core-law.md`]
-- provide implementations, not projections: a page that needs more of a
-  capability widens its port; it doesn't unpack it, repack it, or add getters
-  to hand out pieces [`frontend/provide-implementations-not-projections.md`]
-- frontend composition happens only in Nuxt shells: `app.vue`, layouts, and
-  pages provide capabilities/contexts with `provideX`; components and
-  composables only inject them with `injectX`
-  [`frontend/nuxt-shells-as-composition-roots.md`]
-- adapter integration tests run on the production database engine — EF
-  InMemory is banned (a fake engine manufactures confidence); fake the port
-  when the adapter is not under test [`tests/test-substrate.md`]
 - do not hand-roll commodity infrastructure, protocols, or dev tooling when a
   suitable maintained framework, library, official SDK, or generated client
   exists; custom machinery carries the same burden of proof as a new dependency
@@ -46,6 +29,25 @@ Each line is a summary; the rule file in brackets states it in full.
 
 A Law beats any spec or plan Decision: when a design and a Law conflict, the
 design changes, and a Decision that breaks one is a defect, not a choice.
+<!-- rule: core/frontend-laws.md -->
+## Frontend Laws
+
+Each line is a summary; the file in brackets (a rule file, or a design document
+and the heading in it) states it in full. These Laws apply together with the
+cross-stack Laws in the Laws file beside this one.
+
+- the API is not the information architecture: UI language and ordering follow
+  the user's journey and desired outcomes, not transport models, backend
+  operations, configuration variants, or implementation sequence
+  [`ui/core-law.md`]
+- provide implementations, not projections: a page that needs more of a
+  capability widens its port; it doesn't unpack it, repack it, or add getters
+  to hand out pieces
+  [`frontend/page-ports-and-adapters.md#provide-implementations-not-projections`]
+- frontend composition happens only in Nuxt shells: `app.vue`, layouts, and
+  pages provide capabilities/contexts with `provideX`; components and
+  composables only inject them with `injectX`
+  [`frontend/page-ports-and-adapters.md#nuxt-shells-as-composition-roots`]
 <!-- rule: core/rule-strength.md -->
 ## Rule Strength
 
@@ -66,30 +68,45 @@ the same authority as an atomicity or dependency rule.
 <!-- rule: core/defaults.md -->
 ## Defaults
 
-Each line is a summary of a rule stated in full in its own rule file.
+Each line is a summary; the file in brackets (a rule file, or a design document
+and the heading in it) states it in full. The backend and frontend Defaults
+files beside this one hold the Defaults for one stack.
 
-- prefer explicit, honest boundaries
-- ask users for decisions they understand; progressively disclose the mechanism
-  needed to express each decision
-- make defaults, consequences, and the resulting outcome visible
-- accessibility, formatting, display, or validation the spec leaves open follows
-  the GOV.UK Design System and style guide, unless the repo's UI skill decides it
-- seams must be earned
+- prefer explicit, honest boundaries [`coding/core-rule.md`]
+- seams must be earned [`coding/seams.md`]
 - keep things local and preserve ownership when they gain more consumers
+  [`coding/local-before-shared.md`]
 - use the narrowest owner and smallest mechanism that make an invariant true
-- scheduled work runs off-peak and spread out: outside working hours, or before
-  the day starts when a person sees its result, each tenant or subject offset by
-  a stable hash of its id
+  [`invariants/invariant-enforcement.md`]
 - a lifecycle with several guarded actions gets one pure decider
   (`Refusal` / `Available`) that guards the use cases and feeds
   `availableActions`; the decider explains, the database enforces
+  [`invariants/deciders.md`]
 - generated code is an external contract representation; add an
   anti-corruption layer only when it adds semantic value
+  [`coding/generated-code.md`]
 - tests default to real behaviour over mock soup and mechanically enforce
   modular boundaries
-- FluentResults is Application furniture, not Domain furniture
-- strategic DDD helps discover boundaries; tactical DDD is conditional
-- frontends are SPAs (`ssr: false` assumed)
+  [`tests/core-principle.md`, `tests/default-bias.md`,
+  `tests/what-to-test.md`]
+<!-- rule: core/frontend-defaults.md -->
+## Frontend Defaults
+
+Each line is a summary; the file in brackets (a rule file, or a design document
+and the heading in it) states it in full. These Defaults apply together with the
+cross-stack Defaults in the Defaults file beside this one.
+
+- ask users for decisions they understand; progressively disclose the mechanism
+  needed to express each decision
+  [`ui/ask-for-outcomes-not-mechanisms.md`,
+  `ui/prefer-progressive-disclosure.md`]
+- make defaults, consequences, and the resulting outcome visible
+  [`ui/make-the-default-legible.md`,
+  `ui/explain-consequences-not-system-events.md`, `ui/show-the-result.md`]
+- accessibility, formatting, display, or validation the spec leaves open follows
+  the GOV.UK Design System and style guide, unless the repo's UI skill decides it
+  [`ui/when-the-detail-is-unspecified.md`]
+- frontends are SPAs (`ssr: false` assumed) [`frontend/single-page-apps.md`]
 <!-- rule: core/preferences.md -->
 ## Preferences
 
@@ -555,75 +572,6 @@ Where applicable, these libraries remove the justification for a private version
 of the capability they provide. They do not remove the need to prove the
 invariant, choose the correct boundary, or understand each provider's failure
 model.
-<!-- rule: backend/dependency-rules.md -->
-## Non-Negotiable Dependency Rules
-
-These are the hard rules.
-
-### Inside a module
-
-- `Domain` depends on nothing outside itself
-- `Application` may depend on `Domain`
-- `Application` must not depend on `Infrastructure`
-- `Infrastructure` implements `Application/Ports`
-- interface/transport/controllers call application services or use cases only
-- controllers and endpoint adapters never call, inject, inherit from, or store
-  another controller; share the underlying Application capability instead
-
-### Across modules
-
-Modules must not depend on sibling internals: never import another module's
-`Domain` or `Infrastructure`, query its tables, or reach into non-public
-application types. Cross-module collaboration must name both ownership and
-direction explicitly.
-
-There are three valid integration shapes:
-
-- **consumer-owned required port** — module A defines the narrow capability it
-  needs; a host/integration adapter bridges that port to module B
-- **provider-owned published contract** — module B deliberately exposes a
-  stable command/query contract that sibling Application code or host/integration
-  composition may call; Domain never consumes a sibling contract
-- **shared kernel** — two or more modules genuinely co-own a small, stable
-  concept; that concept lives in Common and changes only by joint agreement
-
-Required ports do not move to Common merely because their implementation calls
-another module. Published contracts do not expose a module's internal domain
-model. Integration wiring at the host edge may depend on both sides; feature
-modules depend only on the contract relevant to their side.
-
-### Published contract closure
-
-Published contract source is closed over published or genuinely shared types.
-Files under `Modules/<Feature>/Contracts/` and top-level transport
-`Contracts/<Feature>/` must not reference module Domain, Application,
-Infrastructure, or presentation types. Move wire-facing enums, records, and
-value shapes into the owning contract and map at the edge; C# `public`
-accessibility does not make an internal domain type published language.
-
-Provider-published module contracts may be consumed by Application,
-integration, and transport contract code. Domain never consumes a sibling
-contract. Top-level transport contracts still own their direct request and
-response DTOs rather than using Application commands, results, controller
-types, or module contracts as route payload roots.
-
-The reverse direction is closed too: a module's Contracts, Domain, Application
-and Infrastructure never reference the top-level transport contracts
-(`<App>.Contracts.*`), and no `global using` brings them in. The transport edge
-(`Contracts/**/…TransportMapper` and the module-root presentation files:
-controllers, endpoints, transport mappers, request validators, the module's
-registration) maps to and from module types; module code never takes or
-returns a wire DTO.
-
-This is dependency inversion applied to module integration: the consumer owns
-the shape of what it requires, while a provider owns the shape of what it
-publishes. `Common` is not an owner-erasure mechanism.
-
-**Module-merge heuristic**: if two modules repeatedly need each other's
-internal concepts or require atomic changes to both models, the boundary is
-probably false. Merge or redraw it rather than accumulating integration ports.
-A "module" every other module needs but that owns no product capability is an
-infrastructure concern wearing a module costume.
 <!-- rule: backend/results-vs-exceptions.md -->
 ## Results vs exceptions
 
@@ -714,8 +662,22 @@ etc. — any `*.config.{ts,mts,cts}` at a package root) are build-time tooling,
 not production runtime source. Outside those roots, do not read `process.env`,
 `globalThis.process.env`, `Bun.env`, `Deno.env`, or import named `env` from
 `process`/`node:process`; inject the validated config object.
-<!-- rule: frontend/default-recommendation.md -->
-## Default Recommendation
+<!-- rule: frontend/page-ports-and-adapters.md -->
+## Page-colocated Ports and Adapters
+
+Use this when designing, reviewing, or refactoring a Vue/Nuxt frontend toward a
+decoupled, page-colocated, ports-and-adapters shape with:
+
+- dumb views/components
+- page/layout/app composition roots
+- pure logic separated from framework code
+- explicit capability boundaries
+- typed runtime wiring via provide/inject
+
+This is the Meridian frontend default. Its sections are one design and are read
+together: each assumes the others.
+
+### Default Recommendation
 
 Treat **`app.vue`, layouts, and pages** as the only composition roots.
 
@@ -732,12 +694,8 @@ Do not default to:
 
 The stable boundary is the **page/layout-owned feature**, not the composable and
 not the component.
-<!-- rule: frontend/core-principle.md -->
-## Core Principle
 
-Frontends are SPAs: assume `ssr: false` throughout. SSR idioms (hydration-aware
-`useAsyncData` patterns, server components) are not house style, and nothing in
-these rules should be read as ruling on them.
+### Core Principle
 
 Keep views dumb and dependencies explicit.
 
@@ -752,8 +710,8 @@ The point is:
 - runtime seams are explicit instead of ambient
 
 `provide` / `inject` is just the cleanest Vue mechanism for expressing that boundary.
-<!-- rule: frontend/dependency-rule.md -->
-## Dependency Rule
+
+### Dependency Rule
 
 ```text
 logic/         ← pure TypeScript, zero Vue/Nuxt imports
@@ -779,7 +737,7 @@ Meaning:
 - leaf components render and emit; feature containers may consume composed
   contexts but never construct infrastructure
 
-### Cross-page feature shape
+#### Cross-page feature shape
 
 `app/features/<feature>/` is for a product capability spanning multiple
 composition roots. It may contain `logic/`, `ports/`, `adapters/`, implementation
@@ -790,8 +748,8 @@ Consumers import only the feature's deliberate public contracts and pure logic,
 not its internal adapters. `app.vue`, layouts, and pages remain the composition
 roots; a feature folder is an ownership boundary, not an ambient singleton or
 automatic store.
-<!-- rule: frontend/standard-layout.md -->
-## Standard Layout
+
+### Standard Layout
 
 Page-local code is colocated by default.
 
@@ -820,8 +778,8 @@ app/pages/
 ```
 
 Do not promote code until its ownership and lifetime require it.
-<!-- rule: frontend/promotion.md -->
-## Promotion
+
+### Promotion
 
 A page or layout subtree must not import another page's local implementation
 directories. When code is needed by more than one subtree, preserve ownership:
@@ -914,8 +872,8 @@ import { injectAuth, getInitials } from "~/features/auth";
 // app/pages/index/components/auth-card.vue — another consumer, same import
 import { injectAuth, getInitials } from "~/features/auth";
 ```
-<!-- rule: frontend/logic.md -->
-## Logic
+
+### Logic
 
 `logic/` is pure TypeScript.
 
@@ -937,44 +895,8 @@ Put in `logic/`:
 If something can be a pure function, put it here.
 
 Components may import `logic/` directly because it has zero framework dependencies.
-<!-- rule: frontend/server-rules-stay-on-the-server.md -->
-## Server rules stay on the server
 
-**Law:** the UI never re-derives a rule the server decides. Whether an action may
-happen now, whether an entity is editable, whether a draft differs from what is
-published: read the server's answer from the read model, as `availableActions`,
-a capability set, or a named flag (`canPost`, `hasUnpublishedChanges`). If the
-DTO lacks it, add it to the DTO. Do not work it out from status strings,
-timestamps, counters, version lists or roles.
-
-Roles are no exception. Which pages, tabs and buttons a user sees comes from
-capabilities the server sends with the session, computed from the same named
-policies its endpoints enforce, not from comparing the user's role.
-
-A copy that agrees with the server today is still a copy. Agreement sets how
-soon to remove it, not whether.
-
-Server-owned ids are the same. A route, link, query value, request or
-comparison takes the id from the DTO, never a hand-written literal such as
-`"acme-crm"`. A table keyed on an id may map it only to presentation (labels,
-colours, icons; see below).
-
-The UI owns client state only: unsaved edits, requests in flight, and the
-validity of input the server hasn't seen. Gate an action on the server's answer
-*and* client state, never on a copy of the server's rule.
-
-Checking unsaved input in the browser for fast feedback is client state, and
-the server always checks again. The rule's inputs still come from the server:
-limits and allowed choices travel on the DTO (as a `min`/`max` or an allowed
-list), not as hand-copied constants or predicates. A bare constant that can't
-travel on a DTO is held to the server's by a parity test.
-
-Mapping a server value to a label, colour, icon or ordering is presentation and
-belongs in `logic/`. The test: if the UI's copy were wrong, could the user
-attempt something the server refuses, or miss something it allows? If so, it is
-a rule, not presentation.
-<!-- rule: frontend/ports.md -->
-## Ports
+### Ports
 
 A capability port is a **narrow typed contract describing an operation the UI
 needs from a boundary**. A provided context is a **reactive feature-facing
@@ -994,7 +916,7 @@ Rules:
 - provided contexts are view-model-shaped and may expose reactive state plus
   user actions
 - a port file holds only the port's type and its `[injectX, provideX]` pair from
-  `useProvideInject` (`frontend/provide-inject-pattern.md`): it imports types and
+  `useProvideInject` (Provide / Inject Pattern, below): it imports types and
   that helper, never `provide`, `inject`, or a value from `vue`, and declares
   nothing else
 - ports are for capabilities the subtree depends on, not for disguising an existing client
@@ -1012,7 +934,7 @@ Bad:
 - `NotesApiPort` that just mirrors generated methods
 - `FormDataService`
 
-### Naming
+#### Naming
 
 Use names that make runtime wiring obvious at the call site:
 
@@ -1031,8 +953,8 @@ Why:
 - `injectX` makes it obvious that a component is consuming a provided port
 - `useX` remains available for concrete composables such as `useRivetAuth` or `usePlatformAuth`
 - components should generally import `injectX` from `ports/`, not implementation composables from `composables/`
-<!-- rule: frontend/provide-inject-pattern.md -->
-## Provide / Inject Pattern
+
+### Provide / Inject Pattern
 
 Use typed provide/inject helpers based on Vue `InjectionKey` and VueUse local injection.
 
@@ -1098,8 +1020,8 @@ port, stores it under the narrow injection key, and returns the exact `U` suppli
 This does not weaken the consumer boundary because `inject*` still returns `T`.
 
 This is runtime wiring, not the architecture itself.
-<!-- rule: frontend/adapters.md -->
-## Adapters
+
+### Adapters
 
 Adapters are optional boundary implementations. They translate between a
 capability port and HTTP, generated clients, storage, desktop APIs, or another
@@ -1201,8 +1123,8 @@ than adding a `(): Auth` return annotation when it has capabilities needed only
 by the composition root. The former checks port compliance without erasing the
 richer inferred implementation type or applying excess-property checks to an
 object literal.
-<!-- rule: frontend/provide-implementations-not-projections.md -->
-## Provide implementations, not projections
+
+### Provide implementations, not projections
 
 **Law:** A composition root should not unpack a composable and manually repack selected
 members into a port-shaped object. Pass the implementation directly to `provideX`;
@@ -1235,8 +1157,8 @@ Do not merely move that page-level assembly into a
 `useFoo({ dependencyA, dependencyB, ... })` options bag. Runtime collaborators
 should normally be obtained through their typed injected capabilities; constructor
 arguments are reserved for identity and genuine per-instance configuration.
-<!-- rule: frontend/composables.md -->
-## Composables
+
+### Composables
 
 Composables are the framework-rich layer.
 
@@ -1263,33 +1185,11 @@ Composables should not:
 
 If a composable gets too large, pull pure logic down into `logic/`.
 
-### File naming
-
-Composable files are camelCase, matching the exported function: `useAuth.ts`
-exports `useAuth`. Older code may differ; fix it when you touch it.
-
-### Framework state (`useState`)
-
-Nuxt `useState()` is blessed — **behind composables only**. `useState(` may
-appear only inside `composables/` files; the composable owns the key and exposes
-a named capability:
-
-```ts
-// composables/useAppBooted.ts
-export const useAppBooted = () => useState("app-booted", () => false);
-```
-
-Every other layer — components, pages, plugins, logic, adapters — consumes the
-owning composable (`useAppBooted()`), never the string key. Two files sharing a
-bare key is provenance-invisible coupling; the composable makes the owner
-greppable. There is no `state/` directory: composables are the state home in
-this taxonomy.
-<!-- rule: frontend/two-valid-implementation-styles.md -->
-## Two Valid Implementation Styles
+### Two Valid Implementation Styles
 
 Both are valid. Choose the simpler one that keeps boundaries honest.
 
-### 1. Pure adapter + thin composable
+#### 1. Pure adapter + thin composable
 
 Use this when there is real pure logic worth separating.
 
@@ -1299,7 +1199,7 @@ Pattern:
 - composable injects port via `injectX`
 - composable holds reactive state and delegates logic to the port
 
-### 2. Composable directly implements the port
+#### 2. Composable directly implements the port
 
 Use this when the implementation is already inherently reactive/stateful and an adapter would just add ceremony.
 
@@ -1315,8 +1215,8 @@ provideAuth(useRivetAuth());
 ```
 
 Do not create an adapter just to satisfy a pattern if the composable is already the cleanest implementation.
-<!-- rule: frontend/nuxt-shells-as-composition-roots.md -->
-## Nuxt Shells As Composition Roots
+
+### Nuxt Shells As Composition Roots
 
 Compose capabilities only in:
 
@@ -1358,8 +1258,8 @@ import { useRivetAuth } from "./index/composables/useRivetAuth";
 
 const auth = provideAuth(useRivetAuth());
 ```
-<!-- rule: frontend/components.md -->
-## Components
+
+### Components
 
 Leaf components are presentational. Feature-container components may consume
 an already-provided context when that keeps orchestration out of leaves; name
@@ -1379,8 +1279,8 @@ They should not:
 - own workflow orchestration
 - construct infrastructure dependencies
 - reach around the page composition root
-<!-- rule: frontend/rivet-rules.md -->
-## Rivet Rules
+
+### Rivet Rules
 
 Generated Rivet clients are already typed contracts.
 
@@ -1390,6 +1290,7 @@ Therefore:
 - do not create fake API service layers unless there is a genuine need
 - bootstrap Rivet once at the app boundary
 - call generated clients directly inside the composable that implements the capability when appropriate
+- the generated client and its DTO types come from the contracts package: `rivet/client-package.md`
 
 Good:
 
@@ -1400,8 +1301,8 @@ Bad:
 
 - `MessagesApiPort` that mirrors generated methods one-for-one
 - “service” wrappers that only rename generated methods
-<!-- rule: frontend/when-not-to-use-this-pattern.md -->
-## When Not To Use This Pattern
+
+### When Not To Use This Pattern
 
 Do not force the full page-colocated ports-and-adapters structure when the feature is tiny.
 
@@ -1413,8 +1314,8 @@ Skip ceremony when:
 - no subtree wiring is needed
 
 If something is trivial, keep it trivial.
-<!-- rule: frontend/failure-modes.md -->
-## Failure Modes
+
+### Failure Modes
 
 Watch for these:
 
@@ -1430,6 +1331,72 @@ Watch for these:
 - `can…` / `available…` helpers that compare server status strings, timestamps,
   counters, version lists or roles to decide what the user may do (see
   `frontend/server-rules-stay-on-the-server.md`)
+<!-- rule: frontend/single-page-apps.md -->
+## Single-Page Apps
+
+Frontends are SPAs: assume `ssr: false` throughout. SSR idioms (hydration-aware
+`useAsyncData` patterns, server components) are not house style, and nothing in
+these rules should be read as ruling on them.
+<!-- rule: frontend/server-rules-stay-on-the-server.md -->
+## Server rules stay on the server
+
+**Law:** the UI never re-derives a rule the server decides. Whether an action may
+happen now, whether an entity is editable, whether a draft differs from what is
+published: read the server's answer from the read model, as `availableActions`,
+a capability set, or a named flag (`canPost`, `hasUnpublishedChanges`). If the
+DTO lacks it, add it to the DTO. Do not work it out from status strings,
+timestamps, counters, version lists or roles.
+
+Roles are no exception. Which pages, tabs and buttons a user sees comes from
+capabilities the server sends with the session, computed from the same named
+policies its endpoints enforce, not from comparing the user's role.
+
+A copy that agrees with the server today is still a copy. Agreement sets how
+soon to remove it, not whether.
+
+Server-owned ids are the same. A route, link, query value, request or
+comparison takes the id from the DTO, never a hand-written literal such as
+`"acme-crm"`. A table keyed on an id may map it only to presentation (labels,
+colours, icons; see below).
+
+The UI owns client state only: unsaved edits, requests in flight, and the
+validity of input the server hasn't seen. Gate an action on the server's answer
+*and* client state, never on a copy of the server's rule.
+
+Checking unsaved input in the browser for fast feedback is client state, and
+the server always checks again. The rule's inputs still come from the server:
+limits and allowed choices travel on the DTO (as a `min`/`max` or an allowed
+list), not as hand-copied constants or predicates. A bare constant that can't
+travel on a DTO is held to the server's by a parity test.
+
+Mapping a server value to a label, colour, icon or ordering is presentation and
+belongs in `logic/`. The test: if the UI's copy were wrong, could the user
+attempt something the server refuses, or miss something it allows? If so, it is
+a rule, not presentation.
+<!-- rule: frontend/composable-files.md -->
+## Composable Files
+
+### File naming
+
+Composable files are camelCase, matching the exported function: `useAuth.ts`
+exports `useAuth`. Older code may differ; fix it when you touch it.
+
+### Framework state (`useState`)
+
+Nuxt `useState()` is blessed — **behind composables only**. `useState(` may
+appear only inside `composables/` files; the composable owns the key and exposes
+a named capability:
+
+```ts
+// composables/useAppBooted.ts
+export const useAppBooted = () => useState("app-booted", () => false);
+```
+
+Every other layer — components, pages, plugins, logic, adapters — consumes the
+owning composable (`useAppBooted()`), never the string key. Two files sharing a
+bare key is provenance-invisible coupling; the composable makes the owner
+greppable. There is no `state/` directory: composables are the state home in
+this taxonomy.
 <!-- rule: frontend/testing-bias.md -->
 ## Testing Bias
 
@@ -1747,6 +1714,42 @@ reader announces), check what the GOV.UK Design System and the GOV.UK style
 guide do before inventing a rule: find the matching component or pattern and
 follow it. Name the pattern in the spec or the report. A repo's own UI skill
 wins where it already decides the case.
+<!-- rule: ui/review-method.md -->
+## Review Method
+
+When asked to "look at this UI", review it in this order:
+
+1. State the user's job and intended outcome.
+2. Read headings and labels as a journey.
+3. Identify controls named after implementation mechanisms.
+4. Identify sections ordered after API or data-model structure.
+5. Merge mechanisms that express the same user intention.
+6. Establish the safe common path and default.
+7. Progressively disclose uncommon or advanced choices.
+8. Rewrite labels around outcomes and consequences.
+9. Add examples or previews where users otherwise simulate rules mentally.
+10. Check prerequisites, disabled states, validation, and recovery instructions.
+11. Check that the final review or summary matches what will actually happen.
+
+Do not begin with visual polish. Correct the conceptual model and information
+hierarchy first. Styling a mechanism-oriented interface does not make it
+user-centred.
+<!-- rule: ui/review-questions.md -->
+## Review Questions
+
+- Can the intended user understand every choice without knowing the API?
+- Are we asking for a user decision or exposing a technical representation?
+- Does the order match how the task is performed and understood?
+- Are conceptually identical decisions presented consistently?
+- Can multiple technical modes become one progressive editor?
+- Is the recommended path obvious?
+- Are destructive, security-sensitive, or failure consequences explicit?
+- Can the user see an example of the resulting outcome?
+- Does help text explain something useful rather than restating the label?
+- Could a user return six months later and understand the configuration?
+
+If the answer to any of these is no, treat it as a product-design problem, not a
+copy-editing problem.
 <!-- rule: ui/testing-bias.md -->
 ## Testing Bias
 
@@ -2047,8 +2050,14 @@ A test strategy is probably wrong if:
 - boundaries are constantly discussed in reviews but never enforced in tests
 - the test suite is mostly mocks with very little real behaviour exercised
 - new decision branches or error paths have no direct test exercising them
-<!-- rule: rivet/generated-output.md -->
-## Generated Output
+<!-- rule: rivet/client-package.md -->
+## Rivet Client Package
+
+The contracts package is the workspace package UI apps import the generated
+Rivet client and DTO types from. Its sections are one design and are read
+together: each assumes the others.
+
+### Generated Output
 
 Generated Rivet output lives in a workspace package, `packages/contracts`,
 consumed through its `exports` map (`@<scope>/contracts`, or a `./client`
@@ -2060,8 +2069,8 @@ subpath), never an in-app directory.
 - `--verify` is the CI drift gate
 
 Source of the standard facade: https://github.com/maxanstey-meridian/rivet-ts/blob/main/src/infrastructure/codegen/client-package-emitter.ts
-<!-- rule: rivet/typescript-client-package.md -->
-## TypeScript Client Package
+
+### TypeScript Client Package
 
 The frontend contract package has:
 
@@ -2099,8 +2108,8 @@ Rules:
 - UI does not create `openapi-fetch` clients directly
 - regeneration updates `generated/`; the facade is hand-owned after scaffold
 - do not wrap the generated client one-for-one in a fake API service
-<!-- rule: rivet/frontend-result-handling.md -->
-## Frontend Result Handling
+
+### Frontend Result Handling
 
 The current v2 client is an `openapi-fetch` facade. Capture its `{ data, error,
 response }` result and inspect the error channel or response status explicitly:
@@ -2254,10 +2263,10 @@ If the repo uses Plumb but it won't run, say so in your report rather than
 skipping the check silently. Setup is in its README.
 
 Each finding's `docRef` (`rules/<folder>/<file>.md#<slug>`) names the rule file
-under the meridian skill's `references/` and the heading it enforces; read that rule
-before fixing. Fix `error` findings unprompted. For `warn` findings, fix them or
-state the exception that applies. Do not re-run Plumb in a loop on a repo you
-have not changed.
+or design document under the meridian skill's `references/` and the heading it
+enforces; read that rule before fixing. Fix `error` findings unprompted. For
+`warn` findings, fix them or state the exception that applies. Do not re-run
+Plumb in a loop on a repo you have not changed.
 
 Plumb's findings are the floor, not the review. A clean Plumb run is not a
 review.
