@@ -2,77 +2,69 @@ using System.Diagnostics;
 
 namespace RoomBooking.Api.Modules.Bookings.Domain;
 
+public enum BookingStatus
+{
+    Booked,
+    CheckedIn,
+    Cancelled,
+    Released,
+}
+
 public enum BookingAction
 {
-    Cancel,
     CheckIn,
+    Cancel,
 }
 
+/// <summary>The closed set of reasons a booking action may be refused.</summary>
 public enum BookingRefusal
 {
-    NotActive,
+    Cancelled,
+    Released,
     AlreadyCheckedIn,
-    CheckInNotOpen,
-    CheckInWindowClosed,
-    AlreadyEnded,
+    CheckInNotOpenYet,
+    CheckInClosed,
+    BookingHasStarted,
 }
 
-public readonly record struct BookingSnapshot(
-    BookingStatus Status,
-    DateTimeOffset Start,
-    DateTimeOffset End
-);
+/// <summary>The booking facts the lifecycle decision reads. No I/O.</summary>
+public readonly record struct BookingState(BookingStatus Status, DateTime StartUtc);
 
 /// <summary>
-///     The one pure decider for the booking lifecycle: it guards every use case and projects
-///     <c>availableActions</c> onto the read model, so no caller re-derives the rule. It explains;
-///     the database's overlap constraint arbitrates the races.
+/// The one decider for the booking lifecycle: several user actions (check in,
+/// cancel) depend on the same small state set, and the answer is needed in use
+/// cases and on the page. Pure: pass the state and the time in.
 /// </summary>
 public static class BookingLifecycle
 {
-    /// <summary>Why the action cannot happen now, or null when it can.</summary>
-    public static BookingRefusal? Refusal(
-        BookingSnapshot booking,
-        BookingAction action,
-        DateTimeOffset now
-    )
-    {
-        if (booking.Status is not (BookingStatus.Booked or BookingStatus.CheckedIn))
+    /// <summary>
+    /// A booking not checked in within 15 minutes of its start is released.
+    /// </summary>
+    public static readonly TimeSpan CheckInGrace = TimeSpan.FromMinutes(15);
+
+    public static BookingRefusal? Refusal(BookingState state, BookingAction action, DateTime now) =>
+        state.Status switch
         {
-            return BookingRefusal.NotActive;
-        }
+            BookingStatus.Booked => action switch
+            {
+                BookingAction.CheckIn => CheckInWindow(state.StartUtc, now),
+                BookingAction.Cancel => now < state.StartUtc
+                    ? null
+                    : BookingRefusal.BookingHasStarted,
+                _ => throw new UnreachableException($"{action} has no rule for a booked booking"),
+            },
+            BookingStatus.CheckedIn => BookingRefusal.AlreadyCheckedIn,
+            BookingStatus.Cancelled => BookingRefusal.Cancelled,
+            BookingStatus.Released => BookingRefusal.Released,
+            _ => throw new UnreachableException($"{state.Status} is not a booking status"),
+        };
 
-        switch (action)
-        {
-            case BookingAction.Cancel:
-                return now >= booking.End ? BookingRefusal.AlreadyEnded : null;
-            case BookingAction.CheckIn:
-                if (booking.Status == BookingStatus.CheckedIn)
-                {
-                    return BookingRefusal.AlreadyCheckedIn;
-                }
+    public static IReadOnlyList<BookingAction> Available(BookingState state, DateTime now) =>
+        [.. Enum.GetValues<BookingAction>().Where(a => Refusal(state, a, now) is null)];
 
-                if (now < booking.Start)
-                {
-                    return BookingRefusal.CheckInNotOpen;
-                }
-
-                return now >= booking.Start + BookingRules.CheckInGrace
-                    ? BookingRefusal.CheckInWindowClosed
-                    : null;
-            default:
-                throw new UnreachableException($"Unhandled booking action '{action}'.");
-        }
-    }
-
-    /// <summary>Every action the booking allows right now, in declaration order.</summary>
-    public static IReadOnlyList<BookingAction> Available(
-        BookingSnapshot booking,
-        DateTimeOffset now
-    )
-    {
-        return Enum.GetValues<BookingAction>()
-            .Where(action => Refusal(booking, action, now) is null)
-            .ToList();
-    }
+    // Check-in opens at the slot's start and closes when the booking is released.
+    private static BookingRefusal? CheckInWindow(DateTime startUtc, DateTime now) =>
+        now < startUtc ? BookingRefusal.CheckInNotOpenYet
+        : now <= startUtc + CheckInGrace ? null
+        : BookingRefusal.CheckInClosed;
 }

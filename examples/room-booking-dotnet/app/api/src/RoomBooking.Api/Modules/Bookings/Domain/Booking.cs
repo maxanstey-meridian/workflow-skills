@@ -1,109 +1,70 @@
 namespace RoomBooking.Api.Modules.Bookings.Domain;
 
 /// <summary>
-///     A member's hold on a room for a time slot. The only mutations are the lifecycle
-///     transitions below, and they are guard-free: <see cref="BookingLifecycle" /> decides
-///     first, and the database's exclusion constraint arbitrates the overlap race.
+/// A held room slot: booked by a member, then checked in, cancelled, or
+/// released. Whether the slot still holds the room is decided by
+/// <see cref="BookingStatus"/>: only Booked and CheckedIn do.
 /// </summary>
 public sealed class Booking
 {
-    private Booking(
+    public Booking(
         Guid id,
         Guid roomId,
         Guid memberId,
-        DateTimeOffset start,
-        DateTimeOffset end,
-        BookingStatus status,
-        DateTimeOffset? checkInAt,
-        DateTimeOffset? reminderSentAt,
-        DateTimeOffset heldUntil,
-        DateTimeOffset createdAt
+        string memberEmail,
+        DateTime startUtc,
+        DateTime endUtc,
+        DateTime createdAtUtc
     )
     {
         Id = id;
         RoomId = roomId;
         MemberId = memberId;
-        Start = start;
-        End = end;
-        Status = status;
-        CheckInAt = checkInAt;
-        ReminderSentAt = reminderSentAt;
-        HeldUntil = heldUntil;
-        CreatedAt = createdAt;
+        MemberEmail = memberEmail;
+        StartUtc = startUtc;
+        EndUtc = endUtc;
+        CreatedAtUtc = createdAtUtc;
     }
 
-    public Guid Id { get; }
+    public Guid Id { get; private init; }
+    public Guid RoomId { get; private init; }
 
-    public Guid RoomId { get; }
+    /// <summary>Navigation for read projections; the FK is authoritative.</summary>
+    public Room? Room { get; private set; }
 
-    public Guid MemberId { get; }
+    /// <summary>The member holds the booking; only they may act on it.</summary>
+    public Guid MemberId { get; private init; }
 
-    public DateTimeOffset Start { get; }
+    /// <summary>
+    /// The member's address when the booking was made, so reminders can find
+    /// their recipient without joining another module's data.
+    /// </summary>
+    public string MemberEmail { get; private init; }
 
-    public DateTimeOffset End { get; }
+    public DateTime StartUtc { get; private init; }
+    public DateTime EndUtc { get; private init; }
+    public DateTime CreatedAtUtc { get; private init; }
 
     public BookingStatus Status { get; private set; }
+    public DateTime? ReminderSentAtUtc { get; private set; }
 
-    public DateTimeOffset? CheckInAt { get; private set; }
-
-    public DateTimeOffset? ReminderSentAt { get; private set; }
-
-    /// <summary>
-    ///     The instant the room stops being held: the whole slot once checked in, otherwise
-    ///     the earlier of the slot's end and the check-in grace after the start.
-    /// </summary>
-    public DateTimeOffset HeldUntil { get; private set; }
-
-    public DateTimeOffset CreatedAt { get; }
-
-    /// <summary>
-    ///     Books the room. The hold lasts until the slot ends, but expires
-    ///     <see cref="BookingRules.CheckInGrace" /> after the start unless the booking is checked in.
-    /// </summary>
-    public static Booking Reserve(
-        Guid roomId,
-        Guid memberId,
-        DateTimeOffset start,
-        DateTimeOffset end,
-        DateTimeOffset createdAt
-    )
+    public void MarkCheckedIn()
     {
-        var graceEndsAt = start + BookingRules.CheckInGrace;
-        var heldUntil = end < graceEndsAt ? end : graceEndsAt;
-        return new Booking(
-            Guid.CreateVersion7(),
-            roomId,
-            memberId,
-            start,
-            end,
-            BookingStatus.Booked,
-            checkInAt: null,
-            reminderSentAt: null,
-            heldUntil,
-            createdAt
-        );
-    }
+        if (Status != BookingStatus.Booked)
+        {
+            throw new InvalidOperationException($"A {Status} booking cannot be checked in");
+        }
 
-    /// <summary>Claims the room for the whole slot. A rebooked tail makes the save conflict.</summary>
-    public void CheckIn(DateTimeOffset at)
-    {
         Status = BookingStatus.CheckedIn;
-        CheckInAt = at;
-        HeldUntil = End;
     }
 
-    public void Cancel()
+    public void MarkCancelled()
     {
+        if (Status != BookingStatus.Booked)
+        {
+            throw new InvalidOperationException($"A {Status} booking cannot be cancelled");
+        }
+
         Status = BookingStatus.Cancelled;
-    }
-
-    public void MarkReminderSent(DateTimeOffset at)
-    {
-        ReminderSentAt = at;
-    }
-
-    public BookingSnapshot Snapshot()
-    {
-        return new BookingSnapshot(Status, Start, End);
     }
 }

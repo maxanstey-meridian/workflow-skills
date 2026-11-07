@@ -9,23 +9,21 @@ public sealed class BookingConfiguration : IEntityTypeConfiguration<Booking>
     public void Configure(EntityTypeBuilder<Booking> builder)
     {
         builder.ToTable("bookings");
-        builder.HasKey(booking => booking.Id);
-        builder.Property(booking => booking.Id).HasColumnName("id").ValueGeneratedNever();
-        builder.Property(booking => booking.RoomId).HasColumnName("room_id");
-        builder.Property(booking => booking.MemberId).HasColumnName("member_id");
-        builder.Property(booking => booking.Start).HasColumnName("starts_at");
-        builder.Property(booking => booking.End).HasColumnName("ends_at");
+        builder.HasKey(b => b.Id);
+        builder.Property(b => b.Id).HasColumnName("id");
+        builder.Property(b => b.RoomId).HasColumnName("room_id");
+        builder.Property(b => b.MemberId).HasColumnName("member_id");
+        builder.Property(b => b.MemberEmail).HasColumnName("member_email").HasMaxLength(320);
+        builder.Property(b => b.StartUtc).HasColumnName("start_utc");
+        builder.Property(b => b.EndUtc).HasColumnName("end_utc");
+        builder.Property(b => b.CreatedAtUtc).HasColumnName("created_at");
+        builder.Property(b => b.Status).HasColumnName("status").HasConversion<string>();
+        builder.Property(b => b.ReminderSentAtUtc).HasColumnName("reminder_sent_at");
+
         builder
-            .Property(booking => booking.Status)
-            .HasColumnName("status")
-            .HasConversion<int>()
-            // Concurrent transitions lose cleanly: the loser's save sees the winner's status.
-            .IsConcurrencyToken();
-        builder.Property(booking => booking.CheckInAt).HasColumnName("check_in_at");
-        builder.Property(booking => booking.ReminderSentAt).HasColumnName("reminder_sent_at");
-        builder.Property(booking => booking.HeldUntil).HasColumnName("held_until");
-        builder.Property(booking => booking.CreatedAt).HasColumnName("created_at");
-        builder.HasIndex(booking => booking.MemberId).HasDatabaseName("bookings_member_id");
-        builder.HasIndex(booking => booking.Start).HasDatabaseName("bookings_starts_at");
+            .HasOne(b => b.Room)
+            .WithMany()
+            .HasForeignKey(b => b.RoomId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

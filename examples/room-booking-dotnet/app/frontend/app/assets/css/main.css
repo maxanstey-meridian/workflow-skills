@@ -1,0 +1,33 @@
+/* Global styles live with @nuxt/ui; keep the shell margins comfortable. */
+body {
+  margin: 0;
+}
+
+.shell {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+.shell__bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 1rem 0;
+}
+
+.shell__nav {
+  display: flex;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.stack {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.stack--wide {
+  gap: 2rem;
+}

@@ -4,18 +4,19 @@ One shot by GLM 5.3 Flash with these skills loaded; unreviewed and shown as buil
 
 This is what one run produced from the prompt below, with no human in the loop and no edits afterwards. The run used the doctrine only: no `/spec`, `/go`, or `/cycle`.
 
-Being one-shot, it isn't perfect. The worst defect: the model read "hold" in the prompt as "only the first 15 minutes are held until check-in", wrote that into its plan as fact, and wrote tests asserting it. That's the kind of call `/spec` puts in front of you as a Decision ("hold the whole slot" being the alternative) before anything is built. The error-handling and setup defects are the kind `/cycle`'s reviewers and gate look for. Neither ran here.
+Being one-shot, it isn't perfect. That's what `/spec`, `/go`, and `/cycle` are for; none ran here.
 
 ## The run
 
 | | |
 | --- | --- |
-| Model | GLM 5.3 Flash (`openrouter/z-ai/glm-5.3-flash`) |
-| Harness | OpenCode v2.2.0, `opencode run --standalone --auto --format json`, in an empty git repo |
+| Model | GLM 5.3 Flash, reasoning effort `high` (`ollama/glm-5.3-flash:cloud#high`, Ollama's cloud through a local Ollama) |
+| Harness | OpenCode v2.2.5, `opencode run --standalone --auto --format json`, in an empty git repo |
 | Skills | this repo's skills, installed with `install.sh` into a clean home; `AGENTS.md` loaded as the instructions |
-| Date | 2026-11-02 |
-| Time | 78 minutes |
-| Cost | $1.69 |
+| Date | 2026-11-07 |
+| Time | 19 min 41 s |
+| Tokens | 293 model calls; 317,419 input, 158,032 output (thinking included), 55,016,448 read from cache |
+| Cost | $0 charged (an Ollama subscription); $1.78 at the model's list price ($0.15 input, $0.50 output, $0.03 cached read, per million) |
 | Database | Postgres 17 in a throwaway container on port 55471 |
 
 The prompt, verbatim:
@@ -24,17 +25,4 @@ The prompt, verbatim:
 
 ## What's here
 
-[`app/`](app/) is the repo as the run left it, minus what its own `.gitignore` excludes. Its [README](app/README.md) says how to run it. [`spec.md`](spec.md) is the plan the model wrote before building.
-
-## What the checks found
-
-| Check | Result |
-| --- | --- |
-| `dotnet build` | passes, 0 warnings |
-| `dotnet test` | 70 of 70 pass, on a Testcontainers Postgres 17 |
-| `dotnet csharpier check` | clean |
-| Rivet contract check and drift gate | pass |
-| Frontend typecheck, lint, and build | pass |
-| Frontend tests (Vitest) | 31 of 31 pass |
-| Plumb | 2 errors, 2 warnings, 16 info (below) |
-| The API run as the README says | boots, migrates, and seeds; a booking gets 201, an overlapping one 409, and a staff member booking gets 403 |
+[`app/`](app/) is the repo as the run left it, minus what its own `.gitignore` excludes. Its [README](app/README.md) says how to run it.
