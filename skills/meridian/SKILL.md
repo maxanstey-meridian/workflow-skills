@@ -34,7 +34,7 @@ The doctrine is a library under `references/rules/` of rule files, one rule per 
 - `references/rules/tests/`: testing defaults and mock/fake bias
 - `references/rules/rivet/`: Rivet: the .NET server shape (`rivet/server-shape.md`), Azure Functions, and the TypeScript client package UIs consume (`rivet/client-package.md`)
 - `references/rules/tools/`: tool choices and config defaults for TS and .NET, Plumb, and the commit and version convention
-- `references/rules/workflow/`: the critic procedure the routines' critic subagents follow
+- `references/rules/workflow/`: the critic and auditor procedures the routines' subagents follow
 
 ## Core Rules
 
