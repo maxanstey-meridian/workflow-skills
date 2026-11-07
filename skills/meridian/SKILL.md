@@ -33,7 +33,7 @@ The doctrine is a library of rule files under `references/rules/`, one rule per 
 - `references/rules/ui/`: outcome-oriented UI, information hierarchy, form journeys, progressive disclosure, and accessibility, formatting, or validation details the spec leaves open
 - `references/rules/tests/`: testing defaults and mock/fake bias
 - `references/rules/rivet/`: Rivet backend doctrine for `.NET` contracts, minimal APIs, controllers, and transport-edge patterns
-- `references/rules/tools/`: tool choices and config defaults for TS and .NET, and Plumb
+- `references/rules/tools/`: tool choices and config defaults for TS and .NET, Plumb, and the commit and version convention
 - `references/rules/workflow/`: the critic procedure the routines' critic subagents follow
 
 ## Core Rules

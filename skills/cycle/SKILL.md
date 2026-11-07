@@ -95,7 +95,7 @@ Terms used below:
 - Stage **explicit paths only**. Never `-A`, `-u`, or `.`. Re-check `git status` right before staging, because peers edit in between.
 - Never `git reset --hard`, `git checkout -- .`, or `git clean`, and never stash someone else's work.
 - Use one commit, unless the tree clearly holds unrelated features that read better split.
-- Write the message in plain English, the way the repo's recent `git log` reads, saying what changed for the user.
+- Write the message as `rules/tools/commits.md` in the meridian skill says: `type(scope): subject`, a blank line, then a body in plain English saying what changed for the user. The round is one commit, typed by its highest-ranked change. Never copy the shape of the repo's recent `git log`.
 
 ## 5. Fix
 
@@ -141,15 +141,15 @@ Terms used below:
   - Files new in the round are read in full.
   - Full reads are only for a round's first review.
 - Count the fix diff once, when choosing the re-review path: `git diff HEAD --numstat` over the scope, plus `wc -l` for untracked files, excluding generated files, lockfiles, and contract output. State the count of changed hand-written lines before choosing the path.
-- **Small fix diff** (under 400 changed lines of hand-written code): review it before committing with one fresh reviewer subagent, briefed as in step 2 with its own report file. A fixer subagent fixes what it finds (as in step 5). Run the targeted checks for what the fixes touched, then the mutation run, and commit with explicit paths, message `Review fixes: <plain-English summary>`. Done.
+- **Small fix diff** (under 400 changed lines of hand-written code): review it before committing with one fresh reviewer subagent, briefed as in step 2 with its own report file. A fixer subagent fixes what it finds (as in step 5). Run the targeted checks for what the fixes touched, then the mutation run, and commit with explicit paths, the message as step 4 says. Done.
 - **Large fix diff** (over that, or a new slice or schema or contract change): the fixes are new work, so they go round the cycle like the original:
-  1. Run the targeted checks for what the fixes touched, then the mutation run, then commit them (`Review fixes: …`), commit first as in step 4.
+  1. Run the targeted checks for what the fixes touched, then the mutation run, then commit them, commit first as in step 4.
   2. Review that commit's diff with steps 2–3: slices, fanned-out reviewers, coverage.
   3. Fix as in step 5, then judge the new fix diff by size again.
 - Keep going round until a round's fix diff is small. After **three rounds**, stop and report what's left rather than looping.
 - **Mutation, once per round, round 0 and `gate` included,** last before the round's commit and after that round's re-review fixes and targeted checks: make `<main checkout>/.plans/scratch/cycle-<id8>/wt-mutation-<round>` and run `Mutation` from `<base directory>/references/cycle.md` over the source files that round's fixes changed, plus every existing source file recorded for a test-only fix item in step 5, even when the test item's slice does not own that source. If the repo's instructions name no mutation command, report `mutation: not run (the repo's instructions name no mutation command)` and create no mutation worktree.
   - `Mutation` says how to attribute survivors and route them.
-- **Full gate, once.** After the last round, run the repo's gate (named in its instructions, e.g. `task check`; if none, its format check, lint, typecheck, and fast tests). With a named spec, run every Done-means check again here; a red one goes to a fixer as a red gate does. If the gate is red, brief a fixer subagent with the failing check (as in step 5), rerun **only the failing tests**, then run the `gate` round's mutation once, and commit `Review fixes: …`. Never rerun the whole gate to confirm a fix. If they're still red after one fix, or the critic FAILs that fix, stop and report what's failing rather than looping.
+- **Full gate, once.** After the last round, run the repo's gate (named in its instructions, e.g. `task check`; if none, its format check, lint, typecheck, and fast tests). With a named spec, run every Done-means check again here; a red one goes to a fixer as a red gate does. If the gate is red, brief a fixer subagent with the failing check (as in step 5), rerun **only the failing tests**, then run the `gate` round's mutation once, and commit, the message as step 4 says. Never rerun the whole gate to confirm a fix. If they're still red after one fix, or the critic FAILs that fix, stop and report what's failing rather than looping.
 - With a named spec, when a round ends with no unbuilt requirement open against a Piece or Addendum the `**Built pieces:**` line does not name, whether its fixers closed them or its reviewer found none, add its id to that line, so it counts as built here and a later `/go` skips it; when all of its Pieces and Addenda are done, meaning none is unbuilt, no finding is open against one, and every Done-means check has passed since the last fix or the user has waived it, set that exact named spec path to `built (<final commit hash>)`. If work remains, leave it `building` and say what's left in the report.
 - Perform no release action. A release action happens only when the user requests it separately after the cycle.
 

@@ -18,7 +18,7 @@ You may be one of several agent sessions working at once, often in one shared gi
 | The user says | You do |
 |---|---|
 | "do it", "go ahead", "LGTM", "yes" to a proposal | Build what was proposed and leave it **uncommitted** |
-| "commit" | Commit. Nothing else. |
+| "commit" | Commit, with a message as Meridian `rules/tools/commits.md` says. Nothing else. |
 | "push", "tag", "publish", "deploy", "restart prod" | Only the action named |
 
 - **Never commit, push, tag, publish, deploy, or restart production unless the user names that action in this conversation.** No commits at the end of work, and none before you're asked.
