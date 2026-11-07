@@ -37,7 +37,7 @@ Resolve the repository and print one line before starting: `<root> → <repo> ·
 
 ## 1. Read the doctrine
 
-Read `<base directory>/references/hunting.md` and the Laws, the first rule in `<bundles>/design-reader.md`, then read the repository's instructions. Don't read earlier hunts or review docs until your own pass is done (step 4), so they don't steer it.
+Read `<base directory>/references/hunting.md` and `<bundles>/design-reader.md` in full (its first rule is the Laws), then read the repository's instructions. Don't read earlier hunts or review docs until your own pass is done (step 4), so they don't steer it.
 
 ## 2. Map before you hunt
 
@@ -70,7 +70,7 @@ Before writing a design-reader, hunter, or verifier brief, resolve every path an
 
 - **Locations:** the resolved absolute `<main checkout>`, `<root>`, and `<hunt folder>`, and `<repo>`.
 - **Repository facts:** the resolved absolute path of the repo's instructions, the resolved paths of its README, `docs/`, ADRs, and the specs in `<main checkout>/.plans/`, and exactly which projects or packages are published.
-- **Doctrine:** the resolved absolute paths of `<base directory>/references/hunting.md` and of the role's bundle below, to read in full before anything else. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
+- **Doctrine:** the resolved absolute paths of `<base directory>/references/hunting.md` and of the role's bundle or bundles below, to read in full before anything else. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
 - **Read-only scope:** the role edits nothing outside its named report, runs no tests, builds, or gate, and never commits, stages, or publishes.
 - **Report protocol:** the resolved absolute report path; save the report with a shell heredoc, `cat > <path> <<'EOF'` … `EOF`, not a file-writing tool; if saving is refused, reply with the whole report; otherwise reply with only the report path.
 
@@ -87,7 +87,7 @@ The design reader's brief gives, in addition to the common facts:
 - the area's exact files, every one to be read in full, with each file's size from `cloc.csv` and the area's uncommitted files;
 - the resolved absolute paths of `<hunt folder>/baseline.md` and `<hunt folder>/capabilities.md`;
 - `<base directory>/references/hunting.md`, to read first: what slop is, how to read, the signs, the proof each needs, what not to flag, and the report format;
-- `<bundles>/backend-hunter.md` or `<bundles>/frontend-hunter.md` for the area's stack, and both for the cross-cutting area or an area holding both stacks, every rule in it;
+- `<bundles>/backend-hunter.md` or `<bundles>/frontend-hunter.md` for the area's stack, and both for the cross-cutting area or an area holding both stacks, every rule in each;
 - its exact lead files from step 2;
 - when the separate design reader ran, `<hunt folder>/report-design.md`, whose findings that touch its area it confirms, prices more exactly, or contradicts with what it reads, rather than reporting them again;
 - the short hash of the repository's HEAD, which opens its report;

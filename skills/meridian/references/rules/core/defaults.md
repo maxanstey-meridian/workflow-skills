@@ -1,6 +1,6 @@
 ## Defaults
 
-Each line is a summary of a rule in its own section.
+Each line is a summary of a rule stated in full in its own rule file.
 
 - prefer explicit, honest boundaries
 - ask users for decisions they understand; progressively disclose the mechanism

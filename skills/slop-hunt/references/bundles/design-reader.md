@@ -66,7 +66,7 @@ the same authority as an atomicity or dependency rule.
 <!-- rule: core/defaults.md -->
 ## Defaults
 
-Each line is a summary of a rule in its own section.
+Each line is a summary of a rule stated in full in its own rule file.
 
 - prefer explicit, honest boundaries
 - ask users for decisions they understand; progressively disclose the mechanism
@@ -1423,12 +1423,10 @@ const auth = provideAuth(useRivetAuth());
 
 ```ts
 // app/layouts/default/components/app-sidebar.vue — consumer imports the feature's public contract
-import { injectAuth } from "~/features/auth";
-import { getInitials } from "~/features/auth";
+import { injectAuth, getInitials } from "~/features/auth";
 
 // app/pages/index/components/auth-card.vue — another consumer, same import
-import { injectAuth } from "~/features/auth";
-import { getInitials } from "~/features/auth";
+import { injectAuth, getInitials } from "~/features/auth";
 ```
 <!-- rule: frontend/logic.md -->
 ## Logic
@@ -2320,7 +2318,7 @@ If the repo uses Plumb but it won't run, say so in your report rather than
 skipping the check silently. Setup is in its README.
 
 Each finding's `docRef` (`rules/<folder>/<file>.md#<slug>`) names the rule file
-under this skill's `references/` and the heading it enforces; read that rule
+under the meridian skill's `references/` and the heading it enforces; read that rule
 before fixing. Fix `error` findings unprompted. For `warn` findings, fix them or
 state the exception that applies. Do not re-run Plumb in a loop on a repo you
 have not changed.

@@ -86,10 +86,8 @@ const auth = provideAuth(useRivetAuth());
 
 ```ts
 // app/layouts/default/components/app-sidebar.vue — consumer imports the feature's public contract
-import { injectAuth } from "~/features/auth";
-import { getInitials } from "~/features/auth";
+import { injectAuth, getInitials } from "~/features/auth";
 
 // app/pages/index/components/auth-card.vue — another consumer, same import
-import { injectAuth } from "~/features/auth";
-import { getInitials } from "~/features/auth";
+import { injectAuth, getInitials } from "~/features/auth";
 ```

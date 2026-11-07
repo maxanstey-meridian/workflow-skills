@@ -44,7 +44,7 @@ Then apply the status rule:
 
 - A new spec is draft or agreed, according to whether any ask is open.
 - A draft or agreed named spec is updated in place.
-- A building named spec asks the user to continue or replace it; continue updates the same file and preserves `building`, while replace overwrites that exact file and records `Supersedes: <previous title> (<previous HEAD>)`.
+- A building named spec asks the user to continue or replace it; continue updates the same file and preserves `building` and its `**Built pieces:**` line as it stands, while replace overwrites that exact file and records `Supersedes: <previous title> (<previous HEAD>)`.
 - A built named spec asks the user only whether to replace it. Replace overwrites that exact file and records `Supersedes: <previous title> (<previous HEAD>)`.
 - An unreadable file, an unrecognized status, an unreadable title, or an unreadable HEAD stops the routine. Ask the user to repair the file or replace it.
 
@@ -135,7 +135,7 @@ The targeted tests and checks with their exact commands. What stays uncommitted 
 Rules for the doc:
 
 - No two pieces own the same file. That is `/go`'s split. When one file has to be shared, name it and say which piece edits it last.
-- `**Built pieces:**` lists what `/go` has built: `/spec` writes `none`; `/go` adds a piece's or addendum's id when its last brief has passed step 4.
+- `**Built pieces:**` lists what has been built: `/spec` writes `none` on a new or replaced spec and keeps a continued spec's line as it stands; `/go` adds a piece's or addendum's id when its last brief has passed step 4, and `/cycle` adds one when a round ends with no unbuilt requirement open against a piece or addendum the line omits, whether its fixers closed them or its reviewer found none.
 - Each decision lives in one place, the Decisions list, and is edited in place when it changes. The body points at its number; it never restates it. No "Added later" banners or dated layers: rewrite the section.
 - Anything a fact or an agreed rule can't settle is an open ask, never prose inside an agreed section. Anything one can settle, settle, and say which settled it.
 - Status is `draft` while any ask is open. It becomes `agreed` only when the user has answered them all; record the date in each decision.
