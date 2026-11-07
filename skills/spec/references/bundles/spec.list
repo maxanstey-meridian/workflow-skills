@@ -45,6 +45,7 @@ frontend/promotion.md
 frontend/logic.md
 frontend/server-rules-stay-on-the-server.md
 frontend/ports.md
+frontend/provide-inject-pattern.md
 frontend/adapters.md
 frontend/provide-implementations-not-projections.md
 frontend/nuxt-shells-as-composition-roots.md

@@ -1524,7 +1524,10 @@ Rules:
 - capability ports are operation-shaped, not DTO-shaped
 - provided contexts are view-model-shaped and may expose reactive state plus
   user actions
-- port files contain only the type and the injection helper
+- a port file holds only the port's type and its `[injectX, provideX]` pair from
+  `useProvideInject` (`frontend/provide-inject-pattern.md`): it imports types and
+  that helper, never `provide`, `inject`, or a value from `vue`, and declares
+  nothing else
 - ports are for capabilities the subtree depends on, not for disguising an existing client
 
 Good:
@@ -1559,6 +1562,73 @@ Why:
 - `injectX` makes it obvious that a component is consuming a provided port
 - `useX` remains available for concrete composables such as `useRivetAuth` or `usePlatformAuth`
 - components should generally import `injectX` from `ports/`, not implementation composables from `composables/`
+<!-- rule: frontend/provide-inject-pattern.md -->
+## Provide / Inject Pattern
+
+Use typed provide/inject helpers based on Vue `InjectionKey` and VueUse local injection.
+
+This is the canonical frontend port pattern. The exported pair must be named
+`injectX` first and `provideX` second:
+
+```ts
+export const [injectRecorder, provideRecorder] = useProvideInject<Recorder>("Recorder");
+```
+
+Do not export `useRecorder` for a provided port. `useX` names are for concrete implementation
+composables or framework hooks. The distinction matters at call sites:
+
+- `provideRecorder(usePlatformRecorder(...))` means the composition root is wiring the capability.
+- `injectRecorder()` means the consumer depends on an already-wired capability.
+- `usePlatformRecorder()` means the root is constructing a concrete implementation.
+
+Canonical helper:
+
+```ts
+import { injectLocal, provideLocal } from "@vueuse/core";
+import type { InjectionKey } from "vue";
+
+export const useProvideInject = <T>(name: string) => {
+  const key: InjectionKey<T> = Symbol(name);
+
+  const useProvide = <U extends T>(value: U): U => {
+    provideLocal(key, value);
+    return value;
+  };
+
+  const useInject = (): T => {
+    const value = injectLocal(key);
+    if (value === undefined) {
+      throw new Error(`[Context:${name}] inject() called outside provider`);
+    }
+    return value;
+  };
+
+  return [useInject, useProvide] as const;
+};
+```
+
+The shape is structural, not just a search for `throw`: the returned tuple is
+`[inject, provide]`; the inject function binds the result of `inject` or
+`injectLocal`, tests the missing polarity (`undefined`, `null`, or a deliberate
+falsy guard), throws on that branch, then returns that same binding as narrowed
+`T`. A reversed guard that throws when the value is present is invalid.
+
+Why this pattern:
+
+- typed capability seam
+- subtree-scoped dependency wiring
+- no prop drilling
+- no ambient global soup
+- hard failure outside the composition root
+- `provide*` preserves and returns the concrete implementation type so the composition
+  root retains root-only orchestration capabilities while `inject*` consumers see only `T`
+
+The provider is an identity function with a registration side effect. It must not
+narrow its return to `T`: `U extends T` proves the implementation satisfies the
+port, stores it under the narrow injection key, and returns the exact `U` supplied.
+This does not weaken the consumer boundary because `inject*` still returns `T`.
+
+This is runtime wiring, not the architecture itself.
 <!-- rule: frontend/provide-implementations-not-projections.md -->
 ## Provide implementations, not projections
 

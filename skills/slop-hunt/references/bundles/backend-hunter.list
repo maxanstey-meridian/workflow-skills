@@ -52,6 +52,7 @@ backend/decision-heuristics.md
 backend/observability.md
 frontend/server-rules-stay-on-the-server.md
 frontend/ports.md
+frontend/provide-inject-pattern.md
 frontend/provide-implementations-not-projections.md
 frontend/nuxt-shells-as-composition-roots.md
 ui/core-law.md

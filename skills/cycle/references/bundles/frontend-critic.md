@@ -1066,7 +1066,10 @@ Rules:
 - capability ports are operation-shaped, not DTO-shaped
 - provided contexts are view-model-shaped and may expose reactive state plus
   user actions
-- port files contain only the type and the injection helper
+- a port file holds only the port's type and its `[injectX, provideX]` pair from
+  `useProvideInject` (`frontend/provide-inject-pattern.md`): it imports types and
+  that helper, never `provide`, `inject`, or a value from `vue`, and declares
+  nothing else
 - ports are for capabilities the subtree depends on, not for disguising an existing client
 
 Good:
