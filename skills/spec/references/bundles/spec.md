@@ -317,22 +317,19 @@ furniture list grows only by explicit ruling, never by precedent creep.
 Generated code is already an external contract representation, but not
 necessarily the capability boundary the application wants.
 
-Do not wrap generated clients/contracts one-for-one unless there is real capability abstraction to add.
+Do not wrap generated clients/contracts one-for-one, and never merely because
+the code is generated. A layer earns its place only when it:
 
-Good reasons to add a layer:
-
-- combine multiple generated calls into one capability
-- add non-trivial policy/orchestration
-- hide a genuinely unstable external boundary
+- combines several generated calls into one capability
+- adds non-trivial policy or orchestration
+- translates the external model into the application's own terms (an
+  anti-corruption layer), because another team owns the contract, it changes
+  independently of the application, or tests need a seam the application owns
 
 Bad reasons:
 
 - “we always wrap APIs”
 - renaming generated methods without adding meaning
-
-Wrap generated code when ownership, semantic translation, volatility, or
-testing requires an anti-corruption layer. Do not wrap it merely because it is
-generated.
 <!-- rule: coding/composition.md -->
 ## Composition
 
@@ -541,7 +538,9 @@ duplicate suppression.
 <!-- rule: invariants/proof-requirement.md -->
 ## Proof Requirement
 
-Before adding concurrency machinery:
+Concurrency machinery is custom lock, lease, retry, heartbeat, fencing, or
+coordination state, at any size; ordinary SQL, adapter wiring, and tests are not.
+Before adding any:
 
 1. State the invariant independently of implementation.
 2. Show a concrete read/write interleaving that violates it.
@@ -549,12 +548,6 @@ Before adding concurrency machinery:
 4. Identify the authoritative arbitration boundary.
 5. Explain why every earlier applicable rung of the `invariants/concurrency-review.md` ladder is insufficient.
 6. Test the interleaving against the production persistence or runtime substrate.
-
-More than 30 lines of custom coordination machinery requires an
-explicit explanation of why constraints, atomic SQL, optimistic concurrency, and
-a short transaction cannot satisfy the invariant. This is a review trigger, not
-a design metric. Ordinary SQL, adapter wiring, and tests do not count; custom
-lock, lease, retry, heartbeat, fencing, or coordination state does.
 
 Concurrency tests should coordinate actors deterministically with barriers,
 hooks, or controlled transactions rather than timing sleeps. Assert the durable
@@ -660,8 +653,7 @@ modular-monolith shape with:
 - strict dependency direction
 
 This is the Meridian backend default for both .NET modular monoliths and
-TypeScript modular backends. It is distilled from the house's .NET and
-TypeScript modular monoliths and their architecture tests. Its sections are one
+TypeScript modular backends. Its sections are one
 design and are read together: each assumes the others.
 
 ### Default Recommendation
@@ -815,7 +807,7 @@ Put in application:
 - use cases
 - orchestration
 - ports
-- DTOs/results local to the use case when appropriate
+- each use case's own command and result types, beside it in its file
 
 Application should make side effects visible in sequence.
 
@@ -884,8 +876,6 @@ Use whatever is lightest and enforceable:
 - architectural tests
 - workspace package boundaries where they are real
 
-The point is not tooling purity. The point is to stop the drift.
-
 ### Decision Heuristics
 
 #### Should this become a new module?
@@ -930,8 +920,6 @@ No if:
 - it would erase a meaningful feature boundary
 <!-- rule: backend/dependency-rules.md -->
 ## Non-Negotiable Dependency Rules
-
-These are the hard rules.
 
 ### Inside a module
 
@@ -1515,9 +1503,7 @@ import { injectAuth, getInitials } from "~/features/auth";
 
 ### Logic
 
-`logic/` is pure TypeScript.
-
-Hard rule:
+`logic/` is pure TypeScript:
 
 - no imports from `vue`
 - no imports from `nuxt`
@@ -1527,12 +1513,13 @@ Hard rule:
 Put in `logic/`:
 
 - pure transforms
-- calculations
-- derivation rules
 - immutable data shaping
-- domain-ish UI rules that do not require reactivity
+- presentation mapping of server values (labels, colours, icons, ordering)
+- checks on client state, such as input the server hasn't seen, with their
+  limits taken from the DTO
 
-If something can be a pure function, put it here.
+If something can be a pure function, put it here. A rule the server decides is
+never copied here, or anywhere in the UI: `frontend/server-rules-stay-on-the-server.md`.
 
 Components may import `logic/` directly because it has zero framework dependencies.
 
@@ -1806,7 +1793,7 @@ They may own:
 
 - `ref` / `reactive` / `computed` / `watch`
 - VueUse
-- Pinia when appropriate
+- Pinia
 - generated Rivet client calls
 - side effects
 - loading flags
@@ -1815,15 +1802,10 @@ They may own:
 Composables should:
 
 - inject a port with `injectX` when they depend on a provided capability
-- keep pure logic out of themselves where feasible
+- keep pure logic in `logic/`, not in themselves
 - expose a clean capability-shaped surface
 
-Composables should not:
-
-- grow into god-objects
-- hide large amounts of pure business logic
-
-If a composable gets too large, pull pure logic down into `logic/`.
+Composables should not grow into god-objects.
 
 ### Two Valid Implementation Styles
 
@@ -1929,7 +1911,7 @@ Therefore:
 - do not wrap Rivet behind ports by default
 - do not create fake API service layers unless there is a genuine need
 - bootstrap Rivet once at the app boundary
-- call generated clients directly inside the composable that implements the capability when appropriate
+- call generated clients directly inside the composable that implements the capability
 - the generated client and its DTO types come from the contracts package: `rivet/client-package.md`
 
 Good:
@@ -2513,7 +2495,8 @@ test-id selectors, no sleeps, and no state shared between tests.
 
 Every test costs run time and upkeep, so each one earns its place by proving
 behaviour nothing else proves, at the cheapest level that proves it (see `tests/risk-and-test-shape.md`). New behaviour gets a test; extend an existing test before
-writing a new one. No tests for copy, styling, colour, or layout. A change that
+writing a new one. No tests that pin wording, styling, colour, or layout; what
+the user can see or do (a message shown, a section revealed) is behaviour. A change that
 makes a test redundant deletes it in the same change.
 <!-- rule: tests/risk-and-test-shape.md -->
 ## Risk and Test Shape
@@ -2555,7 +2538,7 @@ Contracts live in a top-level `Contracts/{Module}/` folder with their DTOs
 alongside — never inside `Modules/`.
 
 - the contract owns route constants: `public const string CreateRoute = "/api/transcriptions";`
-- minimal APIs reference them via `Contract.X.Route` (`--check` resolves it from 0.48.0, `MapGroup` prefixes included); controllers use the contract's `const string` route in attributes (a runtime `.Route` property is not an attribute constant)
+- minimal APIs reference them via `Contract.X.Route` (`--check` resolves it, `MapGroup` prefixes included); controllers use the contract's `const string` route in attributes (a runtime `.Route` property is not an attribute constant)
 - never a literal route string in `Map*(...)` or `[Http*(...)]` — routes come from the contract
 - bootstrap endpoints (`Program.cs` health, root) are the one exception
 
@@ -2640,7 +2623,7 @@ that `Program.cs` composed the group.
 - `[RivetClient]` on a controller class surfaces every HTTP action in it; prefer `[RivetEndpoint]` per action so only deliberate operations are published.
 - A result filter may read the `StatusCode` and `Value` of the `RivetActionResult` that `.ToActionResult()` returns. Building a result from them, or writing them to the response itself, is a hand-written bridge: let Rivet write the response.
 - Do not copy legacy `.Invoke(...)`, `RivetResult<T>`, or `.SkipValidation()` examples into current code.
-- Functions-specific exception handling must be integrated and verified with that host if required.
+- Under Azure Functions, wire exception handling into that host and verify it with real-host HTTP tests.
 - Rivet does not enforce serialized JSON shape, member validation constraints, request parsing/binding, optional headers, auth policies, or file byte contents at runtime. Those remain host/application responsibilities. Handlers returning native results outside the terminals bypass Rivet's runtime checks. Coverage is static analysis, not proof that every request branch or deployment configuration is correct.
 
 ### Anti-patterns
@@ -2721,7 +2704,7 @@ Rules:
 
 ### Frontend Result Handling
 
-The current v2 client is an `openapi-fetch` facade. Capture its `{ data, error,
+The client is an `openapi-fetch` facade. Capture its `{ data, error,
 response }` result and inspect the error channel or response status explicitly:
 
 ```ts
@@ -2748,7 +2731,7 @@ Legacy Rivet v1 clients use `{ unwrap: false }` plus `.isOk()` /
 - typecheck: `vue-tsc`
 - UI layer: `@nuxt/ui`
 - utility layer: `@vueuse/core`
-- validation/schema: `zod` when needed
+- validation/schema: `zod` at untrusted runtime boundaries
 - tests: `vitest` + `@vue/test-utils` + `happy-dom`
 - e2e: `playwright` where warranted
 
@@ -2768,22 +2751,8 @@ Do not use it to hide boundaries or to recreate a magic container culture.
 
 ### Linting and formatting
 
-Default bias:
-
-- prefer `oxlint` over `eslint`
-- prefer `oxfmt` over Prettier
-- use `eslint` only where Vue/Nuxt support is still needed
-
-Current practical rule:
-
-- `ox*` does the general JS/TS lint/format work
-- `eslint` remains for Vue/Nuxt-specific linting because `oxlint` does not cover that fully yet
-
-So the intended stack is:
-
-- `oxlint`
-- `oxfmt`
-- `eslint` + `@nuxt/eslint` only as the Vue/Nuxt layer on top
+- `oxlint` over `eslint`, and `oxfmt` over Prettier, for all JS/TS lint and format work
+- `eslint` + `@nuxt/eslint` only as the Vue/Nuxt layer on top, for the Vue/Nuxt rules `oxlint` doesn't cover
 
 **Base configs.** The base config files live in
 [plumb's `configs/` folder](https://github.com/maxanstey-meridian/plumb/tree/main/configs),
@@ -2841,7 +2810,6 @@ Concrete `typed-inject` class shape: see `backend/typescript-style.md`.
 
 ### Notes
 
-- Prettier is not the current default in newer repos.
 - Older repos may still contain heavier ESLint/Prettier/plugin stacks; do not treat those as the preferred baseline.
 <!-- rule: tools/dotnet.md -->
 ## .NET
@@ -2881,7 +2849,7 @@ Mocks:
 
 ### Formatting and analyzers
 
-Current rule (enforced by plumb MER-TO-012/014):
+Enforced by plumb MER-TO-012/014:
 
 - `CSharpier` is part of the formatting workflow — wired via a dotnet tool
   manifest (`.config/dotnet-tools.json`) or `CSharpier.MsBuild`; it is
@@ -2893,15 +2861,6 @@ Current rule (enforced by plumb MER-TO-012/014):
   diverging is not)
 - analyzers should be enabled in project files (`EnforceCodeStyleInBuild` or
   `AnalysisLevel` in the csproj or `Directory.Build.props`)
-
-So the real sources today are:
-
-- the formatter command in repo workflows
-- the canonical `.editorconfig` (plumb `configs/`)
-- analyzer settings in `.csproj`
-- SDK pinning in `global.json`
-
-If a repo adds a `CSharpier` config file later, keep it aligned with `.editorconfig` and do not invent a second competing style doctrine.
 
 **Comment width (preference).** `CSharpier` does not wrap comments, so keep
 comment-only lines (`//`, `///`) within its print width by hand; a single

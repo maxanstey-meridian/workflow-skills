@@ -9,8 +9,7 @@ modular-monolith shape with:
 - strict dependency direction
 
 This is the Meridian backend default for both .NET modular monoliths and
-TypeScript modular backends. It is distilled from the house's .NET and
-TypeScript modular monoliths and their architecture tests. Its sections are one
+TypeScript modular backends. Its sections are one
 design and are read together: each assumes the others.
 
 ### Default Recommendation
@@ -164,7 +163,7 @@ Put in application:
 - use cases
 - orchestration
 - ports
-- DTOs/results local to the use case when appropriate
+- each use case's own command and result types, beside it in its file
 
 Application should make side effects visible in sequence.
 
@@ -232,8 +231,6 @@ Use whatever is lightest and enforceable:
 - dependency-cruiser
 - architectural tests
 - workspace package boundaries where they are real
-
-The point is not tooling purity. The point is to stop the drift.
 
 ### Decision Heuristics
 

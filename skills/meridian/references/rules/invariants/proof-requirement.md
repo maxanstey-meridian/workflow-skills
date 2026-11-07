@@ -1,6 +1,8 @@
 ## Proof Requirement
 
-Before adding concurrency machinery:
+Concurrency machinery is custom lock, lease, retry, heartbeat, fencing, or
+coordination state, at any size; ordinary SQL, adapter wiring, and tests are not.
+Before adding any:
 
 1. State the invariant independently of implementation.
 2. Show a concrete read/write interleaving that violates it.
@@ -8,12 +10,6 @@ Before adding concurrency machinery:
 4. Identify the authoritative arbitration boundary.
 5. Explain why every earlier applicable rung of the `invariants/concurrency-review.md` ladder is insufficient.
 6. Test the interleaving against the production persistence or runtime substrate.
-
-More than 30 lines of custom coordination machinery requires an
-explicit explanation of why constraints, atomic SQL, optimistic concurrency, and
-a short transaction cannot satisfy the invariant. This is a review trigger, not
-a design metric. Ordinary SQL, adapter wiring, and tests do not count; custom
-lock, lease, retry, heartbeat, fencing, or coordination state does.
 
 Concurrency tests should coordinate actors deterministically with barriers,
 hooks, or controlled transactions rather than timing sleeps. Assert the durable

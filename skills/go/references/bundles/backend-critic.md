@@ -6,17 +6,16 @@ You're the critic: an author (a `/go` builder or a `/cycle` fixer) has finished 
 
 ### Your inputs
 
-This brief gives each as an absolute path: the main checkout, the ready worktree, the owned and forbidden paths where the routine gives them, the spec (or `Active spec: none`), the item brief (a line in it that opens `Call` replaces any fix quoted above it, and is what the item builds; that line, and a `Fix:` line after a quoted command and its output, are the orchestrator's, not part of any quote), the sources its quotes come from (in `/cycle`, the files its findings and harms are quoted from; in `/go`, the spec), the author's report, the patch, the orchestrator's commands, the earlier critic reports for this piece or slice, the repo's instructions, your report file, and your log folder. It also gives every relied-on decision quoted word for word from its source, and the paths the repo's instructions declare as disposable check output. This text, the rules in this bundle, and those inputs are everything you rely on; do not load any other instruction file.
+This brief gives each as an absolute path: the main checkout, the ready worktree, the owned and forbidden paths where the routine gives them, the spec (or `Active spec: none`), the item brief (a line in it that opens `Call` replaces any fix quoted above it, and is what the item builds; that line, and a `Fix:` line after a quoted command and its output, are the orchestrator's, not part of any quote), the sources its quotes come from (in `/cycle`, the files its findings and harms are quoted from; in `/go`, the spec), the author's report, the patch, the orchestrator's commands, the earlier critic reports for this piece or slice, the repo's instructions, and your report file. It also gives every relied-on decision quoted word for word from its source, and the paths the repo's instructions declare as disposable check output. This text, the rules in this bundle, and those inputs are everything you rely on; do not load any other instruction file.
 
 Apply the rules in this bundle. A house Law outranks any spec or plan.
 
 The worktree is a copy of the whole uncommitted tree as the author left it, already set up. Run everything there.
-The orchestrator checks its fingerprint (the hash that catches edits made during your run) after you finish.
 
 ### The work
 
-1. **Run every command you were given,** exactly as given, from the worktree root, with each one's output and exit code logged under your log folder.
-2. **Rerun the author's other claims:** the tests it says it ran, "nothing else uses X", "sweep done", and why code it removed was there. Add commands where a claim needs one.
+1. **Run every command you were given,** exactly as given, from the worktree root.
+2. **Rerun the author's other claims:** "nothing else uses X", "sweep done", and why code it removed was there. Add commands where a claim needs one.
    Write each investigative command as an assertion. It must exit zero when the result supports the claim and non-zero when the claim is contradicted or the tool errors. Compare expected non-zero statuses explicitly, such as `rg` returning 1 for no matches. If a tool also uses that status for errors, require the expected output and check for errors as well. For example, `git diff --no-index` can return 1 for both differences and missing inputs. Keep tool diagnostics visible and never append unconditional success such as `|| true`.
 3. **A claim that a test would fail** if what it guards broke is unverified, including one supported by a hand-made break: list it so. The orchestrator's mutation run settles it, when the repo names a mutation command. A mutant is a small deliberate change to the code, a surviving mutant is one no test noticed, and a mutation report is the JSON file the mutation command writes, in the mutation-testing-elements format (the shared JSON format for mutation results). Never break code by hand or run mutation yourself.
 4. **Check the item against the spec, or against the item brief when the brief says `Active spec: none`,** as your judgement, each finding citing the spec line, or the item brief's line when there is no spec, and the `file:line`:
@@ -28,14 +27,14 @@ The orchestrator checks its fingerprint (the hash that catches edits made during
 
    Design and style, seams included, aren't your job; whether the item achieves its outcome is (step 5).
 5. **Check the outcome.** The item states what it achieves: in a `/cycle` fix brief, each finding's harm as its source states it (a `nit` has none), and each harm it lists under "Harms to keep gone"; in a `/go` brief, the check it names as its proof, as the spec states it. For each, show the outcome holds with an assertion, written as step 2 says, that exits non-zero while the harm remains or the proof fails: where the harm shows in a run, run the behaviour (a doc that overstates the code is one: the code must now do what the doc says); where the harm is the code itself (dead code, a type assertion, a compat shim), fail while that code is still there. A command you were given counts when it does that; one that only shows the item's new code is present doesn't. A test-only item's outcome, a test that would fail, stays unverified as step 3 says, and an outcome no command can show here is a check that couldn't run. Record as your judgement, with the command and its exit code, or the `file:line`:
-   - **Not achieved:** the outcome doesn't hold once the item is built, even where the item matches its brief, or a premise the brief states is false, a quote in it that doesn't match its source word for word included.
+   - **Not achieved:** the outcome doesn't hold once the item is built, even where the item matches its brief, or a premise the brief states is false.
 6. **Record the sign facts as your judgement**, each with its `file:line` evidence: a shrunk check (an assertion loosened, or a case dropped, skipped, or excluded), a design call the author made itself, and any part of the item left unbuilt or reported as not traced, not checked, or not confirmed.
 
 ### The report
 
 Save it with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`); if that's refused, reply with the whole report. Sections:
 
-- **Checks run:** each complete command, including the assertion for an investigation, its exit code, and its log path. Name any check that couldn't run, and why.
+- **Checks run:** each complete command, including the assertion for an investigation, and its exit code. Name any check that couldn't run, and why.
 - **Claims:** verified, failed, or unverified, each with its evidence.
 - **Spec (your judgement):** Missing, Extra, and Misunderstood, or none.
 - **Outcome (your judgement):** for each finding with a harm, each harm under "Harms to keep gone", or the brief's proof, the assertion that shows the outcome holds and its exit code, or why none could run; and any Not achieved, or none.
@@ -47,8 +46,8 @@ Reply with the report's path only.
 
 ### Never
 
-- Own a repo file, or write anything but your report, your log folder, and what your commands put in the declared disposable check-output paths.
-- Edit the main tree, or write in the worktree outside the repo instructions' declared disposable check-output paths. Format and lint run in check mode; logs stay outside the worktree.
+- Own a repo file, or write anything but your report and what your commands put in the declared disposable check-output paths.
+- Edit the main tree, or write in the worktree outside the repo instructions' declared disposable check-output paths. Format and lint run in check mode.
 - Break code by hand, run mutation, commit, stage, start subagents, or remove the worktree.
 - Give a recommendation, a confidence, or a fix.
 <!-- rule: core/laws.md -->
@@ -181,7 +180,7 @@ Defaults unless the spec or a Law states a hard boundary:
 - **Let patterns prove themselves** — prefer duplication over premature extraction. Three similar lines beats a premature helper. Extract when the pattern is real, not when it first appears.
 - **Readability over abstraction** — procedural scripts that read top-to-bottom beat clever composition. A reader should understand each line without holding the abstraction in their head.
 - **No `process.env` directly** — use the validated config object. Add new env vars to the Zod schema (`src/config.ts` or equivalent). Ambient config access is untraceable.
-- **No self-narrating comments** — do not add comments that restate what the code plainly says. A comment earns its place only by explaining WHY: a non-obvious constraint, a design decision, or a real gotcha. Stream-of-consciousness narration ("now loop over the items") and notes-to-self are noise. When in doubt, leave it out.
+- **No self-narrating comments** — do not add comments that restate what the code plainly says. A comment earns its place only by explaining why: a non-obvious constraint, a design decision, or a real gotcha. Stream-of-consciousness narration ("now loop over the items") and notes-to-self are noise. When in doubt, leave it out.
 <!-- rule: coding/use-libraries-before-building-machinery.md -->
 ## Use Libraries Before Building Machinery
 
@@ -322,7 +321,10 @@ Avoid:
 - optional-chaining away modelling problems
 - nullish-coalescing away unclear state
 
-Where runtime DI identity is needed, prefer abstract-class tokens with interface-like shape.
+Ports are abstract classes with interface-like shape. Where runtime DI identity
+is needed, `typed-inject`, the default, keys each dependency by the string in
+`static inject`, typed by the port; under Nest the abstract-class port is the
+token.
 <!-- rule: coding/type-safety-all-stacks.md -->
 ## Type Safety (All Stacks)
 
@@ -383,22 +385,19 @@ furniture list grows only by explicit ruling, never by precedent creep.
 Generated code is already an external contract representation, but not
 necessarily the capability boundary the application wants.
 
-Do not wrap generated clients/contracts one-for-one unless there is real capability abstraction to add.
+Do not wrap generated clients/contracts one-for-one, and never merely because
+the code is generated. A layer earns its place only when it:
 
-Good reasons to add a layer:
-
-- combine multiple generated calls into one capability
-- add non-trivial policy/orchestration
-- hide a genuinely unstable external boundary
+- combines several generated calls into one capability
+- adds non-trivial policy or orchestration
+- translates the external model into the application's own terms (an
+  anti-corruption layer), because another team owns the contract, it changes
+  independently of the application, or tests need a seam the application owns
 
 Bad reasons:
 
 - “we always wrap APIs”
 - renaming generated methods without adding meaning
-
-Wrap generated code when ownership, semantic translation, volatility, or
-testing requires an anti-corruption layer. Do not wrap it merely because it is
-generated.
 <!-- rule: coding/composition.md -->
 ## Composition
 
@@ -607,7 +606,9 @@ duplicate suppression.
 <!-- rule: invariants/proof-requirement.md -->
 ## Proof Requirement
 
-Before adding concurrency machinery:
+Concurrency machinery is custom lock, lease, retry, heartbeat, fencing, or
+coordination state, at any size; ordinary SQL, adapter wiring, and tests are not.
+Before adding any:
 
 1. State the invariant independently of implementation.
 2. Show a concrete read/write interleaving that violates it.
@@ -615,12 +616,6 @@ Before adding concurrency machinery:
 4. Identify the authoritative arbitration boundary.
 5. Explain why every earlier applicable rung of the `invariants/concurrency-review.md` ladder is insufficient.
 6. Test the interleaving against the production persistence or runtime substrate.
-
-More than 30 lines of custom coordination machinery requires an
-explicit explanation of why constraints, atomic SQL, optimistic concurrency, and
-a short transaction cannot satisfy the invariant. This is a review trigger, not
-a design metric. Ordinary SQL, adapter wiring, and tests do not count; custom
-lock, lease, retry, heartbeat, fencing, or coordination state does.
 
 Concurrency tests should coordinate actors deterministically with barriers,
 hooks, or controlled transactions rather than timing sleeps. Assert the durable
@@ -726,8 +721,7 @@ modular-monolith shape with:
 - strict dependency direction
 
 This is the Meridian backend default for both .NET modular monoliths and
-TypeScript modular backends. It is distilled from the house's .NET and
-TypeScript modular monoliths and their architecture tests. Its sections are one
+TypeScript modular backends. Its sections are one
 design and are read together: each assumes the others.
 
 ### Default Recommendation
@@ -881,7 +875,7 @@ Put in application:
 - use cases
 - orchestration
 - ports
-- DTOs/results local to the use case when appropriate
+- each use case's own command and result types, beside it in its file
 
 Application should make side effects visible in sequence.
 
@@ -950,8 +944,6 @@ Use whatever is lightest and enforceable:
 - architectural tests
 - workspace package boundaries where they are real
 
-The point is not tooling purity. The point is to stop the drift.
-
 ### Decision Heuristics
 
 #### Should this become a new module?
@@ -1003,8 +995,6 @@ No if:
   already uses it.
 <!-- rule: backend/dependency-rules.md -->
 ## Non-Negotiable Dependency Rules
-
-These are the hard rules.
 
 ### Inside a module
 
@@ -1186,16 +1176,6 @@ Do not use vague names like:
 - `BaseMailer`
 <!-- rule: backend/coding-style-rules.md -->
 ## Coding Style Rules
-
-These are part of the architecture, not just aesthetics.
-
-### General
-
-- data transforms over object hierarchies by default
-- explicit orchestration over magic
-- readability over abstraction
-- top-to-bottom understandable use cases
-- minimal dependencies
 
 ### .NET
 
@@ -1839,7 +1819,8 @@ test-id selectors, no sleeps, and no state shared between tests.
 
 Every test costs run time and upkeep, so each one earns its place by proving
 behaviour nothing else proves, at the cheapest level that proves it (see `tests/risk-and-test-shape.md`). New behaviour gets a test; extend an existing test before
-writing a new one. No tests for copy, styling, colour, or layout. A change that
+writing a new one. No tests that pin wording, styling, colour, or layout; what
+the user can see or do (a message shown, a section revealed) is behaviour. A change that
 makes a test redundant deletes it in the same change.
 <!-- rule: tests/risk-and-test-shape.md -->
 ## Risk and Test Shape
@@ -1892,7 +1873,7 @@ Contracts live in a top-level `Contracts/{Module}/` folder with their DTOs
 alongside — never inside `Modules/`.
 
 - the contract owns route constants: `public const string CreateRoute = "/api/transcriptions";`
-- minimal APIs reference them via `Contract.X.Route` (`--check` resolves it from 0.48.0, `MapGroup` prefixes included); controllers use the contract's `const string` route in attributes (a runtime `.Route` property is not an attribute constant)
+- minimal APIs reference them via `Contract.X.Route` (`--check` resolves it, `MapGroup` prefixes included); controllers use the contract's `const string` route in attributes (a runtime `.Route` property is not an attribute constant)
 - never a literal route string in `Map*(...)` or `[Http*(...)]` — routes come from the contract
 - bootstrap endpoints (`Program.cs` health, root) are the one exception
 
@@ -1977,7 +1958,7 @@ that `Program.cs` composed the group.
 - `[RivetClient]` on a controller class surfaces every HTTP action in it; prefer `[RivetEndpoint]` per action so only deliberate operations are published.
 - A result filter may read the `StatusCode` and `Value` of the `RivetActionResult` that `.ToActionResult()` returns. Building a result from them, or writing them to the response itself, is a hand-written bridge: let Rivet write the response.
 - Do not copy legacy `.Invoke(...)`, `RivetResult<T>`, or `.SkipValidation()` examples into current code.
-- Functions-specific exception handling must be integrated and verified with that host if required.
+- Under Azure Functions, wire exception handling into that host and verify it with real-host HTTP tests.
 - Rivet does not enforce serialized JSON shape, member validation constraints, request parsing/binding, optional headers, auth policies, or file byte contents at runtime. Those remain host/application responsibilities. Handlers returning native results outside the terminals bypass Rivet's runtime checks. Coverage is static analysis, not proof that every request branch or deployment configuration is correct.
 
 ### Anti-patterns
@@ -2016,9 +1997,9 @@ prefix; `extensions.http.routePrefix: ""` means `PublicRoute = "/" + TriggerRout
 A custom prefix must likewise appear in the contract. A leading slash in the
 trigger can break ASP.NET-integrated Functions routing despite a valid spec.
 
-The checker (0.42.0+) reads the project-adjacent `host.json`, honors
+The checker reads the project-adjacent `host.json`, honors
 `AzureFunctionsJobHost__extensions__http__routePrefix`, and rejects leading slashes
-in trigger routes; 0.41.0 and older hardcode `api`. Static checks cannot discover
+in trigger routes. Static checks cannot discover
 remote deployment overrides. Align the check environment with deployment.
 
 Besides the trigger's `HttpRequest`, a parameter with no binding attribute is
@@ -2027,13 +2008,13 @@ top-level property of a JSON body; never a header, cookie, or form field. A name
 nothing carries is `null` (a value type fails the call), so name each such
 parameter after a route token, a declared query parameter, or a property of the
 contract's JSON body; `--check` reports one the contract doesn't declare
-(`RIV4006`, from 0.50.0).
+(`RIV4006`).
 
 The worked sample is
 https://github.com/maxanstey-meridian/rivet/tree/main/samples/FunctionsApi (guide:
 https://github.com/maxanstey-meridian/rivet/blob/main/docs/guides/azure-functions.md);
 the real-host gate is `task test:functions` in the rivet repo.
-Use real HTTP tests for the host/worker routing and serialization boundary.
+Use real HTTP tests for the host/worker routing, serialization, and exception-handling boundary.
 <!-- rule: rivet/client-package.md -->
 ## Rivet Client Package
 
@@ -2095,7 +2076,7 @@ Rules:
 
 ### Frontend Result Handling
 
-The current v2 client is an `openapi-fetch` facade. Capture its `{ data, error,
+The client is an `openapi-fetch` facade. Capture its `{ data, error,
 response }` result and inspect the error channel or response status explicitly:
 
 ```ts
@@ -2122,7 +2103,7 @@ Legacy Rivet v1 clients use `{ unwrap: false }` plus `.isOk()` /
 - typecheck: `vue-tsc`
 - UI layer: `@nuxt/ui`
 - utility layer: `@vueuse/core`
-- validation/schema: `zod` when needed
+- validation/schema: `zod` at untrusted runtime boundaries
 - tests: `vitest` + `@vue/test-utils` + `happy-dom`
 - e2e: `playwright` where warranted
 
@@ -2142,22 +2123,8 @@ Do not use it to hide boundaries or to recreate a magic container culture.
 
 ### Linting and formatting
 
-Default bias:
-
-- prefer `oxlint` over `eslint`
-- prefer `oxfmt` over Prettier
-- use `eslint` only where Vue/Nuxt support is still needed
-
-Current practical rule:
-
-- `ox*` does the general JS/TS lint/format work
-- `eslint` remains for Vue/Nuxt-specific linting because `oxlint` does not cover that fully yet
-
-So the intended stack is:
-
-- `oxlint`
-- `oxfmt`
-- `eslint` + `@nuxt/eslint` only as the Vue/Nuxt layer on top
+- `oxlint` over `eslint`, and `oxfmt` over Prettier, for all JS/TS lint and format work
+- `eslint` + `@nuxt/eslint` only as the Vue/Nuxt layer on top, for the Vue/Nuxt rules `oxlint` doesn't cover
 
 **Base configs.** The base config files live in
 [plumb's `configs/` folder](https://github.com/maxanstey-meridian/plumb/tree/main/configs),
@@ -2215,7 +2182,6 @@ Concrete `typed-inject` class shape: see `backend/typescript-style.md`.
 
 ### Notes
 
-- Prettier is not the current default in newer repos.
 - Older repos may still contain heavier ESLint/Prettier/plugin stacks; do not treat those as the preferred baseline.
 <!-- rule: tools/dotnet.md -->
 ## .NET
@@ -2255,7 +2221,7 @@ Mocks:
 
 ### Formatting and analyzers
 
-Current rule (enforced by plumb MER-TO-012/014):
+Enforced by plumb MER-TO-012/014:
 
 - `CSharpier` is part of the formatting workflow — wired via a dotnet tool
   manifest (`.config/dotnet-tools.json`) or `CSharpier.MsBuild`; it is
@@ -2267,15 +2233,6 @@ Current rule (enforced by plumb MER-TO-012/014):
   diverging is not)
 - analyzers should be enabled in project files (`EnforceCodeStyleInBuild` or
   `AnalysisLevel` in the csproj or `Directory.Build.props`)
-
-So the real sources today are:
-
-- the formatter command in repo workflows
-- the canonical `.editorconfig` (plumb `configs/`)
-- analyzer settings in `.csproj`
-- SDK pinning in `global.json`
-
-If a repo adds a `CSharpier` config file later, keep it aligned with `.editorconfig` and do not invent a second competing style doctrine.
 
 **Comment width (preference).** `CSharpier` does not wrap comments, so keep
 comment-only lines (`//`, `///`) within its print width by hand; a single

@@ -16,4 +16,7 @@ Avoid:
 - optional-chaining away modelling problems
 - nullish-coalescing away unclear state
 
-Where runtime DI identity is needed, prefer abstract-class tokens with interface-like shape.
+Ports are abstract classes with interface-like shape. Where runtime DI identity
+is needed, `typed-inject`, the default, keys each dependency by the string in
+`static inject`, typed by the port; under Nest the abstract-class port is the
+token.

@@ -25,7 +25,7 @@ Working files go in `<main checkout>/.plans/`, as AGENTS.md 'Routines' defines i
 
 ## 2. Choose and manage the named spec
 
-After gathering, derive the title identity and slug from the agreed title. When the conversation, a waypoint, or a document names an existing spec, its `# Spec:` title is the title. Otherwise write a title from the intent and state it in a line.
+After gathering, derive the title identity and slug from the agreed title. When the conversation, a waypoint, or a document names an existing spec, its `# Spec:` title is the title. Otherwise write a title from the intent.
 
 To derive the title identity, normalize the title to Unicode NFC, lowercase it, replace every character that is neither a Unicode letter nor a Unicode digit with a hyphen, collapse hyphen runs, and trim boundary hyphens. An empty title identity stops the routine and asks for a title that can form a slug.
 
@@ -36,16 +36,15 @@ List every `<main checkout>/.plans/spec-<slug>.md` and `<main checkout>/.plans/s
 For a matching existing candidate, parse:
 
 - the title from the first `# Spec: <title>` heading;
-- the status from the `**Status:**` line, which must be `draft`, `agreed`, `building`, or `built (<hash>)`;
-- the previous HEAD from the `**Written:** … against <repo>@<sha>` line.
+- the status from the `**Status:**` line, which must be `draft`, `agreed`, `building`, or `built (<hash>)`.
 
 Then apply the status rule:
 
 - A new spec is draft or agreed, according to whether any ask is open.
 - A draft or agreed named spec is updated in place.
-- A building named spec asks the user to continue or replace it; continue updates the same file and preserves `building` and its `**Built pieces:**` line as it stands, while replace overwrites that exact file and records `Supersedes: <previous title> (<previous HEAD>)`.
-- A built named spec asks the user only whether to replace it. Replace overwrites that exact file and records `Supersedes: <previous title> (<previous HEAD>)`.
-- An unreadable file, an unrecognized status, an unreadable title, or an unreadable HEAD stops the routine. Ask the user to repair the file or replace it.
+- A building named spec asks the user to continue or replace it; continue updates the same file and preserves `building` and its `**Built pieces:**` line as it stands, while replace overwrites that exact file.
+- A built named spec asks the user only whether to replace it. Replace overwrites that exact file.
+- An unreadable file, an unrecognized status, or an unreadable title stops the routine. Ask the user to repair the file or replace it.
 
 ## 3. Check the premise against HEAD
 
@@ -57,14 +56,15 @@ When you can start subagents, a fresh fact-gatherer does the reading. Before wri
 - **Ask:** the agreed work, written in full.
 - **Scope:** read the ask and the source files the work touches; never edit code, run builds, run the gate, or commit.
 - **Source paths:** the exact absolute files to read.
-- **Doctrine:** the absolute path of `<bundle>`, to read in full before anything else, and the repo's instructions. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.- **Rules:** report facts with `file:line` and the short SHA; facts come from files, not memory; for any code the work skips, replaces, or changes, record everything that code does today; trace any feature, gate, or tool the work relies on from input to output; report facts only, with no recommendation, option, confidence, or ask.
+- **Doctrine:** the absolute path of `<bundle>`, to read in full before anything else, and the repo's instructions. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
+- **Rules:** report facts with `file:line` and the short SHA; facts come from files, not memory; for any code the work skips, replaces, or changes, record everything that code does today; trace any feature, gate, or tool the work relies on from input to output; report facts only, with no recommendation, option, confidence, or ask.
 - **Report path:** the resolved absolute path to `<main checkout>/.plans/scratch/<spec stem>/premise.md`.
 - **Save protocol:** save the report with a shell heredoc, `cat > <path> <<'EOF'` … `EOF`, not a file-writing tool; if saving is refused, reply with the whole report.
 - **Reply protocol:** reply with only the report path.
 
 The brief may name source paths, but it may not rely on an earlier artifact, a sibling skill, prior conversation, or another agent's instructions to understand the task. Check the fact-gatherer's claims yourself against the code, then write the spec; the decisions stay yours.
 
-Without subagents, do the reading yourself and say so in the report.
+Without subagents, do the reading yourself.
 
 The premise check must:
 
@@ -79,15 +79,11 @@ The premise check must:
 
 Write the chosen candidate at its resolved absolute path. Use this shape. Leave out a section that would be empty, except Open asks and Out of scope, which say "none".
 
-- `<session name>` is this session's own name, if you can find it; otherwise leave the Session field out.
-- `<name>` in a decision is the user, by their real name: from the conversation, else `git config user.name`.
-- `<previous title> (<previous HEAD>)` is the value derived in step 2 when this run replaces an existing spec; otherwise `Supersedes:` is `none`.
-
 ```markdown
 # Spec: <title>
 
-**Status:** draft | agreed | building | built (<hash>) · **Written:** <YYYY-MM-DD> against <repo>@<sha> · **Session:** <session name>
-**Source:** <docs or conversation it came from> · **Depends on:** <other specs, or none> · **Supersedes:** <previous title> (<previous HEAD>), or none
+**Status:** draft | agreed | building | built (<hash>) · **Written:** <YYYY-MM-DD> against <repo>@<sha>
+**Depends on:** <other specs, or none>
 
 ## Intent
 3–5 plain-English sentences: what is true for the user once this ships. No history of how it was found. /cycle reviews against this.
@@ -96,7 +92,7 @@ Write the chosen candidate at its resolved absolute path. Use this shape. Leave 
 What the ask assumed, what HEAD shows, and any correction.
 
 ## Decisions
-1. **<decision>.** <what and why>. <Agreed by <name>, YYYY-MM-DD | Chosen by the agent when <name> handed it back>.
+1. **<decision>.** <what and why>. <Agreed | Chosen by the agent when handed back>.
 
 ## Open asks
 1. <question> (rec: <answer>; settled by <what would settle it>)
@@ -122,12 +118,12 @@ The targeted tests and checks with their exact commands. What stays uncommitted 
 - <found in passing>: <why it isn't this work> (rec: fold in | leave, why)
 
 ## Addenda
-### A1 <name> · <YYYY-MM-DD> · owns: <files> · after: <piece, or none>
+### A1 <name> · owns: <files> · after: <piece, or none>
 - **Why:** <what came up, and in which step>
 - **At HEAD:** <the code, by symbol and a short quoted fragment, and everything it does now>
 - **Change:** <what changes>
 - **Proof:** <test to extend, or new test>
-<Agreed by <name>, YYYY-MM-DD | No decision in it>
+<Agreed | No decision in it>
 ```
 
 Rules for the doc:
@@ -137,7 +133,7 @@ Rules for the doc:
 - Each decision lives in one place, the Decisions list, and is edited in place when it changes. The body points at its number; it never restates it. No "Added later" banners or dated layers: rewrite the section.
 - A Decision states what was decided and why, never the options it beat: no alternative, rejected option, or its cost. An option still open is an ask, with its recommendation.
 - Anything a fact or an agreed rule can't settle is an open ask, never prose inside an agreed section. Anything one can settle, settle, and say which settled it.
-- Status is `draft` while any ask is open. It becomes `agreed` only when the user has answered them all; record the date in each decision.
+- Status is `draft` while any ask is open. It becomes `agreed` only when the user has answered them all.
 - Anything that comes up after the spec is agreed is an addendum, whoever finds it. It gets the same premise check as a piece and a cold read of its own. One that holds a decision waits for the user's answer. Nothing in an addendum is built until then.
 - One `/go` per spec, with as few pieces as the files allow. Work that ships together stays in one spec. Fold pieces that share files, or that exist only for each other, into one piece.
 - A shared change applied in three or more places starts with a tracer bullet: the shared change plus one consumer, built end to end first. Pieces applying it elsewhere name that tracer in `after:`.
@@ -153,7 +149,8 @@ Start one fresh cold-reader subagent whenever subagents are available. Before wr
 - **Main checkout:** the resolved absolute main working tree.
 - **Spec:** the resolved absolute path to the chosen named spec.
 - **Source paths:** every source file the spec cites that the cold reader must read.
-- **Doctrine:** the absolute path of `<bundle>`, to read in full before anything else, and the repo's instructions. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.- **Scope:** read the spec and its cited files; never edit code, run builds, run the gate, or commit.
+- **Doctrine:** the absolute path of `<bundle>`, to read in full before anything else, and the repo's instructions. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
+- **Scope:** read the spec and its cited files; never edit code, run builds, run the gate, or commit.
 - **Rules:** list anything that could not be built without asking; any `file:line` in the Premise check that does not say what the spec claims at the commit it was read at; any line number outside the Premise check; any symbol or quoted fragment that doesn't lead to the code the spec means; any two pieces that touch the same file; any decision restated or contradicted in the body; any Decision that names an alternative, a rejected option, or its cost; any existing code the spec skips, replaces, or changes without listing everything that code does; any Done-means check that cannot be run as written; any ambiguous source the spec cites; any missing tracer bullet; and any Decision or Piece that breaks a house Law in the bundle, naming the Law. Report facts and findings only, with no recommendation, option, confidence, or ask.
 - **Report path:** the resolved absolute path to `<main checkout>/.plans/scratch/<spec stem>/cold-read.md`.
 - **Save protocol:** save the report with a shell heredoc, `cat > <path> <<'EOF'` … `EOF`, not a file-writing tool; if saving is refused, reply with the whole list.
@@ -170,7 +167,7 @@ A draft that changes in substance after its cold read gets the changed parts col
 ```
 **TLDR:** <plain English: what the spec sets out to do>
 **Findings:** 1. <finding that changes the picture, stated in full>, or none
-**Spec:** <absolute spec path> · status <status> · <n> pieces · cold read <done | skipped: no subagents>
+**Spec:** <absolute spec path> · status <status> · cold read <done | skipped: no subagents>
 **Premise:** <holds, or the correction>
 **Parked:** 1. <item> (rec: fold in | leave, why), or none
 **Needs from you:** 1. <open ask> (rec: …) · last item: answer the asks, then run /go <spec path>
@@ -178,4 +175,4 @@ A draft that changes in substance after its cold read gets the changed parts col
 
 **Needs from you** follows AGENTS.md 'Reports'.
 
-When the user answers, update the chosen named spec in place: the decision, its date, and the status.
+When the user answers, update the chosen named spec in place: the decision and the status.

@@ -16,9 +16,9 @@ prefix; `extensions.http.routePrefix: ""` means `PublicRoute = "/" + TriggerRout
 A custom prefix must likewise appear in the contract. A leading slash in the
 trigger can break ASP.NET-integrated Functions routing despite a valid spec.
 
-The checker (0.42.0+) reads the project-adjacent `host.json`, honors
+The checker reads the project-adjacent `host.json`, honors
 `AzureFunctionsJobHost__extensions__http__routePrefix`, and rejects leading slashes
-in trigger routes; 0.41.0 and older hardcode `api`. Static checks cannot discover
+in trigger routes. Static checks cannot discover
 remote deployment overrides. Align the check environment with deployment.
 
 Besides the trigger's `HttpRequest`, a parameter with no binding attribute is
@@ -27,10 +27,10 @@ top-level property of a JSON body; never a header, cookie, or form field. A name
 nothing carries is `null` (a value type fails the call), so name each such
 parameter after a route token, a declared query parameter, or a property of the
 contract's JSON body; `--check` reports one the contract doesn't declare
-(`RIV4006`, from 0.50.0).
+(`RIV4006`).
 
 The worked sample is
 https://github.com/maxanstey-meridian/rivet/tree/main/samples/FunctionsApi (guide:
 https://github.com/maxanstey-meridian/rivet/blob/main/docs/guides/azure-functions.md);
 the real-host gate is `task test:functions` in the rivet repo.
-Use real HTTP tests for the host/worker routing and serialization boundary.
+Use real HTTP tests for the host/worker routing, serialization, and exception-handling boundary.

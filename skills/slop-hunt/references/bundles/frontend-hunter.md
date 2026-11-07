@@ -137,7 +137,7 @@ Defaults unless the spec or a Law states a hard boundary:
 - **Let patterns prove themselves** — prefer duplication over premature extraction. Three similar lines beats a premature helper. Extract when the pattern is real, not when it first appears.
 - **Readability over abstraction** — procedural scripts that read top-to-bottom beat clever composition. A reader should understand each line without holding the abstraction in their head.
 - **No `process.env` directly** — use the validated config object. Add new env vars to the Zod schema (`src/config.ts` or equivalent). Ambient config access is untraceable.
-- **No self-narrating comments** — do not add comments that restate what the code plainly says. A comment earns its place only by explaining WHY: a non-obvious constraint, a design decision, or a real gotcha. Stream-of-consciousness narration ("now loop over the items") and notes-to-self are noise. When in doubt, leave it out.
+- **No self-narrating comments** — do not add comments that restate what the code plainly says. A comment earns its place only by explaining why: a non-obvious constraint, a design decision, or a real gotcha. Stream-of-consciousness narration ("now loop over the items") and notes-to-self are noise. When in doubt, leave it out.
 <!-- rule: coding/use-libraries-before-building-machinery.md -->
 ## Use Libraries Before Building Machinery
 
@@ -278,7 +278,10 @@ Avoid:
 - optional-chaining away modelling problems
 - nullish-coalescing away unclear state
 
-Where runtime DI identity is needed, prefer abstract-class tokens with interface-like shape.
+Ports are abstract classes with interface-like shape. Where runtime DI identity
+is needed, `typed-inject`, the default, keys each dependency by the string in
+`static inject`, typed by the port; under Nest the abstract-class port is the
+token.
 <!-- rule: coding/type-safety-all-stacks.md -->
 ## Type Safety (All Stacks)
 
@@ -324,22 +327,19 @@ furniture list grows only by explicit ruling, never by precedent creep.
 Generated code is already an external contract representation, but not
 necessarily the capability boundary the application wants.
 
-Do not wrap generated clients/contracts one-for-one unless there is real capability abstraction to add.
+Do not wrap generated clients/contracts one-for-one, and never merely because
+the code is generated. A layer earns its place only when it:
 
-Good reasons to add a layer:
-
-- combine multiple generated calls into one capability
-- add non-trivial policy/orchestration
-- hide a genuinely unstable external boundary
+- combines several generated calls into one capability
+- adds non-trivial policy or orchestration
+- translates the external model into the application's own terms (an
+  anti-corruption layer), because another team owns the contract, it changes
+  independently of the application, or tests need a seam the application owns
 
 Bad reasons:
 
 - “we always wrap APIs”
 - renaming generated methods without adding meaning
-
-Wrap generated code when ownership, semantic translation, volatility, or
-testing requires an anti-corruption layer. Do not wrap it merely because it is
-generated.
 <!-- rule: coding/composition.md -->
 ## Composition
 
@@ -374,7 +374,7 @@ When reviewing a diff or change:
 
 2. **Two-pass priority.** Data safety and race conditions first (TOCTOU, check-then-write without atomic WHERE, find-or-create without unique index). Style and consistency second. Do not interleave severities.
 
-3. **Fix-first heuristic.** When the review is also asked to fix: mechanical fixes (dead code, stale comments, missing includes, unused variables) are just fixed, without asking. In a read-only review, list them as mechanical. Ambiguous fixes (security, design decisions, removing functionality, >20 lines) are batched into one question with recommendations.
+3. **Fix-first heuristic.** When the review is also asked to fix: mechanical fixes (dead code, stale comments, missing includes, unused variables) are just fixed, without asking. In a read-only review, list them as mechanical. A fix that needs a design call is made from the facts and the agreed rules; only what they can't settle, such as removing functionality users have, goes to the user, batched into one question with recommendations. A fix's size never makes it a question, and a gap is fixed or parked, never asked about.
 
 4. A documented gap is a finding. A known gap excused in a doc, `Accepts`, changelog or comment must be fixed, as if the doc did not exist (see `coding/root-cause.md`). Never resolve a finding by documenting it: a fix round that only rewords the doc to describe the defect accurately has not fixed it.
 
@@ -899,9 +899,7 @@ import { injectAuth, getInitials } from "~/features/auth";
 
 ### Logic
 
-`logic/` is pure TypeScript.
-
-Hard rule:
+`logic/` is pure TypeScript:
 
 - no imports from `vue`
 - no imports from `nuxt`
@@ -911,12 +909,13 @@ Hard rule:
 Put in `logic/`:
 
 - pure transforms
-- calculations
-- derivation rules
 - immutable data shaping
-- domain-ish UI rules that do not require reactivity
+- presentation mapping of server values (labels, colours, icons, ordering)
+- checks on client state, such as input the server hasn't seen, with their
+  limits taken from the DTO
 
-If something can be a pure function, put it here.
+If something can be a pure function, put it here. A rule the server decides is
+never copied here, or anywhere in the UI: `frontend/server-rules-stay-on-the-server.md`.
 
 Components may import `logic/` directly because it has zero framework dependencies.
 
@@ -1190,7 +1189,7 @@ They may own:
 
 - `ref` / `reactive` / `computed` / `watch`
 - VueUse
-- Pinia when appropriate
+- Pinia
 - generated Rivet client calls
 - side effects
 - loading flags
@@ -1199,15 +1198,10 @@ They may own:
 Composables should:
 
 - inject a port with `injectX` when they depend on a provided capability
-- keep pure logic out of themselves where feasible
+- keep pure logic in `logic/`, not in themselves
 - expose a clean capability-shaped surface
 
-Composables should not:
-
-- grow into god-objects
-- hide large amounts of pure business logic
-
-If a composable gets too large, pull pure logic down into `logic/`.
+Composables should not grow into god-objects.
 
 ### Two Valid Implementation Styles
 
@@ -1313,7 +1307,7 @@ Therefore:
 - do not wrap Rivet behind ports by default
 - do not create fake API service layers unless there is a genuine need
 - bootstrap Rivet once at the app boundary
-- call generated clients directly inside the composable that implements the capability when appropriate
+- call generated clients directly inside the composable that implements the capability
 - the generated client and its DTO types come from the contracts package: `rivet/client-package.md`
 
 Good:
@@ -1875,7 +1869,8 @@ test-id selectors, no sleeps, and no state shared between tests.
 
 Every test costs run time and upkeep, so each one earns its place by proving
 behaviour nothing else proves, at the cheapest level that proves it (see `tests/risk-and-test-shape.md`). New behaviour gets a test; extend an existing test before
-writing a new one. No tests for copy, styling, colour, or layout. A change that
+writing a new one. No tests that pin wording, styling, colour, or layout; what
+the user can see or do (a message shown, a section revealed) is behaviour. A change that
 makes a test redundant deletes it in the same change.
 <!-- rule: tests/risk-and-test-shape.md -->
 ## Risk and Test Shape
@@ -1960,7 +1955,7 @@ Rules:
 
 ### Frontend Result Handling
 
-The current v2 client is an `openapi-fetch` facade. Capture its `{ data, error,
+The client is an `openapi-fetch` facade. Capture its `{ data, error,
 response }` result and inspect the error channel or response status explicitly:
 
 ```ts
@@ -1987,7 +1982,7 @@ Legacy Rivet v1 clients use `{ unwrap: false }` plus `.isOk()` /
 - typecheck: `vue-tsc`
 - UI layer: `@nuxt/ui`
 - utility layer: `@vueuse/core`
-- validation/schema: `zod` when needed
+- validation/schema: `zod` at untrusted runtime boundaries
 - tests: `vitest` + `@vue/test-utils` + `happy-dom`
 - e2e: `playwright` where warranted
 
@@ -2007,22 +2002,8 @@ Do not use it to hide boundaries or to recreate a magic container culture.
 
 ### Linting and formatting
 
-Default bias:
-
-- prefer `oxlint` over `eslint`
-- prefer `oxfmt` over Prettier
-- use `eslint` only where Vue/Nuxt support is still needed
-
-Current practical rule:
-
-- `ox*` does the general JS/TS lint/format work
-- `eslint` remains for Vue/Nuxt-specific linting because `oxlint` does not cover that fully yet
-
-So the intended stack is:
-
-- `oxlint`
-- `oxfmt`
-- `eslint` + `@nuxt/eslint` only as the Vue/Nuxt layer on top
+- `oxlint` over `eslint`, and `oxfmt` over Prettier, for all JS/TS lint and format work
+- `eslint` + `@nuxt/eslint` only as the Vue/Nuxt layer on top, for the Vue/Nuxt rules `oxlint` doesn't cover
 
 **Base configs.** The base config files live in
 [plumb's `configs/` folder](https://github.com/maxanstey-meridian/plumb/tree/main/configs),
@@ -2080,7 +2061,6 @@ Concrete `typed-inject` class shape: see `backend/typescript-style.md`.
 
 ### Notes
 
-- Prettier is not the current default in newer repos.
 - Older repos may still contain heavier ESLint/Prettier/plugin stacks; do not treat those as the preferred baseline.
 <!-- rule: tools/workspace-orchestration.md -->
 ## Workspace / orchestration

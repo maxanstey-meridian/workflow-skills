@@ -26,7 +26,7 @@ Contracts live in a top-level `Contracts/{Module}/` folder with their DTOs
 alongside — never inside `Modules/`.
 
 - the contract owns route constants: `public const string CreateRoute = "/api/transcriptions";`
-- minimal APIs reference them via `Contract.X.Route` (`--check` resolves it from 0.48.0, `MapGroup` prefixes included); controllers use the contract's `const string` route in attributes (a runtime `.Route` property is not an attribute constant)
+- minimal APIs reference them via `Contract.X.Route` (`--check` resolves it, `MapGroup` prefixes included); controllers use the contract's `const string` route in attributes (a runtime `.Route` property is not an attribute constant)
 - never a literal route string in `Map*(...)` or `[Http*(...)]` — routes come from the contract
 - bootstrap endpoints (`Program.cs` health, root) are the one exception
 
@@ -111,7 +111,7 @@ that `Program.cs` composed the group.
 - `[RivetClient]` on a controller class surfaces every HTTP action in it; prefer `[RivetEndpoint]` per action so only deliberate operations are published.
 - A result filter may read the `StatusCode` and `Value` of the `RivetActionResult` that `.ToActionResult()` returns. Building a result from them, or writing them to the response itself, is a hand-written bridge: let Rivet write the response.
 - Do not copy legacy `.Invoke(...)`, `RivetResult<T>`, or `.SkipValidation()` examples into current code.
-- Functions-specific exception handling must be integrated and verified with that host if required.
+- Under Azure Functions, wire exception handling into that host and verify it with real-host HTTP tests.
 - Rivet does not enforce serialized JSON shape, member validation constraints, request parsing/binding, optional headers, auth policies, or file byte contents at runtime. Those remain host/application responsibilities. Handlers returning native results outside the terminals bypass Rivet's runtime checks. Coverage is static analysis, not proof that every request branch or deployment configuration is correct.
 
 ### Anti-patterns

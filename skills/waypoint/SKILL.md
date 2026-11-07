@@ -16,7 +16,6 @@ AGENTS.md is the workflow-skills shared rules file your agent loads as its rules
    - Session title: this session's own name, if you can list agent sessions or read this session's details and it has one; otherwise use `<id8>`.
    - Git, from the repo root:
      - `git branch --show-current`
-     - `git status --short | wc -l`
      - `git log --oneline @{u}..HEAD 2>/dev/null`
      - `git log -1 --format='%h %s (%cr)'`
    - Files this session changed: from your own edits in this conversation, cross-checked against `git status --short`.
@@ -48,7 +47,7 @@ metadata:
 **Needs from the user:** <numbered, each with your recommendation; every step waiting on the user, such as "run /cycle"; "nothing" only when none does>
 **Decisions made:** <what was decided and by whom, including ones the user handed back and what you chose>
 **Files this session owns/touched:** <paths, grouped by area; note peers' files you must not touch>
-**Git:** <main checkout | worktree <path>> · <branch> · <N> dirty · unpushed: <hashes or none> · last: <hash subject (age)>
+**Git:** <main checkout | worktree <path>> · <branch> · unpushed: <hashes or none> · last: <hash subject (age)>
 **Plan doc:** <path or none>
 ```
 

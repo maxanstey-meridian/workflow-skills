@@ -13,7 +13,7 @@ Most of the code you read was written by agents, quickly. Consistency is cheap f
 
 ## How to read
 
-In `coding/review-discipline.md`, item 5 applies to a hunt, and items 1 to 4 govern reviews of a change.
+In `coding/review-discipline.md`, "Suppress noise" applies to a hunt, and the rest governs reviews of a change.
 
 - **Argue every finding, and say which kind it is.**
   - **proven:** the code shows it. Nothing references it, the same code appears twice, or a library call at the repo's versions does the same job. The proof is mechanical.
@@ -24,7 +24,7 @@ In `coding/review-discipline.md`, item 5 applies to a hunt, and items 1 to 4 gov
 - **Follow the work, not the folder.** Start at the entry points (endpoints, message handlers, jobs, pages), follow one request down to persistence, then read what's left. Slop shows up as a layer the request passes through without anything happening to it, and as machinery that exists to serve other machinery.
 - **Search the whole repo, not just your area,** before you claim that something is duplicated, unused, or missing (Dead code lists what a symbol search misses).
 - **Read every file in your brief in full.** No skimming, sampling, or reading signatures in place of bodies. If you run out of room before you've read them all, say which files you didn't read; never list a file you didn't read in full as read.
-- **Ask two questions of every finding.** *Necessity:* what breaks if this goes? Name the behaviour a user would see, or say "nothing". "A test fails" isn't a behaviour. An error message's wording, or an edge no real user meets, does count, but say it plainly so it can be weighed. *History:* why is it here? `git log -L <start>,<end>:<file> -s --format='%h %as %s'` lists the commits that touched those lines; `git show <hash>` reads the one that matters. Cite its hash in the finding. A guard that a bug-fix commit added is a fence: say what replaces it, or show that the bug can no longer happen.
+- **Ask two questions of every finding.** *Necessity:* what breaks if this goes? Name the behaviour a user would see, or say "nothing". "A test fails" isn't a behaviour. An error message's wording, or an edge no real user meets, does count, but say it plainly so it can be weighed. *History:* why is it here? `git log -L <start>,<end>:<file> -s --format='%h %as %s'` lists the commits that touched those lines; `git show <hash>` reads the one that matters. Cite its hash when the lines are a guard or a copy. A guard that a bug-fix commit added is a fence: say what replaces it, or show that the bug can no longer happen.
 - **A recorded decision is evidence, not a verdict.** When a spec Decision, the repo's instructions, a doc, or a commit chose this shape, cite it. If the cost case still holds, report the finding as judgement and say which decision it reopens: the user decides. "The repo chose this" never ends the argument by itself.
 - **Name what still protects it.** A protection is whatever stops a behaviour from breaking unnoticed: a test, a guard, a validator, a constraint, or a type. A finding that removes or weakens one names, by `file:line`, what still protects that behaviour afterwards, and that successor must not itself be something you're flagging. When nothing does and the behaviour is meant to stay, it isn't slop. A design finding that drops a behaviour on purpose names the tests that pin it instead: they change with it. When one finding is only true once another lands (B is dead only once A goes), report them as one finding.
 - **Don't hunt bugs.** You're looking for weight, not defects. A bug you trip over gets one line under Also noticed (below), with its `file:line`, and no proof, history, or fix work. Don't go looking for more. A broken house Law that a sign below covers isn't a bug for this purpose: it's a finding under that sign, with its proof.
@@ -104,13 +104,11 @@ Leave these out of the report:
 
 ## Your report
 
-The report's first line is `HEAD <short hash>`, the HEAD of your area's repo (your brief gives it).
-
-Then the **weight map**: one line per piece of your area (a capability, a subsystem, or a cluster of files that does one job), `<what it's for> · <files> · <lines> · <earned | see #N or D<n>>`. A piece marked earned says in a few words what earns it.
+The report opens with the **weight map**: one line per piece of your area (a capability, a subsystem, or a cluster of files that does one job), `<what it's for> · <files> · <lines> · <earned | see #N or D<n>>`. A piece marked earned says in a few words what earns it.
 
 Then one line per finding, most weight first:
 
-`#N · <sign> · <proven | judgement> · file:line (+ other locations) [ · (uncommitted)] · what it is · replace with <the specific API, library, or existing repo code; "delete"; or "hand to <the host, the caller, or a library>"> · removes <what> · behaviour <none | what users lose> · risk low|med|high · proof <how you checked, and the commit hash for its history> · against <the best case for keeping it, in one line> · protected by <the build | the test, by name, that pins the behaviour and that no finding touches | the tests that change with it, for a behaviour the finding drops | none> · lead <finder, design finding D<n>, or none>`
+`#N · <sign> · <proven | judgement> · file:line (+ other locations) [ · (uncommitted)] · what it is · replace with <the specific API, library, or existing repo code; "delete"; or "hand to <the host, the caller, or a library>"> · removes <what> · behaviour <none | what users lose> · risk low|med|high · proof <how you checked, and for a guard or a copy the commit hash for its history> · against <the best case for keeping it, in one line> · protected by <the build | the test, by name, that pins the behaviour and that no finding touches | the tests that change with it, for a behaviour the finding drops | none>`
 
 The design reader numbers its findings `D1`, `D2`, and so on; area hunters number theirs `#1`, `#2`, and so on.
 
@@ -124,4 +122,4 @@ Risk:
 
 Add the optional `(uncommitted)` marker when the finding sits in one of the uncommitted files your brief lists.
 
-Then **Also noticed**: bugs you tripped over, one line each (`file:line · what goes wrong`), marked `data loss` or `security` when they are, or `none`. Re-derived server rules, tests that can't fail, and any broken house Law a sign above covers aren't Also-noticed bugs: they're findings under their sign. Then the leads you checked and dropped, one line each with why; "no exact replacement" isn't a reason (sign 1). List the files you read, then end with `Files read: <n>/<files in your brief> in full`, plus any files not read; that last line marks the report complete. Facts and arguments only: one replacement per finding, and no options or asks.
+Then **Also noticed**: bugs you tripped over, one line each (`file:line · what goes wrong`), marked `data loss` or `security` when they are, or `none`. Re-derived server rules, tests that can't fail, and any broken house Law a sign above covers aren't Also-noticed bugs: they're findings under their sign. Then the leads you checked and dropped, one line each with why; "no exact replacement" isn't a reason (sign 1). Then list any files in your brief you didn't read in full, and end with `Files read in full:` and the list; that last line marks the report complete. Facts and arguments only: one replacement per finding, and no options or asks.

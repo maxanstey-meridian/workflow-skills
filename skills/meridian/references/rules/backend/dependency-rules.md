@@ -1,7 +1,5 @@
 ## Non-Negotiable Dependency Rules
 
-These are the hard rules.
-
 ### Inside a module
 
 - `Domain` depends on nothing outside itself

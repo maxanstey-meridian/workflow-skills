@@ -35,7 +35,7 @@ Mocks:
 
 ### Formatting and analyzers
 
-Current rule (enforced by plumb MER-TO-012/014):
+Enforced by plumb MER-TO-012/014:
 
 - `CSharpier` is part of the formatting workflow — wired via a dotnet tool
   manifest (`.config/dotnet-tools.json`) or `CSharpier.MsBuild`; it is
@@ -47,15 +47,6 @@ Current rule (enforced by plumb MER-TO-012/014):
   diverging is not)
 - analyzers should be enabled in project files (`EnforceCodeStyleInBuild` or
   `AnalysisLevel` in the csproj or `Directory.Build.props`)
-
-So the real sources today are:
-
-- the formatter command in repo workflows
-- the canonical `.editorconfig` (plumb `configs/`)
-- analyzer settings in `.csproj`
-- SDK pinning in `global.json`
-
-If a repo adds a `CSharpier` config file later, keep it aligned with `.editorconfig` and do not invent a second competing style doctrine.
 
 **Comment width (preference).** `CSharpier` does not wrap comments, so keep
 comment-only lines (`//`, `///`) within its print width by hand; a single

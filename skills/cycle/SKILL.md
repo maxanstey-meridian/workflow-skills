@@ -21,6 +21,7 @@ The user starting `/cycle` authorizes commits, fixes, re-review, and the gate. I
 **Subagents.** Every review and every fix in /cycle runs in a fresh subagent: a new agent that starts with only the brief you give it, not this conversation, so a fork of this conversation doesn't count. If you can't start subagents, stop before review and tell the user that /cycle needs them. Never review or fix in the main session.
 
 **House doctrine.** `<bundles>` is `<base directory>/references/bundles`: the rules each role reads, one bundle file per role, built from the `.list` beside it by `sh scripts/build-bundles.sh` in the workflow-skills repo. Each reviewer and fixer reads only the bundle(s) its brief names. The orchestrator reads the Laws, at the top of `<bundles>/slice-reviewer.md`, then `<bundles>/backend.md`, `<bundles>/frontend.md`, or both for the stacks the work touches, and `<base directory>/references/cycle.md`, before the first review or fix brief: that file owns the cold read, critic procedure, worktree snapshot procedure, retry rules, and mutation contract. A rule a bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
+
 Terms used below:
 
 - **AGENTS.md** is the workflow-skills shared rules file your agent loads as its rules, not the repo's own AGENTS.md.
@@ -28,13 +29,13 @@ Terms used below:
 - **The named spec** is the spec path the user gave, at its resolved absolute path. It must be readable Markdown with a `**Status:**` value, a `## Pieces` section, and the `**Built pieces:**` line under it. With no spec path there is no named spec: briefs say `Active spec: none`, every changed file is reviewed on its own merits, the critic checks a fix against its brief, and no spec changes.
 - **The repo's instructions** are as AGENTS.md 'Routines' defines them. The brief must give their exact absolute path.
 - **`<base directory>`** is the folder this SKILL.md was loaded from: the skill's base directory, if your agent printed one when the skill loaded, else the folder of the path you read this file at. If you can't tell where this file was loaded from, ask the user for the path rather than guessing.
-- **`<id8>`** is the last 8 characters of this session's id. Run `printenv` with your agent's own variable and take what it prints. If it prints nothing, use the id this conversation already states; if there is none, generate one once with `openssl rand -hex 4`. Name the cycle's folder, `<main checkout>/.plans/scratch/cycle-<id8>/`, in your first message, so it survives a compaction. Remove any `report.md` left there by an earlier cycle in this session.
+- **`<id8>`** is the last 8 characters of this session's id. Run `printenv` with your agent's own variable and take what it prints. If it prints nothing, use the id this conversation already states; if there is none, generate one once with `openssl rand -hex 4`. The cycle's folder is `<main checkout>/.plans/scratch/cycle-<id8>/`. When you generated the id, name the folder in your first message, so it survives a compaction. Remove any `report.md` left there by an earlier cycle in this session.
 
 ## 1. Scope
 
 - Run `git status --short` from the repo root. The scope is **every** uncommitted change, including other sessions' work. Never narrow it to "mine".
 - Leave out anything the repo's instructions list as never-commit, plus `.plans/`. Mention untracked files that look accidental.
-- If you can list other agent sessions working in this tree, do. If one is mid-edit on files in scope and you can message it, message it once ("cycling the tree; are you mid-edit on X?") and wait for the reply or 2 minutes. Then carry on and note it in the report.
+- If you can list other agent sessions working in this tree, do. If one is mid-edit on files in scope, leave those files out of this cycle and list them under Needs from you.
 - Group the files into **vertical slices** (feature or module folders, front and back end of one feature together).
 - Find the intent only from the named spec, if there is one. Never fall back to another `.plans/` document or a waypoint. Reviewers check it against its Intent, Decisions, Pieces, Addenda, Done means, and Out of scope.
 - Check a changed file against the named spec only when that file is named in the named spec's Pieces' or Addenda's `owns` lists. Include any change in such a file that no Piece or Addendum accounts for as outside the spec's intent. Review a changed file outside those `owns` lists for correctness and doctrine on its own merits.
@@ -43,7 +44,6 @@ Terms used below:
   - **`diff`:** read each changed tracked file's diff with its surrounding code, except read the whole file when it changes a contract or endpoint, a schema or migration, an INVARIANTS rule, or a domain or application rule (validation, a decider, a use case, or a server rule the UI reads). When unsure, use a full read.
   - **`full`:** read every changed tracked file in full.
   - In both modes, read untracked files in full. For a deleted tracked file, read the deletion and search the tree for surviving references.
-- With `diff`, list each slice as `diff` or `full` before reviewing.
 
 ## 2. Review
 
@@ -58,10 +58,11 @@ Terms used below:
   - Owned and forbidden files: the reviewer owns only its absolute report path and may edit no other file.
   - Review mode: `diff` or `full`, with the deleted-file and untracked-file rules above.
   - Active spec: the absolute path to the named spec, or `none`.
-  - Doctrine: the exact absolute path of the reviewer's bundle below, to read in full before anything else, plus the rule that a house Law outranks any spec or plan and a violation is a `blocker` or `fix`. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.  - Repo instructions: the exact absolute path to the repository's instructions.
+  - Doctrine: the exact absolute path of the reviewer's bundle below, to read in full before anything else, plus the rule that a house Law outranks any spec or plan and a violation is a `blocker` or `fix`. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
+  - Repo instructions: the exact absolute path to the repository's instructions.
   - Report path: the reviewer's absolute report path.
   - Save protocol: save the full report with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), and if saving is refused, reply with the whole report.
-  - Reply protocol: reply with only the absolute report path and the count of findings by severity.
+  - Reply protocol: reply with only the absolute report path.
 - Tell each reviewer which bundle to read, in full:
   - slice reviewer: `<bundles>/slice-reviewer.md`;
   - backend pass: `<bundles>/backend.md`;
@@ -71,21 +72,21 @@ Terms used below:
   - Read every file in the assigned mode, plus the callers and tests the change touches. Open more of a tracked file only where a `diff` hunk depends on code outside what's shown.
   - For a file in the named spec's Pieces' or Addenda's `owns` lists, check the work against the named spec: every requirement that item implements is implemented, nothing its Out of scope excludes was built, and any change in that file that no Piece or Addendum accounts for is outside its intent. For a file outside those `owns` lists, review only correctness and doctrine on its own merits.
   - Look for bugs and regressions; broken invariants or races; changed behaviour with no test; house-rule violations; hand-rolled machinery the platform or a library already provides; WET code; over-engineering and ceremony; compat layers or shims; dead code; UI drift from existing components and patterns; copy that's unclear or full of jargon; and gaps excused in a doc, `Accepts`, changelog, or comment instead of fixed. A gap with a doc page is still a gap and is judged as a `fix`.
-  - Flag each of these as a `blocker` when introduced: a check that can't fail, valid ordinary behaviour refused, dropped, or excluded to make something pass, and new machinery that names no maintained tool it checked first.
+  - Flag each of these as a `blocker` when introduced: a check that can't fail, valid ordinary behaviour refused, dropped, or excluded to make something pass, and new machinery doing a job a maintained tool already provides.
   - For every changed condition, entry, or flag, read every place it's used, and say what the change switches on or off there. A line is judged by what it does, not by its comment or the builder's note.
   - Flag only what affects correctness, a house law, or the intent as `blocker` or `fix`. Style preferences are `nit` at most, and harmless code needs no finding at all.
   - Tag every finding's origin: `introduced` when this diff caused it or the named spec promised it and it isn't done; `existing` when it was already there and lies outside the intent. Mark an `existing` finding `trivial` when its fix is mechanical, a few lines with no design call.
   - Run the repo's doctrine checker or linter for the reviewer's files only, when the repo's instructions name one. Don't run tests, typechecks, or the gate.
-  - Report each finding as `file:line`, the problem, its harm (what goes wrong, and the command or `file:line` that shows it; a `nit` or `decision` has none), the concrete fix, the severity (`blocker` / `fix` / `nit` / `decision`), and the origin (`introduced` / `existing`). End with "Files read: N/N" and list them. With `diff`, mark each file `whole` or `diff`.
+  - Report each finding as `file:line`, the problem, its harm (what goes wrong, and the command or `file:line` that shows it; a `nit` or `decision` has none), the concrete fix, the severity (`blocker` / `fix` / `nit` / `decision`), and the origin (`introduced` / `existing`). End with a `Files read:` line listing every file you read in full. With `diff`, mark each file `full` or `diff`.
   - Read only, except for the report file.
-- Name each reviewer's report file in its brief: `<main checkout>/.plans/scratch/cycle-<id8>/r<round>-<reviewer>.md` (absolute path, `<reviewer>` the slice or pass name). Read findings from the files, not from the replies. If a reviewer replies with its report instead of a path, save the reply to its named file verbatim before doing anything else, and tell the user in your next message which reviewer couldn't save its own. If a reviewer's reply never reaches you, read the file before deciding to rerun the reviewer: a complete one ends with "Files read: N/N".
+- Name each reviewer's report file in its brief: `<main checkout>/.plans/scratch/cycle-<id8>/r<round>-<reviewer>.md` (absolute path, `<reviewer>` the slice or pass name). Read findings from the files, not from the replies. If a reviewer replies with its report instead of a path, save the reply to its named file verbatim before doing anything else. If a reviewer's reply never reaches you, read the file before deciding to rerun the reviewer: a complete one ends with its Files read line.
 - After every reviewer has reported, check the findings yourself. Drop false positives, merge duplicates, and check every `blocker` claim against the code.
 
 ## 3. Coverage and gates
 
-- Print `Reviewed: <files read by any reviewer> / <files in scope>`. If a file was missed, send it to a reviewer subagent now rather than reporting the gap.
+- Compare the union of the reviewers' Files read lines with the files in scope. If a file was missed, send it to a reviewer subagent now rather than reporting the gap.
 - Run the **targeted checks**: the tests for the classes and specs in scope, plus typecheck and lint for the changed files, as the repo's instructions describe. Not the full gate; that runs once, in step 6.
-- With a named spec, also run every Done-means check it lists. One no subagent could run, you run on its own stack. One that nobody here can run goes to Needs from you, and the work isn't done until it's run or the user waives it. Never drop one silently. A red one blocks the commit as a red targeted check does.
+- With a named spec, also run every Done-means check it lists. Run yourself any that no subagent could run. One that nobody here can run goes to Needs from you, and the work isn't done until it's run or the user waives it. Never drop one silently. A red one blocks the commit as a red targeted check does.
 
 ## 4. Commit first
 
@@ -106,13 +107,14 @@ Terms used below:
   - Fix mode: fix the listed findings in the owned paths, then stop. Never review unrelated work or expand scope.
   - Active spec: the absolute path to the named spec, or `none`.
   - Findings: each finding quoted word for word from a saved file, naming the file: a reviewer's or zoom-out report entry (its `file:line`, problem, harm, concrete fix, severity, and origin); on a re-brief, the critic report's FAIL bullets, after the original finding quoted again; or, for a red check or a mutation survivor, the command and its output, which you save to `<main checkout>/.plans/scratch/cycle-<id8>/source-<name>.md` before writing the brief, followed, after the quote and not part of it, by your mechanical fix as `Fix:`, or by a `Call` line when the fix is a call of yours. Never reword a quote. When the fix is a call you made, as `Cold read` in `<base directory>/references/cycle.md` defines one, add it after the quote as a line that opens `Call (build this, not any fix quoted above):`, never edited into the quote. A finding marked as a design call, or one that says "check whether", "trace", or "make sure", is settled before the fixer starts.
-  - Doctrine: the exact absolute path of the fixer's bundle, `<bundles>/backend.md` or `<bundles>/frontend.md` by the stack the fix touches, or both when it touches both (work in neither stack, such as scripts, docs, or configuration, counts as backend), to read in full before anything else. State that a house Law outranks any spec or plan, a documented gap is still a gap, fixes target the root cause with no shim, and a new or changed check must be able to fail. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.  - Repo instructions: the exact absolute path to the repository's instructions.
+  - Doctrine: the exact absolute path of the fixer's bundle, `<bundles>/backend.md` or `<bundles>/frontend.md` by the stack the fix touches, or both when it touches both (work in neither stack, such as scripts, docs, or configuration, counts as backend), to read in full before anything else. State that a house Law outranks any spec or plan, a documented gap is still a gap, fixes target the root cause with no shim, and a new or changed check must be able to fail. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
+  - Repo instructions: the exact absolute path to the repository's instructions.
   - Hard stop: if the fixer finds an open question, an undecided premise, or a design call the brief did not make, it stops that finding, keeps its edits, and reports what the code admits.
   - Commands: every exact command the fixer may run, from the worktree root, and only the targeted checks for its owned files. When the repo names no command a check needs, the brief says so and the fixer reports that check as not run.
-  - Report content: facts only: what it read, ran, and changed, the `file:line` evidence, and what it could not check. No recommendation, option, confidence, or ask.
+  - Report content: facts only: the `file:line` evidence for each claim, and what it could not check. No recommendation, option, confidence, or ask.
   - Report path: the fixer's absolute report path, `<main checkout>/.plans/scratch/cycle-<id8>/report-<name>.md`.
   - Save protocol: save the full report with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), and if saving is refused, reply with the whole report.
-  - Reply protocol: reply with only the absolute report path and a one-line list of what changed.
+  - Reply protocol: reply with only the absolute report path.
   - Test-only fix items: for each, record the guarded source files and the precise behaviour it promises to guard, identified by symbol or source region, in a distinct entry in the brief. Record it even when the brief also contains source fixes.
   - Fix rules: fix every introduced `fix` and every trivial `existing` finding. Fix the defect, not its description. Fix a `nit` only when the fix is mechanical. Do not park a trivial gap, and do not resolve a finding by rewording a doc.
 - A brief may carry several findings only when each is already settled to a `file:line` and a concrete fix. A finding whose fix spans more than its own `file:line` (several call sites, or the sweep through the places the change feeds) gets a brief of its own, after the others. A fix that changes what the named spec says gets an addendum first.
@@ -122,8 +124,7 @@ Terms used below:
   - the slice's files as its owned paths, and the named spec's absolute path, or `none`, as its spec;
   - the before snapshot, the Fix patch, and their removal, as `Worktree snapshots` says.
 - No fixer starts on a question. Trace a question yourself, or with a read-only fact-gatherer, through every place the changed code feeds, with `file:line`s, then brief the settled fix. A brief whose fix is a call you made gets a cold read before its fixer starts, as `Cold read` in `<base directory>/references/cycle.md` says. A fixer is never where a question gets answered. A fixer showing one of `Retry rules`' signs that a brief isn't working is handled as that section says. An item left unbuilt under `Retry rules` stays unfixed and is listed under Needs from you. The round commits without it, unless it's a `blocker`, in which case stop and report.
-- Fix every `introduced` `fix` finding that doesn't need the user.
-- Trivial gaps are never parked. An `existing` finding whose fix is trivial (mechanical, a few lines, no design call) is fixed in this step like an `introduced` one.
+- Fix every `introduced` `fix` finding that doesn't need the user, and every `existing` finding whose fix is trivial (mechanical, a few lines, no design call): trivial gaps are never parked.
 - When one of step 2's three checks is `existing`, the gap rule decides: trivial, fixed in this step; non-trivial, parked, and it opens the report as its own numbered finding, under the Lead-with rule — in both slots, by design: the finding is the news, the park is the action.
 - A non-trivial `existing` finding is new work, not this cycle's: don't fix it in passing, and don't hand it to the user as a `decision`. Park it: tell the user and list it under **Parked** in your report, never in an `Accepts`, comment, or doc, judged as AGENTS.md 'Reports' says (still holds, fold or leave, why). The user decides which to take on. A `blocker` is fixed whatever its origin (the three checks above excepted).
 - Fix the defect, not its description. When a finding is that a doc overstates the code, make the code do what the doc says wherever that's possible, including in a library the company owns (for example plumb or rivet). Rewording the doc to describe a gap accurately does not resolve it. A gap that can't be fixed in this cycle is parked when it's non-trivial and outside the intent, or reported as a finding when the platform can't do it at all; never a `decision`, and never a doc.
@@ -133,11 +134,11 @@ Terms used below:
 
 - Every round is its own commit, so each round's review sees exactly that round's fixes. Never let one round's fixes sit on top of an earlier round's uncommitted fixes: commit each round before the next round's fixes start, or the layers can't be separated afterwards. (A small fix diff is reviewed while uncommitted, and its re-review's fixes go into that same commit.)
 - A re-review checks only the fix diff for bugs, regressions, and broken laws that the fixes introduced. It is not a fresh hunt over code an earlier round already reviewed, and its nits are dropped.
-- A re-review always reads diffs, in every mode and whatever a slice's mark.
+- A re-review always reads diffs, in every mode and whatever a file's mark.
   - Reviewers read the round's fix diff: `git diff -U30 HEAD -- <file>` while the fixes are uncommitted (small fix diff), or `git diff -U30 <previous round's commit>..HEAD -- <file>` once they're committed (large fix diff). They open more of a file, or a caller, only where a hunk depends on it.
   - Files new in the round are read in full.
   - Full reads are only for a round's first review.
-- Count the fix diff once, when choosing the re-review path, and once more after a zoom-out replacement (below): `git diff HEAD --numstat` over the scope, plus `wc -l` for untracked files, excluding generated files, lockfiles, and contract output. State the count of changed hand-written lines before choosing the path.
+- Count the fix diff once, when choosing the re-review path, and once more after a zoom-out replacement (below): `git diff HEAD --numstat` over the scope, plus `wc -l` for untracked files, excluding generated files, lockfiles, and contract output.
 - **Zoom out** on a fix diff, once, in any round but the gate fix, at the first of two points: at the count above, when the fix diff is large (as the large path below defines it); or once you have checked the findings of a re-review of it, when they hold more `introduced` `blocker` and `fix` findings than the `blocker` and `fix` findings in the briefs of the fixes it reviewed (a red check or a survivor has no severity, so counts as neither). Before anything more is briefed or committed, start one fresh read-only *reviewer*, the zoom-out reviewer. Its brief is self-contained, every path absolute, and holds:
   - the main checkout;
   - each finding the fix diff answered, as its source states it but with no fix text (for a red check or a survivor, its command and output), and nothing from the fix briefs, the cold reads, or your calls;
@@ -146,9 +147,9 @@ Terms used below:
   - its one question, and no other hunt: where does the fix diff add machinery, flags, special cases, or a second path around a model that is wrong, and what smaller change to the design removes the same harms? It reports each such place as a finding: the fix diff's `file:line`s; as its problem, what that code adds around which model; as its harm, that code itself, still there at those `file:line`s; the harms that code answers, each quoted from its source; the smaller change as its concrete fix; severity `fix` (or `decision` when the smaller change is one of several options that each work); and origin `introduced`; or it reports none;
   - read only, except for its report `<main checkout>/.plans/scratch/cycle-<id8>/zoom-<round>.md`, with `<round>` the round whose fixes it read, saved with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), or the whole report as the reply if saving is refused; reply with the path only.
 
-  It counts as a reviewer in the report, and its findings count toward no divergence check. Check its findings as step 2 says; then they are ordinary findings for step 5, briefed before the round's other findings, though their fixes span more than their own `file:line`. Each brief quotes the zoom-out finding and, under "Harms to keep gone", the harm line of every finding the replaced code answered (for a red check, its command and output; for a survivor, its entry), each quoted from its source, so the critic and the commands check those harms stay gone. After those briefs pass, check any of the round's other findings again, drop those whose code is gone, and brief the rest. Once they pass, count the fix diff afresh and take the path that count picks, from its first step (the small path's fresh reviewer, or the large path's step 1). Neither that count nor a re-review of the replaced diff starts a second zoom-out; on the large path, the next round's fix diff is a new one and may. When the zoom-out reviewer reports none, carry on where you were: the path the count chose, or the re-review's findings.
+  Its findings count toward no divergence check. Check its findings as step 2 says; then they are ordinary findings for step 5, briefed before the round's other findings, though their fixes span more than their own `file:line`. Each brief quotes the zoom-out finding and, under "Harms to keep gone", the harm line of every finding the replaced code answered (for a red check, its command and output; for a survivor, its entry), each quoted from its source, so the critic and the commands check those harms stay gone. After those briefs pass, check any of the round's other findings again, drop those whose code is gone, and brief the rest. Once they pass, count the fix diff afresh and take the path that count picks, from its first step (the small path's fresh reviewer, or the large path's step 1). Neither that count nor a re-review of the replaced diff starts a second zoom-out; on the large path, the next round's fix diff is a new one and may. When the zoom-out reviewer reports none, carry on where you were: the path the count chose, or the re-review's findings.
 - **Small fix diff** (under 400 changed lines of hand-written code): review it before committing with one fresh reviewer subagent, briefed as in step 2 with its own report file. A fixer subagent fixes what it finds (as in step 5). Run the targeted checks for what the fixes touched, then the mutation run, and commit with explicit paths, the message as step 4 says. Done.
-- **Large fix diff** (over that, or a new slice or schema or contract change): the fixes are new work, so they go round the cycle like the original:
+- **Large fix diff** (400 changed lines or more, or a new slice or schema or contract change): the fixes are new work, so they go round the cycle like the original:
   1. Run the targeted checks for what the fixes touched, then the mutation run, then commit them, commit first as in step 4.
   2. Review that commit's diff with steps 2–3: slices, fanned-out reviewers, coverage.
   3. Fix as in step 5, then judge the new fix diff by size again.
@@ -167,15 +168,14 @@ Save the report to `<main checkout>/.plans/scratch/cycle-<id8>/report.md`, with 
 **TLDR:** <plain English>
 **Findings:** 1. <finding that changes the picture, stated in full>, or none
 **Commits:** <hash subject> (+ fixes <hash>, one per round)
-**Reviewed:** <N>/<N> files · reviewers: <count> · rounds: <n> (with `diff`: · full slices: <names>)
+**Read in full:** <with `diff`, the files read in full; leave the line out with `full`>
 **Fixed:** <one line per notable fix>
 **Critic says:** <each fix brief's verdict, its judgement findings, and its PARTIAL gaps; leave the line out when no fix brief ran>
 **Not checked:** <PARTIAL gaps, `mutation: not run (…)`, and any other unrun check, with its cause>
-**Mutation:** <each round's exit code, mutant count, and survivors, or `mutation: not run (…)`>
+**Mutation:** <each round's survivors, or `mutation: not run (…)`>
 **Dropped nits:** <one line, or none>
 **Parked:** 1. <non-trivial `existing` gap> (rec: fold now | leave, why), or none
 **Worktrees left behind:** <paths you couldn't remove; leave the line out when none>
-**Reports saved by me:** <reviewers, critics, and cold readers that couldn't save their own report; leave the line out when none>
 **Needs from you:** 1. … (rec: …), or none. Release actions happen only when the user requests them separately.
 ```
 

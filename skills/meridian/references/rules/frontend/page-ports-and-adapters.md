@@ -210,9 +210,7 @@ import { injectAuth, getInitials } from "~/features/auth";
 
 ### Logic
 
-`logic/` is pure TypeScript.
-
-Hard rule:
+`logic/` is pure TypeScript:
 
 - no imports from `vue`
 - no imports from `nuxt`
@@ -222,12 +220,13 @@ Hard rule:
 Put in `logic/`:
 
 - pure transforms
-- calculations
-- derivation rules
 - immutable data shaping
-- domain-ish UI rules that do not require reactivity
+- presentation mapping of server values (labels, colours, icons, ordering)
+- checks on client state, such as input the server hasn't seen, with their
+  limits taken from the DTO
 
-If something can be a pure function, put it here.
+If something can be a pure function, put it here. A rule the server decides is
+never copied here, or anywhere in the UI: `frontend/server-rules-stay-on-the-server.md`.
 
 Components may import `logic/` directly because it has zero framework dependencies.
 
@@ -501,7 +500,7 @@ They may own:
 
 - `ref` / `reactive` / `computed` / `watch`
 - VueUse
-- Pinia when appropriate
+- Pinia
 - generated Rivet client calls
 - side effects
 - loading flags
@@ -510,15 +509,10 @@ They may own:
 Composables should:
 
 - inject a port with `injectX` when they depend on a provided capability
-- keep pure logic out of themselves where feasible
+- keep pure logic in `logic/`, not in themselves
 - expose a clean capability-shaped surface
 
-Composables should not:
-
-- grow into god-objects
-- hide large amounts of pure business logic
-
-If a composable gets too large, pull pure logic down into `logic/`.
+Composables should not grow into god-objects.
 
 ### Two Valid Implementation Styles
 
@@ -624,7 +618,7 @@ Therefore:
 - do not wrap Rivet behind ports by default
 - do not create fake API service layers unless there is a genuine need
 - bootstrap Rivet once at the app boundary
-- call generated clients directly inside the composable that implements the capability when appropriate
+- call generated clients directly inside the composable that implements the capability
 - the generated client and its DTO types come from the contracts package: `rivet/client-package.md`
 
 Good:

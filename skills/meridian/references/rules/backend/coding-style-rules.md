@@ -1,15 +1,5 @@
 ## Coding Style Rules
 
-These are part of the architecture, not just aesthetics.
-
-### General
-
-- data transforms over object hierarchies by default
-- explicit orchestration over magic
-- readability over abstraction
-- top-to-bottom understandable use cases
-- minimal dependencies
-
 ### .NET
 
 - `sealed` on all concrete types

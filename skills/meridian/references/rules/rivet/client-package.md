@@ -58,7 +58,7 @@ Rules:
 
 ### Frontend Result Handling
 
-The current v2 client is an `openapi-fetch` facade. Capture its `{ data, error,
+The client is an `openapi-fetch` facade. Capture its `{ data, error,
 response }` result and inspect the error channel or response status explicitly:
 
 ```ts

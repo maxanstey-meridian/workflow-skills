@@ -8,7 +8,7 @@
 - typecheck: `vue-tsc`
 - UI layer: `@nuxt/ui`
 - utility layer: `@vueuse/core`
-- validation/schema: `zod` when needed
+- validation/schema: `zod` at untrusted runtime boundaries
 - tests: `vitest` + `@vue/test-utils` + `happy-dom`
 - e2e: `playwright` where warranted
 
@@ -28,22 +28,8 @@ Do not use it to hide boundaries or to recreate a magic container culture.
 
 ### Linting and formatting
 
-Default bias:
-
-- prefer `oxlint` over `eslint`
-- prefer `oxfmt` over Prettier
-- use `eslint` only where Vue/Nuxt support is still needed
-
-Current practical rule:
-
-- `ox*` does the general JS/TS lint/format work
-- `eslint` remains for Vue/Nuxt-specific linting because `oxlint` does not cover that fully yet
-
-So the intended stack is:
-
-- `oxlint`
-- `oxfmt`
-- `eslint` + `@nuxt/eslint` only as the Vue/Nuxt layer on top
+- `oxlint` over `eslint`, and `oxfmt` over Prettier, for all JS/TS lint and format work
+- `eslint` + `@nuxt/eslint` only as the Vue/Nuxt layer on top, for the Vue/Nuxt rules `oxlint` doesn't cover
 
 **Base configs.** The base config files live in
 [plumb's `configs/` folder](https://github.com/maxanstey-meridian/plumb/tree/main/configs),
@@ -101,5 +87,4 @@ Concrete `typed-inject` class shape: see `backend/typescript-style.md`.
 
 ### Notes
 
-- Prettier is not the current default in newer repos.
 - Older repos may still contain heavier ESLint/Prettier/plugin stacks; do not treat those as the preferred baseline.
