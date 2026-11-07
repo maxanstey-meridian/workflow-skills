@@ -98,7 +98,7 @@ Write the chosen candidate at its resolved absolute path. Use this shape. Leave 
 What the ask assumed, what HEAD shows, and any correction.
 
 ## Decisions
-1. **<decision>.** <what and why>. Alternative: <option> (cost: <cost>). <Agreed by <name>, YYYY-MM-DD | Chosen by the agent when <name> handed it back>.
+1. **<decision>.** <what and why>. <Agreed by <name>, YYYY-MM-DD | Chosen by the agent when <name> handed it back>.
 
 ## Open asks
 1. <question> (rec: <answer>; settled by <what would settle it>)
@@ -106,7 +106,7 @@ What the ask assumed, what HEAD shows, and any correction.
 ## Pieces
 **Built pieces:** none
 ### P1 <name> · owns: <files> · after: <piece, or none>
-- **At HEAD:** <file:line, what it does now>
+- **At HEAD:** <the code, by symbol and a short quoted fragment, and what it does now>
 - **Reuse:** <component or pattern it follows; the maintained tool searched for, if any>
 - **Change:** <what changes>
 - **Proof:** <test to extend, or new test; mark one that is red today>
@@ -126,7 +126,7 @@ The targeted tests and checks with their exact commands. What stays uncommitted 
 ## Addenda
 ### A1 <name> · <YYYY-MM-DD> · owns: <files> · after: <piece, or none>
 - **Why:** <what came up, and in which step>
-- **At HEAD:** <file:line, everything it does now>
+- **At HEAD:** <the code, by symbol and a short quoted fragment, and everything it does now>
 - **Change:** <what changes>
 - **Proof:** <test to extend, or new test>
 <Agreed by <name>, YYYY-MM-DD | No decision in it>
@@ -137,12 +137,14 @@ Rules for the doc:
 - No two pieces own the same file. That is `/go`'s split. When one file has to be shared, name it and say which piece edits it last.
 - `**Built pieces:**` lists what has been built: `/spec` writes `none` on a new or replaced spec and keeps a continued spec's line as it stands; `/go` adds a piece's or addendum's id when its last brief has passed step 4, and `/cycle` adds one when a round ends with no unbuilt requirement open against a piece or addendum the line omits, whether its fixers closed them or its reviewer found none.
 - Each decision lives in one place, the Decisions list, and is edited in place when it changes. The body points at its number; it never restates it. No "Added later" banners or dated layers: rewrite the section.
+- A Decision states what was decided and why, never the options it beat: no alternative, rejected option, or its cost. An option still open is an ask, with its recommendation.
 - Anything a fact or an agreed rule can't settle is an open ask, never prose inside an agreed section. Anything one can settle, settle, and say which settled it.
 - Status is `draft` while any ask is open. It becomes `agreed` only when the user has answered them all; record the date in each decision.
 - Anything that comes up after the spec is agreed is an addendum, whoever finds it. It gets the same premise check as a piece and a cold read of its own. One that holds a decision waits for the user's answer. Nothing in an addendum is built until then.
 - One `/go` per spec, with as few pieces as the files allow. Work that ships together stays in one spec. Fold pieces that share files, or that exist only for each other, into one piece.
 - A shared change applied in three or more places starts with a tracer bullet: the shared change plus one consumer, built end to end first. Pieces applying it elsewhere name that tracer in `after:`.
 - Check every Decision and Piece against the house Laws, the first rule in `<bundle>`, and the full rules behind them, in the bundle. A design that breaks one is not an option: change the design. If no design inside the Laws does the job, report that as a finding for the user, naming the Law.
+- Point at code by symbol and a short quoted fragment everywhere but the Premise check ("the `Suppress` block around `RunModelPassAsync`"), never by line number: every builder edit shifts line numbers, and a stale one points at the wrong code while looking precise. Line numbers belong only in the Premise check, read at the `**Written:**` commit or with the commit they were read at beside them ("throws at `CohortSchemaValidator.cs:29` at 6bd7eab").
 - No runbooks or long scripts inline. Link to a file in `<main checkout>/.plans/scratch/` instead.
 - Plain English; gloss jargon on first use.
 
@@ -155,7 +157,7 @@ Start one fresh cold-reader subagent whenever subagents are available. Before wr
 - **Source paths:** every source file the spec cites that the cold reader must read.
 - **Doctrine:** the absolute path of `<bundle>`, to read in full before anything else, and the repo's instructions. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
 - **Scope:** read the spec and its cited files; never edit code, run builds, run the gate, or commit.
-- **Rules:** list anything that could not be built without asking; any `file:line` that does not say what the spec claims; any two pieces that touch the same file; any decision restated or contradicted in the body; any existing code the spec skips, replaces, or changes without listing everything that code does; any Done-means check that cannot be run as written; any ambiguous source the spec cites; any missing tracer bullet; and any Decision or Piece that breaks a house Law in the bundle, naming the Law. Report facts and findings only, with no recommendation, option, confidence, or ask.
+- **Rules:** list anything that could not be built without asking; any `file:line` in the Premise check that does not say what the spec claims at the commit it was read at; any line number outside the Premise check; any symbol or quoted fragment that doesn't lead to the code the spec means; any two pieces that touch the same file; any decision restated or contradicted in the body; any Decision that names an alternative, a rejected option, or its cost; any existing code the spec skips, replaces, or changes without listing everything that code does; any Done-means check that cannot be run as written; any ambiguous source the spec cites; any missing tracer bullet; and any Decision or Piece that breaks a house Law in the bundle, naming the Law. Report facts and findings only, with no recommendation, option, confidence, or ask.
 - **Report path:** the resolved absolute path to `<main checkout>/.plans/scratch/<spec stem>/cold-read.md`.
 - **Save protocol:** save the report with a shell heredoc, `cat > <path> <<'EOF'` … `EOF`, not a file-writing tool; if saving is refused, reply with the whole list.
 - **Reply protocol:** reply with only the report path.
