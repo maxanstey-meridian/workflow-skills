@@ -1,0 +1,21 @@
+## Established Furniture
+
+Furniture is available only after the `invariants/concurrency-review.md` ladder justifies its category:
+
+- TypeScript with PostgreSQL session-level advisory coordination:
+  [`pg-advisory-lock`](https://github.com/IlyaSemenov/pg-advisory-lock). It does
+  not provide fencing or exactly-once execution; connection loss can release the
+  lock while the callback continues. It requires a direct connection or
+  session-pooled PgBouncer, not transaction or statement pooling.
+- .NET distributed synchronisation:
+  [`DistributedLock`](https://github.com/madelson/DistributedLock), selecting
+  the provider package for the existing authoritative store and accounting for
+  that provider's handle-loss and abandonment semantics.
+- .NET durable messaging, service activation, inbox/outbox, and transport:
+  [Brighter](https://github.com/BrighterCommand/Brighter), when the application
+  genuinely needs those capabilities. It is not the default in-process mediator.
+
+Where applicable, these libraries remove the justification for a private version
+of the capability they provide. They do not remove the need to prove the
+invariant, choose the correct boundary, or understand each provider's failure
+model.

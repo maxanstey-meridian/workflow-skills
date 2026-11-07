@@ -23,7 +23,7 @@ Terms used below:
 - **`<main checkout>`** is the repo's main working tree, as AGENTS.md 'Routines' defines it. Working files go in `<main checkout>/.plans/`.
 - **`<base directory>`** is the folder this SKILL.md was loaded from: the skill's base directory, if your agent printed one when the skill loaded, else the folder of the path you read this file at. If you can't tell where this file was loaded from, ask the user for the path rather than guessing.
 - **`<scratch>`** is `<main checkout>/.plans/scratch/<spec stem>/go`, where `<spec stem>` is the spec's file name without `.md`.
-- **`<rules>`** is `<base directory>/references/rules`: one small file per rule, in one folder per area. `<rules>/always/` applies to all work. The others apply when the work touches them: `<rules>/invariants/` (domain rules, races, transactions, queues, and scheduled work), `<rules>/backend/`, `<rules>/frontend/`, `<rules>/ui/` (screens, forms, and copy), `<rules>/tests/`, `<rules>/rivet/` (.NET API contracts), and `<rules>/tools/` (choosing a tool or library).
+- **`<bundles>`** is `<base directory>/references/bundles`: the rules each role reads, one bundle file per role, built from the `.list` beside it by `sh scripts/build-bundles.sh` in the workflow-skills repo. A builder reads `backend-builder.md` or `frontend-builder.md` and a critic `backend-critic.md` or `frontend-critic.md`, by the stack its piece touches; a piece touching both stacks names both. Work in neither stack (scripts, docs, configuration, this repository) counts as backend. A rule a bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
 
 ## The orchestrator
 
@@ -32,16 +32,17 @@ This session plans, writes briefs, reads critics' verdicts, and checks them with
 ## 1. Scope
 
 - Find the intent in the spec path and the user's answers to its asks. Restate in 1–3 lines what will be built and what won't.
-- The spec's status is settled before anything is built: a `draft` asks its open questions, records the answers, and becomes `agreed`, then `building`; an `agreed` spec becomes `building` before the first builder starts; a `building` spec continues; stop on `built (<hash>)` or an unrecognized status.
+- The spec's status is settled before anything is built: a `draft` asks its open questions, records the answers, and becomes `agreed`, then `building`; an `agreed` spec becomes `building` before the first builder starts; a `building` spec continues: skip every piece and addendum its `**Built pieces:**` line names, and when it has no such line, add `**Built pieces:** none` directly under `## Pieces` first; stop on `built (<hash>)` or an unrecognized status.
 - An open decision that changes what gets built: ask first, numbered, each with a recommendation. Anything else inside what the spec describes: choose, and record the choice in the report and the spec's Decisions. Anything that changes what gets built beyond the spec is an addendum first.
 - Run `git status --short`, and list the other agent sessions working in this tree if you can. Peers' dirty files are theirs; leave them alone.
 - Remove any `<scratch>/report.md` left by an earlier /go of this spec. Snapshot the whole uncommitted tree at `<wt-pre-go>` = `<scratch>/wt-pre-go`, with no restore, install, build, or checks:
   - `git worktree add --detach <wt-pre-go> HEAD`
   - `git diff HEAD --binary | git -C <wt-pre-go> apply --allow-empty`
   - `git ls-files -z --others -- . ':(exclude).plans/' <output exclusions> | tar --null -T - -cf - | tar -xf - -C <wt-pre-go>`
+  On a continued `building` spec, run only the first of those three commands: every uncommitted change in owned files is this spec's work, so HEAD is the baseline, and no dirty diff is applied and no untracked file copied.
 
   Keep the snapshot until step 5's survivor attribution is done, then remove it.
-- Read every file in `<rules>/always/`, and in each other `<rules>` folder the spec touches, and, if the UI changes, the repo's UI skill if its instructions name one.
+- Read the Laws, the first rule in `<bundles>/backend-builder.md`, then the builder bundle(s) for the stacks the spec touches, in full, and, if the UI changes, the repo's UI skill if its instructions name one.
 
 ## 2. Split
 
@@ -57,7 +58,7 @@ Hard block: no builder starts on a question. Before you start any builder, its p
 - a "hangs on", "waits on", or "if ask N is yes/no" that isn't settled;
 - an "or", "TBD", "check whether", or "if the hosts show…" that leaves what gets built undecided;
 - a premise about framework or host behaviour that nobody has checked against the real thing;
-- a Decision or Piece that breaks a house Law in `<rules>/always/laws.md`, or in the full rules in the folders it touches (it goes back to the spec as an addendum, not to a builder).
+- a Decision or Piece that breaks a house Law (the first rule in a builder bundle), or any other rule in the bundle(s) for the stacks it touches (it goes back to the spec as an addendum, not to a builder).
 
 If there is one, settle it before the builder starts:
 
@@ -78,7 +79,7 @@ Write each brief to `<scratch>/brief-<piece>-<n>.md` (`<n>` its place in the pie
 - **Spec and decisions:** the resolved absolute spec path, the item, its intent, and every relied-on decision written in full.
 - **Test-only items:** one distinct entry per test-only item, naming the guarded source files and the precise behaviour it promises to guard, identified by symbol or source region.
 - **Hard stop:** before editing, the builder reads its item, the spec's open asks, and the relied-on decisions. If it finds an open question, an undecided premise, or a design call the brief did not make, it builds nothing and reports those facts. If code or the host contradicts the item's premise while it builds, it stops, leaves its edits in place, and reports the contradiction and the files it touched.
-- **Doctrine:** the absolute paths of `<rules>/always/` and each other `<rules>` folder the item touches, to read every file in them, and the repo's instructions. Include `<rules>/tests/` for any item that adds or changes a test. State the absolute path of `<rules>`, and that a section a rule file names is found by searching `<rules>` for its heading, and is read when the rule being followed points at it.
+- **Doctrine:** the absolute path of the builder bundle for each stack the item touches (`<bundles>/backend-builder.md`, `<bundles>/frontend-builder.md`, or both), to read in full before anything else, and the repo's instructions. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
 - **Rules:** fix the root cause; reuse the existing component, flow, or pattern; sweep nearby code for the same problem; never make a check pass by shrinking what it checks; a gap with a doc page is still a gap; no new test unless nothing already proves the behaviour, and each test must fail if what it guards breaks; change only owned files; never commit, stage, format beyond owned files, or run the full gate.
 - **Commands:** every exact command the builder may run, from the worktree root, including the item's Proof and only the targeted checks for its owned files. When the repo names no command a check needs, the brief says so and the builder reports that check as not run.
 - **Report path:** the resolved absolute path to `<scratch>/report-<piece>-<n>.md`.
@@ -113,7 +114,7 @@ A fresh *critic* subagent checks each builder brief before the piece's next brie
 
      The changed-file list includes new files and the piece's earlier briefs, and deletions stay out of it. The patch holds only this brief's lines. Leave the patch unread.
   3. Commands, in `<scratch>/commands-<piece>-<n>.md`, beside the item brief and the patch: the targeted tests for the changed test files and the behaviour the brief's Proof names, and format and lint in check mode on the changed paths where the command takes paths, else whole, as the instructions name it. Each command runs from the worktree root and carries its own `cd` where the repo's instructions run it from a subfolder.
-  4. Write the critic brief to `<scratch>/critic-brief-<piece>-<n>.md`: the full text of `<base directory>/references/critic.md`, then these, resolved to absolute paths: the main checkout, ready worktree, spec, item brief, builder report, patch, commands, earlier critic reports, report `<scratch>/critic-<piece>-<n>.md`, log folder `<scratch>/critic-<piece>-<n>-logs/`, the item brief's doctrine folders, `<rules>`, and the repo's instructions. Add every relied-on decision written in full, and the paths the repo's instructions declare as disposable check output. The brief is self-contained: it relies on no other file, on AGENTS.md, a sibling skill, prior conversation, or another agent's instructions to understand the task.
+  4. Write the critic brief to `<scratch>/critic-brief-<piece>-<n>.md`: the full text of the critic bundle for each stack the item touches (`<bundles>/backend-critic.md`, `<bundles>/frontend-critic.md`, or both), then these, resolved to absolute paths: the main checkout, ready worktree, the item's owned and forbidden paths, spec, item brief, builder report, patch, commands, earlier critic reports, report `<scratch>/critic-<piece>-<n>.md`, log folder `<scratch>/critic-<piece>-<n>-logs/`, and the repo's instructions. Add every relied-on decision written in full, and the paths the repo's instructions declare as disposable check output. The brief is self-contained: it relies on no other file, on AGENTS.md, a sibling skill, prior conversation, or another agent's instructions to understand the task.
 - **The verdict** is the last line of the critic's report: `VERDICT: PASS | FAIL | PARTIAL`. FAIL beats every other verdict; PASS and PARTIAL both count as passed once your checks agree.
   - On every verdict, recompute the fingerprint, rerun every command you built and every extra one in the critic's Checks run once, compare exit codes, check that every command you built appears in Checks run, and read every cited line for judgement findings.
   - A red from a peer session's file goes to Needs from you wherever the orchestrator meets one.
@@ -121,6 +122,7 @@ A fresh *critic* subagent checks each builder brief before the piece's next brie
   - A changed fingerprint, an unparseable verdict, or one of your commands missing from Checks run is the critic's fault, not the builder's: start a fresh critic in a fresh worktree before any builder is briefed.
   - **BLOCKED** is yours for a setup failure that isn't a build failure from a piece's files. Ordinary `after:` dependencies still wait.
   - After your checks, `git worktree remove --force <wt>`; report any you couldn't remove.
+  - When a piece's or addendum's last brief has passed (a passed verdict your checks agree with), add its id to the spec's `**Built pieces:**` line, replacing `none` the first time, so a later `/go` or `/cycle` knows it is built.
 - **A FAIL** goes back, as its confirmed bullets, to the piece that owns that file, as a new brief to a fresh subagent. A test-only mutation FAIL keeps the test-item owner even when that piece does not own the cited source file. A problem no piece covers is an addendum.
 - **A brief that isn't working.** The first time an item comes back unbuilt or FAILs, make the missing design call yourself, then send the item back as a brief of its own with that call written in. Read the critic's sign facts at their `file:line`. Any of these means the brief failed first:
   - an item comes back unbuilt, or FAILs, twice in a row;

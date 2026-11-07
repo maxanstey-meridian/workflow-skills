@@ -1,0 +1,10 @@
+## Smell Checks
+
+A test strategy is probably wrong if:
+
+- a small behaviour needs huge setup
+- most assertions are about how code was called rather than what happened
+- tests break whenever code is rearranged but behaviour is unchanged
+- boundaries are constantly discussed in reviews but never enforced in tests
+- the test suite is mostly mocks with very little real behaviour exercised
+- new decision branches or error paths have no direct test exercising them

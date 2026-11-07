@@ -1,0 +1,28 @@
+## Show The Result
+
+Configuration interfaces should make the resulting outcome visible whenever the
+user would otherwise need to mentally execute the rules.
+
+Examples:
+
+- final file path
+- generated filename
+- recipient summary
+- permission effect
+- schedule
+- filter result
+- mapped data preview
+
+For a file destination:
+
+```text
+Example destination
+
+Documents / Applications / ABC-123 / evidence.pdf
+```
+
+The preview should update as configuration changes and use representative sample
+values. Clearly distinguish an example or preview from a live operation.
+
+A preview closes the gap between configuring rules and understanding their
+effect.

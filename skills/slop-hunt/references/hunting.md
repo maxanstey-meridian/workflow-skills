@@ -13,7 +13,7 @@ Most of the code you read was written by agents, quickly. Consistency is cheap f
 
 ## How to read
 
-In `rules/always/review-discipline.md`, item 5 applies to a hunt, and items 1 to 4 govern reviews of a change.
+In `coding/review-discipline.md`, item 5 applies to a hunt, and items 1 to 4 govern reviews of a change.
 
 - **Argue every finding, and say which kind it is.**
   - **proven:** the code shows it. Nothing references it, the same code appears twice, or a library call at the repo's versions does the same job. The proof is mechanical.
@@ -43,15 +43,15 @@ In `rules/always/review-discipline.md`, item 5 applies to a hunt, and items 1 to
 
 **3. Defensive bloat:** null checks on non-nullable or already-validated values; the same rule validated again in several layers; guards on code that only internal callers reach; clamps and saturation for inputs validation already refuses.
 - *Proof:* the upstream guarantee that makes it dead: the type, the validator at the boundary, or the database constraint, by `file:line`.
-- *Don't flag:* trust boundaries (HTTP input, deserialisation, message consumers, external API responses, a host's implementation of a published port); domain invariants a use case or aggregate enforces (`rules/invariants/invariant-enforcement.md`); database constraints. Nor an application check that turns a database constraint or a later failure into a declared result or a better error (the constraint stays the authority).
+- *Don't flag:* trust boundaries (HTTP input, deserialisation, message consumers, external API responses, a host's implementation of a published port); domain invariants a use case or aggregate enforces (`invariants/invariant-enforcement.md`); database constraints. Nor an application check that turns a database constraint or a later failure into a declared result or a better error (the constraint stays the authority).
 
 **4. Speculative abstraction:** an interface with one implementation and none of house doctrine's seam reasons (variability, runtime boundary, ownership boundary, testability, cross-module dependency); a factory, strategy, or registry for two or three cases a `switch` would hold; a base class whose subclasses only supply constants; forwarding wrappers; a library or generated client wrapped one-for-one; a generic repository or unit of work over a `DbContext`; an in-process mediator with nothing in its pipeline; a custom logging facade over `ILogger<T>`; a "Core" with thin shells around it; a config option or flag that's never set to a second value.
 - *Proof:* the implementations, callers, or values, counted across the whole repo. For a config value, the deployment config too (appsettings per environment, Bicep or Terraform, pipelines, and the live settings where you can read them, `az` included); without that, the finding is risk high.
-- *Don't flag:* a port at the Infrastructure edge that `rules/backend/ports-and-adapters.md` (or `rules/frontend/ports.md`) calls for; a seam that a test fake or a second host actually uses.
+- *Don't flag:* a port at the Infrastructure edge that `backend/ports-and-adapters.md` (or `frontend/ports.md`) calls for; a seam that a test fake or a second host actually uses.
 
 **5. Duplication (WET):** the same query, mapping, DTO shape, helper, constant, rule, or pipeline written twice or more; a UI re-deriving a rule the server decides (a house Law); hand-written TypeScript types or fetch wrappers mirroring server DTOs where a generated client or contract exists; in Vue, a `watch` that copies state into a `ref` where a `computed` would derive it.
 - *Proof:* every location, and the reason they'd change together: would a change to one need the same change in the others? A commit that changed them together is the best evidence.
-- *Don't flag:* coincidental likeness; three similar lines (house doctrine, "Let patterns prove themselves"); per-slice code that vertical slices keep local on purpose (house doctrine, "Local Before Shared").
+- *Don't flag:* coincidental likeness; three similar lines (`coding/coding-style.md`, "Let patterns prove themselves"); per-slice code that vertical slices keep local on purpose (`coding/local-before-shared.md`).
 
 **6. Dead code:** unused types, members, parameters, options, endpoints, files, and dependencies; commented-out code; flags that are always on; code used only by its own tests; code that runs but changes nothing (a value computed and never read, a call whose result is dropped and that has no side effect).
 - *Proof:* no references anywhere in the repo, including the ones a symbol search misses: reflection, DI assembly scanning, serialisation, config binding, string names, and framework conventions. In Nuxt that means file-based routing (`pages/`, `server/api/`, `middleware/`, `plugins/`, `layouts/`) and auto-imported components by their path-derived name (`components/case/Header.vue` is `<CaseHeader>` or `<case-header>`). For a dependency, no import or `using` of it.
@@ -63,7 +63,7 @@ In `rules/always/review-discipline.md`, item 5 applies to a hunt, and items 1 to
 - *Proof:* every consumer of it is in this repo or is the team's own.
 - *Don't flag:* a published package's deprecations kept under its versioning rules.
 
-**8. Type escapes:** in TypeScript, `x as T`, `<T>x`, and `x!` that quiet the compiler (a house Law); on any stack, `any`, `object`, or `dynamic` carrying values, and `unknown` outside a parse boundary, C# `object?`, and `Record<string, unknown>` or `Dictionary<string, object>` where the keys are known; reflection (`MethodInfo.Invoke`, `MakeGenericType`) where the caller already holds the static type (`rules/always/type-safety-all-stacks.md`).
+**8. Type escapes:** in TypeScript, `x as T`, `<T>x`, and `x!` that quiet the compiler (a house Law); on any stack, `any`, `object`, or `dynamic` carrying values, and `unknown` outside a parse boundary, C# `object?`, and `Record<string, unknown>` or `Dictionary<string, object>` where the keys are known; reflection (`MethodInfo.Invoke`, `MakeGenericType`) where the caller already holds the static type (`coding/type-safety-all-stacks.md`).
 - *Proof:* the real type the value has, and where it comes from.
 - *Don't flag:* `as const`, `satisfies`, or genuinely dynamic data (user-supplied key-value pairs, opaque JSON from an external API); in C#, `= null!` or `default!` on EF entity and options properties, which is the framework's idiom.
 
@@ -71,7 +71,7 @@ In `rules/always/review-discipline.md`, item 5 applies to a hunt, and items 1 to
 - *Portability test:* a comment or name that could move unchanged into an unrelated project carries no information about this one.
 - *Don't flag:* comments that say why; doc comments on a published package's public API that a consumer needs; logging at a boundary that ops relies on.
 
-**10. Test slop:** a check that can't fail (it asserts the mock, compares output with its own input, or passes with the code deleted); a test that mocks the unit it claims to test; `UseInMemoryDatabase` or another fake engine where house doctrine requires the production one (a Law, `rules/tests/test-substrate.md`); duplicate tests; snapshot sprawl; test hooks in production code; config that switches checks off for code it was never meant for (an analyzer or lint rule scoped too wide).
+**10. Test slop:** a check that can't fail (it asserts the mock, compares output with its own input, or passes with the code deleted); a test that mocks the unit it claims to test; `UseInMemoryDatabase` or another fake engine where house doctrine requires the production one (a Law, `tests/test-substrate.md`); duplicate tests; snapshot sprawl; test hooks in production code; config that switches checks off for code it was never meant for (an analyzer or lint rule scoped too wide).
 - *Proof:* name the code change that would make the test or check fail, or say "none".
 - *A test of live code that can't fail* is a finding like any other, with "replace with a test that pins <behaviour>". It can be deleted only when the behaviour itself is being removed (dead code with its own tests, or a design finding the user agrees to), or when another named test already pins *that behaviour* (by `file:line`).
 - *A duplicate test* can be deleted only when the kept test fails for every break the deleted one fails for.
@@ -99,7 +99,7 @@ Leave these out of the report:
 
 - a guard at a trust boundary, an authorization check, or a domain invariant's enforcement (the machinery around it can still be slop);
 - migrations and generated code (judge the generator's configuration instead, if that's in your area);
-- thresholds someone tuned by measurement, and assertions that could be tighter but already cover the behaviour (house doctrine, "Suppress noise");
+- thresholds someone tuned by measurement, and assertions that could be tighter but already cover the behaviour (`coding/review-discipline.md`, "Suppress noise");
 - taste: a name or a layout you'd have chosen differently, when yours would weigh no less.
 
 ## Your report

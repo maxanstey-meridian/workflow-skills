@@ -1,0 +1,15 @@
+## Seams
+
+Seams must be earned.
+
+Introduce a seam only when there is real:
+
+- variability
+- runtime boundary
+- ownership boundary
+- testability need
+- cross-module dependency concern
+
+Do not introduce seams just because the pattern exists.
+
+Fake abstractions are worse than direct code.

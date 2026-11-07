@@ -1,0 +1,11 @@
+## Resilience and Time
+
+- cancellation flows from transport through Application to every adapter
+- timeouts, retries, and circuit breaking live at volatile infrastructure
+  boundaries
+- never retry a non-idempotent operation blindly
+- inject `TimeProvider` / a Clock port when business behavior depends on time
+- stamps too: one injected clock everywhere in production code, adapters and SQL
+  included (no `DateTime.UtcNow`, no `now()` in queries), so a test that fixes the
+  clock fixes every comparison
+- keep transport retry policy separate from business compensation policy

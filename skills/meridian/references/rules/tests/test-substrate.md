@@ -1,0 +1,25 @@
+## Test Substrate
+
+Integration tests run on the production database engine. `UseInMemoryDatabase`
+is banned anywhere in test source — the EF InMemory provider validates neither
+SQL nor relational behavior (no FK enforcement, no real query translation), so it
+manufactures confidence. SQLite is not a substitute for PostgreSQL-specific
+SQL, collation, transaction, or concurrency behavior. Use Testcontainers. A
+good fixture starts one PostgreSQL container for the whole run, migrates a
+template database once, gives each test fixture its own database copied from
+that template (`CREATE DATABASE … TEMPLATE …`), and resets data between tests
+with [Respawn](https://github.com/jbogard/Respawn), so tests stay isolated
+without paying for a container or a migration per fixture. The `tests/near-metal-rule.md` rule
+applies: if the adapter behavior under test touches PostgreSQL, the test should
+touch PostgreSQL.
+
+If a test wants to avoid persistence entirely, the fake goes at the
+**repository/query port**, never underneath the real adapter as a fake
+database. Either the test exercises the real adapter against a real engine, or
+it fakes the port and the adapter isn't under test at all — there is no honest
+middle.
+
+Tests themselves are exempt from production-code rules (layer purity, module shape,
+.NET style):
+test code can import whatever it needs; it is judged by the testing rules' standards
+(double vocabulary, mock density, location), not by production-code rules.

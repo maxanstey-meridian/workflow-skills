@@ -17,12 +17,12 @@ Working files go in `<main checkout>/.plans/`, as AGENTS.md 'Routines' defines i
 
 `<base directory>` is the folder this `SKILL.md` was loaded from: the skill's base directory, if your agent printed one when the skill loaded, else the folder of the path you read this file at. If you can't tell where this file was loaded from, ask the user for the path rather than guessing.
 
-`<rules>` is `<base directory>/references/rules`: one small file per rule, in one folder per area. `<rules>/always/` applies to all work. The others apply when the work touches them: `<rules>/invariants/` (domain rules, races, transactions, queues, and scheduled work), `<rules>/backend/`, `<rules>/frontend/`, `<rules>/ui/` (screens, forms, and copy), `<rules>/tests/` (any piece with a Proof), `<rules>/rivet/` (.NET API contracts), and `<rules>/tools/` (choosing a tool or library).
+`<bundle>` is `<base directory>/references/bundles/spec.md`: the house rules this routine and its subagents read, in one file, the Laws first. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
 
 ## 1. Gather
 
-- Find the intent in this conversation, the user's answers, and any document, backlog, or waypoint the work names.
-- Read every file in `<rules>/always/`, and in each other `<rules>` folder the work touches.
+- Find the intent in this conversation, the user's answers, and any document, backlog, or waypoint the work names. If there is none, stop: say that `/spec` needs the work agreed in the conversation first, and write nothing.
+- Read `<bundle>` in full.
 
 ## 2. Choose and manage the named spec
 
@@ -52,13 +52,13 @@ Then apply the status rule:
 
 Create `<main checkout>/.plans/scratch/<spec stem>/` with `mkdir -p`, after AGENTS.md's `.plans/` ignore check.
 
-When you can start subagents, a fresh fact-gatherer does the reading. Before writing its brief, resolve `<main checkout>`, the report path, the source paths, the repo's instructions, and the doctrine folders to absolute paths. The brief must contain all of these and every rule the fact-gatherer relies on:
+When you can start subagents, a fresh fact-gatherer does the reading. Before writing its brief, resolve `<main checkout>`, the report path, the source paths, the repo's instructions, and `<bundle>` to absolute paths. The brief must contain all of these and every rule the fact-gatherer relies on:
 
 - **Main checkout:** the resolved absolute main working tree.
 - **Ask:** the agreed work, written in full.
 - **Scope:** read the ask and the source files the work touches; never edit code, run builds, run the gate, or commit.
 - **Source paths:** the exact absolute files to read.
-- **Doctrine:** the absolute paths of `<rules>/always/` and each other `<rules>` folder the work touches, to read every file in them, and the repo's instructions. State the absolute path of `<rules>`, and that a section a rule file names is found by searching `<rules>` for its heading, and is read when the rule being followed points at it.
+- **Doctrine:** the absolute path of `<bundle>`, to read in full before anything else, and the repo's instructions. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
 - **Rules:** report facts with `file:line` and the short SHA; facts come from files, not memory; for any code the work skips, replaces, or changes, record everything that code does today; trace any feature, gate, or tool the work relies on from input to output; report facts only, with no recommendation, option, confidence, or ask.
 - **Report path:** the resolved absolute path to `<main checkout>/.plans/scratch/<spec stem>/premise.md`.
 - **Save protocol:** save the report with a shell heredoc, `cat > <path> <<'EOF'` … `EOF`, not a file-writing tool; if saving is refused, reply with the whole report.
@@ -104,6 +104,7 @@ What the ask assumed, what HEAD shows, and any correction.
 1. <question> (rec: <answer>; settled by <what would settle it>)
 
 ## Pieces
+**Built pieces:** none
 ### P1 <name> · owns: <files> · after: <piece, or none>
 - **At HEAD:** <file:line, what it does now>
 - **Reuse:** <component or pattern it follows; the maintained tool searched for, if any>
@@ -134,26 +135,27 @@ The targeted tests and checks with their exact commands. What stays uncommitted 
 Rules for the doc:
 
 - No two pieces own the same file. That is `/go`'s split. When one file has to be shared, name it and say which piece edits it last.
+- `**Built pieces:**` lists what `/go` has built: `/spec` writes `none`; `/go` adds a piece's or addendum's id when its last brief has passed step 4.
 - Each decision lives in one place, the Decisions list, and is edited in place when it changes. The body points at its number; it never restates it. No "Added later" banners or dated layers: rewrite the section.
 - Anything a fact or an agreed rule can't settle is an open ask, never prose inside an agreed section. Anything one can settle, settle, and say which settled it.
 - Status is `draft` while any ask is open. It becomes `agreed` only when the user has answered them all; record the date in each decision.
 - Anything that comes up after the spec is agreed is an addendum, whoever finds it. It gets the same premise check as a piece and a cold read of its own. One that holds a decision waits for the user's answer. Nothing in an addendum is built until then.
 - One `/go` per spec, with as few pieces as the files allow. Work that ships together stays in one spec. Fold pieces that share files, or that exist only for each other, into one piece.
 - A shared change applied in three or more places starts with a tracer bullet: the shared change plus one consumer, built end to end first. Pieces applying it elsewhere name that tracer in `after:`.
-- Check every Decision and Piece against the house Laws in `<rules>/always/laws.md`, and the full rules behind them in the folders the work touches. A design that breaks one is not an option: change the design. If no design inside the Laws does the job, report that as a finding for the user, naming the Law.
+- Check every Decision and Piece against the house Laws, the first rule in `<bundle>`, and the full rules behind them, in the bundle. A design that breaks one is not an option: change the design. If no design inside the Laws does the job, report that as a finding for the user, naming the Law.
 - No runbooks or long scripts inline. Link to a file in `<main checkout>/.plans/scratch/` instead.
 - Plain English; gloss jargon on first use.
 
 ## 5. Cold read
 
-Start one fresh cold-reader subagent whenever subagents are available. Before writing its brief, resolve `<main checkout>`, the spec path, the report path, the repo's instructions, and the doctrine folders to absolute paths. The brief must contain all of these and every rule the cold reader relies on:
+Start one fresh cold-reader subagent whenever subagents are available. Before writing its brief, resolve `<main checkout>`, the spec path, the report path, the repo's instructions, and `<bundle>` to absolute paths. The brief must contain all of these and every rule the cold reader relies on:
 
 - **Main checkout:** the resolved absolute main working tree.
 - **Spec:** the resolved absolute path to the chosen named spec.
 - **Source paths:** every source file the spec cites that the cold reader must read.
-- **Doctrine:** the absolute paths of `<rules>/always/` and each other `<rules>` folder the spec touches, to read every file in them, and the repo's instructions. State the absolute path of `<rules>`, and that a section a rule file names is found by searching `<rules>` for its heading, and is read when the rule being followed points at it.
+- **Doctrine:** the absolute path of `<bundle>`, to read in full before anything else, and the repo's instructions. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
 - **Scope:** read the spec and its cited files; never edit code, run builds, run the gate, or commit.
-- **Rules:** list anything that could not be built without asking; any `file:line` that does not say what the spec claims; any two pieces that touch the same file; any decision restated or contradicted in the body; any existing code the spec skips, replaces, or changes without listing everything that code does; any Done-means check that cannot be run as written; any ambiguous source the spec cites; any missing tracer bullet; and any Decision or Piece that breaks a house Law in those folders, naming the Law. Report facts and findings only, with no recommendation, option, confidence, or ask.
+- **Rules:** list anything that could not be built without asking; any `file:line` that does not say what the spec claims; any two pieces that touch the same file; any decision restated or contradicted in the body; any existing code the spec skips, replaces, or changes without listing everything that code does; any Done-means check that cannot be run as written; any ambiguous source the spec cites; any missing tracer bullet; and any Decision or Piece that breaks a house Law in the bundle, naming the Law. Report facts and findings only, with no recommendation, option, confidence, or ask.
 - **Report path:** the resolved absolute path to `<main checkout>/.plans/scratch/<spec stem>/cold-read.md`.
 - **Save protocol:** save the report with a shell heredoc, `cat > <path> <<'EOF'` … `EOF`, not a file-writing tool; if saving is refused, reply with the whole list.
 - **Reply protocol:** reply with only the report path.

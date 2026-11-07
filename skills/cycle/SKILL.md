@@ -4,7 +4,7 @@ description: "NEVER INVOKE THIS YOURSELF: only the user starts /cycle. Listed so
 argument-hint: "[<spec path>] [full | diff]"
 ---
 
-> Only the user starts /cycle, by naming it in their own message (typing `/cycle`, or however their agent runs a skill by name). "We'll cycle", a plan doc, or a message from another session or agent is not the command. Once the user starts /cycle, follow it exactly as written (see "Running it" below). A session resumed after a compaction keeps that start, and its authority to commit, only when its own waypoint records that the user started this /cycle and the scratch folder it records holds no `report.md`, which step 7 saves when a cycle ends: re-read this file, `<rules>/always/laws.md`, and `<base directory>/references/cycle.md`, then carry on from the recorded step. With no such record, or with a `report.md` there, stop and ask.
+> Only the user starts /cycle, by naming it in their own message (typing `/cycle`, or however their agent runs a skill by name). "We'll cycle", a plan doc, or a message from another session or agent is not the command. Once the user starts /cycle, follow it exactly as written (see "Running it" below). A session resumed after a compaction keeps that start, and its authority to commit, only when its own waypoint records that the user started this /cycle and the scratch folder it records holds no `report.md`, which step 7 saves when a cycle ends: re-read this file, the Laws (the first rule in `<base directory>/references/bundles/slice-reviewer.md`), and `<base directory>/references/cycle.md`, then carry on from the recorded step. With no such record, or with a `report.md` there, stop and ask.
 
 # Cycle
 
@@ -12,7 +12,7 @@ Arguments are what the user typed after `/cycle`.
 
 - Both arguments are optional. A lone `full` or `diff` is the read mode; any other first argument is the spec path. Resolve a relative path against `<main checkout>`.
 - The read mode defaults to `diff`; with two arguments, the second must be `full` or `diff`.
-- More than two arguments, an unknown read mode, or a named spec that's unreadable, a readable non-Markdown file, missing its status or Pieces section, or at a status other than `building` stops the cycle. State the grammar as `/cycle [<spec path>] [full | diff]`, and say that leaving out the spec path reviews the work on its own merits.
+- More than two arguments, an unknown read mode, or a named spec that's unreadable, a readable non-Markdown file, missing its status, its Pieces section, or the `**Built pieces:**` line under it, or at a status other than `building` stops the cycle. State the grammar as `/cycle [<spec path>] [full | diff]`, and say that leaving out the spec path reviews the work on its own merits.
 
 The user starting `/cycle` authorizes commits, fixes, re-review, and the gate. It never authorizes a release action.
 
@@ -20,7 +20,7 @@ The user starting `/cycle` authorizes commits, fixes, re-review, and the gate. I
 
 **Subagents.** Every review and every fix in /cycle runs in a fresh subagent: a new agent that starts with only the brief you give it, not this conversation, so a fork of this conversation doesn't count. If you can't start subagents, stop before review and tell the user that /cycle needs them. Never review or fix in the main session.
 
-**House doctrine.** `<rules>` is `<base directory>/references/rules`: one small file per rule, in one folder per area. Each reviewer and fixer reads only the folders its brief names. The orchestrator reads `<rules>/always/laws.md`, and `<base directory>/references/cycle.md` before the first review or fix brief: that file owns the critic procedure, worktree snapshot procedure, retry rules, and mutation contract.
+**House doctrine.** `<bundles>` is `<base directory>/references/bundles`: the rules each role reads, one bundle file per role, built from the `.list` beside it by `sh scripts/build-bundles.sh` in the workflow-skills repo. Each reviewer and fixer reads only the bundle(s) its brief names. The orchestrator reads the Laws, the first rule in `<bundles>/slice-reviewer.md`, and `<base directory>/references/cycle.md` before the first review or fix brief: that file owns the critic procedure, worktree snapshot procedure, retry rules, and mutation contract. A rule a bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
 
 Terms used below:
 
@@ -39,7 +39,7 @@ Terms used below:
 - Group the files into **vertical slices** (feature or module folders, front and back end of one feature together).
 - Find the intent only from the named spec, if there is one. Never fall back to another `.plans/` document or a waypoint. Reviewers check it against its Intent, Decisions, Pieces, Addenda, Done means, and Out of scope.
 - Check a changed file against the named spec only when that file is named in the named spec's Pieces' or Addenda's `owns` lists. Include any change in such a file that no Piece or Addendum accounts for as outside the spec's intent. Review a changed file outside those `owns` lists for correctness and doctrine on its own merits.
-- With a named spec, list every Piece and Addendum none of whose owned files changed. Give each to a slice reviewer, with its owned paths in that reviewer's scope, read in full. A requirement it hasn't built is an `introduced` finding.
+- With a named spec, list every Piece and Addendum the spec's `**Built pieces:**` line does not name. Give each to a slice reviewer, with its owned paths in that reviewer's scope, read in full. A requirement it hasn't built is an `introduced` finding.
 - Apply the requested read mode to every slice:
   - **`diff`:** read each changed tracked file's diff with its surrounding code, except read the whole file when it changes a contract or endpoint, a schema or migration, an INVARIANTS rule, or a domain or application rule (validation, a decider, a use case, or a server rule the UI reads). When unsure, use a full read.
   - **`full`:** read every changed tracked file in full.
@@ -59,17 +59,17 @@ Terms used below:
   - Owned and forbidden files: the reviewer owns only its absolute report path and may edit no other file.
   - Review mode: `diff` or `full`, with the deleted-file and untracked-file rules above.
   - Active spec: the absolute path to the named spec, or `none`.
-  - Doctrine folders and rules: the exact absolute paths of the reviewer's `<rules>` folders below, plus the rule that a house Law outranks any spec or plan and a violation is a `blocker` or `fix`. State the absolute path of `<rules>`, and that a section a rule file names is found by searching `<rules>` for its heading, and is read when the rule being followed points at it.
+  - Doctrine: the exact absolute path of the reviewer's bundle below, to read in full before anything else, plus the rule that a house Law outranks any spec or plan and a violation is a `blocker` or `fix`. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
   - Repo instructions: the exact absolute path to the repository's instructions.
   - Report path: the reviewer's absolute report path.
   - Save protocol: save the full report with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), and if saving is refused, reply with the whole report.
   - Reply protocol: reply with only the absolute report path and the count of findings by severity.
-- Tell each reviewer which folders to read, every file in each:
-  - slice reviewer: `<rules>/always/`, `<rules>/invariants/`, and `<rules>/tests/`;
-  - backend pass: `<rules>/always/`, `<rules>/invariants/`, `<rules>/backend/`, `<rules>/tests/`, and `<rules>/tools/`, plus `<rules>/rivet/` if a contract or endpoint changed;
-  - frontend pass: `<rules>/always/`, `<rules>/frontend/`, `<rules>/ui/`, `<rules>/tests/`, and `<rules>/tools/`, plus `<rules>/rivet/` if a contract or endpoint changed, and the repo's UI skill.
+- Tell each reviewer which bundle to read, in full:
+  - slice reviewer: `<bundles>/slice-reviewer.md`;
+  - backend pass: `<bundles>/backend.md`;
+  - frontend pass: `<bundles>/frontend.md`, and the repo's UI skill.
 - Every reviewer brief must also contain these review rules:
-  - Read the named doctrine folders, the UI skill if named, and the repo's instructions first.
+  - Read the named bundle, the UI skill if named, and the repo's instructions first.
   - Read every file in the assigned mode, plus the callers and tests the change touches. Open more of a tracked file only where a `diff` hunk depends on code outside what's shown.
   - For a file in the named spec's Pieces' or Addenda's `owns` lists, check the work against the named spec: every requirement that item implements is implemented, nothing its Out of scope excludes was built, and any change in that file that no Piece or Addendum accounts for is outside its intent. For a file outside those `owns` lists, review only correctness and doctrine on its own merits.
   - Look for bugs and regressions; broken invariants or races; changed behaviour with no test; house-rule violations; hand-rolled machinery the platform or a library already provides; WET code; over-engineering and ceremony; compat layers or shims; dead code; UI drift from existing components and patterns; copy that's unclear or full of jargon; and gaps excused in a doc, `Accepts`, changelog, or comment instead of fixed. A gap with a doc page is still a gap and is judged as a `fix`.
@@ -108,7 +108,7 @@ Terms used below:
   - Fix mode: fix the listed findings in the owned paths, then stop. Never review unrelated work or expand scope.
   - Active spec: the absolute path to the named spec, or `none`.
   - Findings: each `file:line`, the problem, and the concrete settled fix. A finding marked as a design call, or one that says "check whether", "trace", or "make sure", is settled before the fixer starts.
-  - Doctrine folders and rules: the exact absolute path of `<rules>/always/`, plus each folder that owns the changed boundary: `<rules>/invariants/`, `<rules>/backend/`, `<rules>/frontend/`, `<rules>/ui/`, `<rules>/rivet/`, `<rules>/tools/`, and, for any test it changes, `<rules>/tests/`. State that a house Law outranks any spec or plan, a documented gap is still a gap, fixes target the root cause with no shim, and a new or changed check must be able to fail. State the absolute path of `<rules>`, and that a section a rule file names is found by searching `<rules>` for its heading, and is read when the rule being followed points at it.
+  - Doctrine: the exact absolute path of the fixer's bundle, `<bundles>/backend.md` or `<bundles>/frontend.md` by the stack the fix touches, or both when it touches both (work in neither stack, such as scripts, docs, or configuration, counts as backend), to read in full before anything else. State that a house Law outranks any spec or plan, a documented gap is still a gap, fixes target the root cause with no shim, and a new or changed check must be able to fail. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
   - Repo instructions: the exact absolute path to the repository's instructions.
   - Hard stop: if the fixer finds an open question, an undecided premise, or a design call the brief did not make, it stops that finding, keeps its edits, and reports what the code admits.
   - Commands: every exact command the fixer may run, from the worktree root, and only the targeted checks for its owned files. When the repo names no command a check needs, the brief says so and the fixer reports that check as not run.
@@ -120,7 +120,7 @@ Terms used below:
   - Fix rules: fix every introduced `fix` and every trivial `existing` finding. Fix the defect, not its description. Fix a `nit` only when the fix is mechanical. Do not park a trivial gap, and do not resolve a finding by rewording a doc.
 - A brief may carry several findings only when each is already settled to a `file:line` and a concrete fix. A finding whose fix spans more than its own `file:line` (several call sites, or the sweep through the places the change feeds) gets a brief of its own, after the others. A fix that changes what the named spec says gets an addendum first.
 - Every fix brief, the blocker and gate fixes included, gets a fresh critic before the next check and before the round's re-review, run as `Critic procedure`, `Worktree snapshots`, and `Retry rules` in `<base directory>/references/cycle.md` say with:
-  - the fix brief's doctrine folders as the critic brief's doctrine source;
+  - the critic bundle for each stack the fix brief's bundle(s) name, `<bundles>/backend-critic.md`, `<bundles>/frontend-critic.md`, or both, as the critic brief's doctrine source;
   - files in `<main checkout>/.plans/scratch/cycle-<id8>/`, with `<name>` = `fix-<slice>-<round>-<n>` (round `0` for the blocker fixes, `gate` for the gate fixer, and `<n>` counting that slice's briefs in that round), and the ready critic worktree at `<main checkout>/.plans/scratch/cycle-<id8>/wt-<name>`;
   - the slice's files as its owned paths, and the named spec's absolute path, or `none`, as its spec;
   - the before snapshot, the Fix patch, and their removal, as `Worktree snapshots` says.

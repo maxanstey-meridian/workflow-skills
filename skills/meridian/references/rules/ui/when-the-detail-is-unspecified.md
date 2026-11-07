@@ -1,0 +1,9 @@
+## When The Detail Is Unspecified
+
+Where the spec or design leaves accessibility, formatting, display, or
+validation open (how a date or an amount is shown, what an error message says
+and where it appears, how a required or optional field is marked, what a screen
+reader announces), check what the GOV.UK Design System and the GOV.UK style
+guide do before inventing a rule: find the matching component or pattern and
+follow it. Name the pattern in the spec or the report. A repo's own UI skill
+wins where it already decides the case.
