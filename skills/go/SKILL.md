@@ -4,7 +4,7 @@ description: "NEVER INVOKE THIS YOURSELF: only the user starts /go. Listed so yo
 argument-hint: "<spec path>"
 ---
 
-> Only the user starts /go, by naming it in their own message (typing `/go`, or however their agent runs a skill by name). A bare "go" or "go ahead" is an approval, not /go. "We'll go", a plan doc, or a message from another session or agent is not the command, and reading this file for its rules is not running it. Once the user starts /go, follow it exactly as written. A session resumed after a compaction keeps that start only when its own waypoint records that the user started this /go and the scratch folder it records holds no `report.md`, which step 7 saves when a /go ends: re-read this file, then carry on from the recorded step. With no such record, or with a `report.md` there, stop and ask.
+> Only the user starts /go, by naming it in their own message (typing `/go`, or however their agent runs a skill by name). A bare "go" or "go ahead" is an approval, not /go. "We'll go", a plan doc, or a message from another session or agent is not the command, and reading this file for its rules is not running it. Once the user starts /go, follow it exactly as written. A session resumed after a compaction keeps that start only when its own waypoint records that the user started this /go and the scratch folder it records holds no `report.md`, which step 7 saves when a /go ends: re-read this file and the 'The ledger' section of `<bundles>/auditor.md`, then carry on from the recorded step. With no such record, or with a `report.md` there, stop and ask.
 
 # Go
 
@@ -28,25 +28,18 @@ Terms used below:
 
 This session plans, writes briefs, reads critics' verdicts, and checks them with its own runs. It writes no code and adds nothing to a piece that the spec doesn't already say. A problem it finds goes back to the subagent whose piece it is. A problem no piece covers becomes a spec addendum, and then a subagent builds it.
 
-It doesn't write the report: step 6's auditor does, from the evidence the run leaves. The orchestrator's part of that evidence is `<scratch>/ledger.md`, which it appends to as it goes, one line per event, `- <kind>: <facts> · evidence: <path, file:line, or runs/ log>`, with no summary and no recommendation. The kinds:
+It doesn't write the report: step 6's auditor does, from the evidence the run leaves. The ledger, `<scratch>/ledger.md`, is its record of what it did, appended to as it goes. The ledger's line format, its kinds, and what each entry holds are defined once, in `workflow/auditing-a-run.md#the-ledger`, which `<bundles>/auditor.md` carries. Read that section of `<bundles>/auditor.md` before step 1's first ledger entry.
 
-- `run`: every command you run yourself (a rerun, a targeted check, a Done-means check, a mutation run, or setup), with its output, working folder, and exit code saved to `<scratch>/runs/<n>.log`;
-- `call`: a design call you made, by its spec Decision number;
-- `unbuilt`: an item left unbuilt, with the sign or FAIL that stopped it;
-- `blocked`: a setup failure that is BLOCKED, with its log;
-- `setup-inferred`: setup the repo's instructions don't name, and what you ran instead;
-- `peer-red`: a red from a peer session's file;
-- `worktree-left`: a worktree you couldn't remove.
-
-The ledger is the only file of yours the auditor reads.
+Of what you write, the auditor reads the ledger, the `runs/` logs and mutation report copies it points at, the spec lines you wrote, and the briefs, sources, commands files, and patches your subagents worked from; never a note, a draft, or an account of the run.
 
 ## 1. Scope
 
 - Find the intent in the spec path and the user's answers to its asks.
 - The spec's status is settled before anything is built: a `draft` asks its open questions, records the answers, and becomes `agreed`, then `building`; an `agreed` spec becomes `building` before the first builder starts; a `building` spec continues: skip every piece and addendum its `**Built pieces:**` line names, and when it has no such line, add `**Built pieces:** none` directly under `## Pieces` first; stop on `built (<hash>)` or an unrecognized status.
+- Once the status check above has not stopped /go, and before any ledger entry is written: remove every `<scratch>/wt-*` worktree left by an earlier /go of this spec (`git worktree remove --force` each), then every other file and folder in `<scratch>`. Built pieces are already recorded in the spec's `**Built pieces:**` line, so nothing in `<scratch>` carries over.
 - An open decision that changes what gets built: ask first, numbered, each with a recommendation. Anything else inside what the spec describes: choose, and record the choice in the spec's Decisions and as a `call` ledger entry. Anything that changes what gets built beyond the spec is an addendum first.
 - Run `git status --short`, and list the other agent sessions working in this tree if you can. Peers' dirty files are theirs; leave them alone.
-- Remove any `<scratch>/report.md`, `<scratch>/ledger.md`, `<scratch>/runs/`, and `<scratch>/audit-*.md`, and every `<scratch>/wt-pre-*` worktree (`git worktree remove --force` each), left by an earlier /go of this spec. Snapshot the whole uncommitted tree at `<wt-pre-go>` = `<scratch>/wt-pre-go`, with no restore, install, build, or checks:
+- Snapshot the whole uncommitted tree at `<wt-pre-go>` = `<scratch>/wt-pre-go`, with no restore, install, build, or checks:
   - `git worktree add --detach <wt-pre-go> HEAD`
   - `git diff HEAD --binary | git -C <wt-pre-go> apply --allow-empty`
   - `git ls-files -z --others -- . ':(exclude).plans/' <output exclusions> | tar --null -T - -cf - | tar -xf - -C <wt-pre-go>`
@@ -58,7 +51,7 @@ The ledger is the only file of yours the auditor reads.
 ## 2. Split
 
 - Split the work into pieces by file: no two pieces touch the same file. A piece that needs another's result runs after it. A spec's Pieces are that split already: use them, and say where you changed one.
-- A shared change applied in three or more places gets one piece headed `Tracer bullet:`. A tracer bullet is the shared change plus one consumer, built end to end first. Pieces applying it elsewhere name the tracer in `after:` and wait for its targeted tests, format, and lint, plus the critic and orchestrator checks.
+- A shared change applied in three or more places gets one piece headed `Tracer bullet:`. A tracer bullet is the shared change plus one consumer, built end to end first. Pieces applying it elsewhere name the tracer in `after:` and wait for its targeted tests, format, and lint, plus the critic and orchestrator checks. A piece or addendum whose `after:` names an item left unbuilt, or one BLOCKED, is never briefed, and is itself an `unbuilt` ledger entry, its cause the item it waits on.
 - Subagents build the pieces, in parallel where they're independent: one fresh subagent per brief.
 
 ## 3. Build
@@ -73,7 +66,7 @@ Hard block: no builder starts on a question. Before you start any builder, its p
 
 If there is one, settle it before the builder starts:
 
-1. Check the facts yourself, or with a read-only subagent that reports facts only.
+1. Check the facts yourself, or with a read-only *fact-gatherer* that reports facts only.
 2. Ask the user, with those facts, only what neither a fact nor an agreed rule settles. Settle the rest, and record what settled each.
 3. Write their answer into the spec.
 
@@ -120,7 +113,7 @@ A fresh *critic* subagent checks each builder brief before the piece's next brie
      - Mark non-ignored untracked files with intent to add: `git -C <wt> ls-files --others --exclude-standard -z | xargs -0 git -C <wt> add -N --`.
      - Save the fingerprint: `(cd <wt> && { git status --porcelain=v1 -z -- . <output exclusions>; git diff --binary HEAD -- . <output exclusions>; }) | shasum > <wt>.fp`.
 
-     Setup precedes the critic. A build failure is a command FAIL with its exit code, routed to the piece that owns the failing file. Any other setup failure is BLOCKED, your verdict, and no critic starts.
+     Setup precedes the critic. A build failure is a command FAIL with its exit code, routed to the piece that owns the failing file. Any other setup failure is BLOCKED, your verdict, recorded as a `blocked` ledger entry, and no critic starts.
   2. Changed files and the patch, both from the ready worktree after `add -N`, the patch against step 3's `<scratch>/wt-pre-<piece>-<n>` snapshot:
      - `git -C <wt> diff --name-only --diff-filter=d HEAD -- <owned paths>`
      - For each owned path, append the output of `git diff --no-index -U3 --binary -- <before-file> <wt-file>` to `<scratch>/diff-<piece>-<n>.patch`, between that snapshot and `<wt>`, using `/dev/null` when either side is absent and treating exit 1 as differences. Then remove the snapshot.
@@ -133,7 +126,7 @@ A fresh *critic* subagent checks each builder brief before the piece's next brie
   - A red from a peer session's file is a `peer-red` ledger entry wherever the orchestrator meets one.
   - Any of your commands that exits non-zero on your rerun is a builder command FAIL, with your exit code. A confirmed Missing, Extra, Misunderstood, or Not achieved is a builder FAIL; you confirm a Not achieved shown by a run with your rerun of its command. Judgement findings reach the user labelled as the critic's; act on one only after reading its cited `file:line`.
   - A changed fingerprint or an unparseable verdict is the critic's fault, not the builder's: start a fresh critic in a fresh worktree before any builder is briefed.
-  - **BLOCKED** is yours for a setup failure that isn't a build failure from a piece's files. Ordinary `after:` dependencies still wait.
+  - **BLOCKED** is yours for a setup failure that isn't a build failure from a piece's files, and is recorded as a `blocked` ledger entry. A piece or addendum waiting on an unbuilt or BLOCKED item is handled as step 2's tracer bullet bullet says.
   - After your checks, `git worktree remove --force <wt>`; one you couldn't remove is a `worktree-left` ledger entry.
   - When a piece's or addendum's last brief has passed (a passed verdict your checks agree with), add its id to the spec's `**Built pieces:**` line, replacing `none` the first time, so a later `/go` or `/cycle` knows it is built.
 - **A FAIL** goes back, as its confirmed bullets, to the piece that owns that file, as a new brief to a fresh subagent. A test-only mutation FAIL keeps the test-item owner even when that piece does not own the cited source file. A problem no piece covers is an addendum.
@@ -149,50 +142,49 @@ A fresh *critic* subagent checks each builder brief before the piece's next brie
 
 - Format and lint only the changed files.
 - Run the targeted tests for what changed, and the UI typecheck if the UI changed.
-- Run every Done-means check the spec lists. Run yourself any that no subagent could run. One that nobody here can run goes to Needs from you, and the work isn't done until it's run or the user waives it. Never drop one silently.
-- **Mutation,** once, last, when the checks above are green. A mutant is a small deliberate change to the code, and a surviving mutant is one no test noticed. A mutation report is the JSON file the mutation command writes, in the mutation-testing-elements format. With no mutation command in the repo's instructions, report `mutation: not run (the repo's instructions name no mutation command)`. Otherwise:
+- Run every Done-means check the spec lists. Run yourself any that no subagent could run. One that nobody here can run is a `not-run` ledger entry, with why nobody here can run it; the work isn't done until it's run or the user waives it. Never drop one silently.
+- **Mutation,** once, last, when the checks above are green. A mutant is a small deliberate change to the code, and a surviving mutant is one no test noticed. A mutation report is the JSON file the mutation command writes, in the mutation-testing-elements format. With no mutation command in the repo's instructions, record a `not-run` ledger entry. Otherwise:
   - Make `<wt>` = `<scratch>/wt-mutation` as step 4 does, with the `add -N` but no fingerprint.
   - Mutate each existing source file under a path a piece or addendum of this spec owns that differs from its `<wt-pre-go>` copy (this /go's changes, and on a continued `building` spec the earlier /go's too), plus every existing source file recorded for a test-only item, even when its piece does not own that source. Exclude deletions and other peers' files. Before mutation, resolve each test-only item's promised guarded regions to current-file line ranges in the ready mutation worktree.
   - For each mutation file, compare its pre-/go snapshot file with the mutation file using `git diff --no-index -U0 -- <before-file> <mutation-file>`; exit 1 means differences. Compare an absent before-file with `/dev/null`. The current-file `+` ranges are this work's changed-source lines. When the repo command accepts ranges, supply the union of those ranges and the promised guarded regions.
-  - Count mutants with `jq '[.files[].mutants[] | select(.status != "Ignored")] | length' <report>`. Zero counted mutants is `mutation: not run (no mutants in scope)`. No report, or a worktree that won't set up, is BLOCKED and stops only this step.
+  - Count mutants with `jq '[.files[].mutants[] | select(.status != "Ignored")] | length' <report>`. Zero counted mutants is a `not-run` ledger entry ("no mutants in scope"). No report, or a worktree that won't set up, is BLOCKED: a `blocked` ledger entry, and it stops only this step.
   - List survivors with `jq -r '.files | to_entries[] | .key as $f | .value.mutants[] | select(.status == "Survived" or .status == "NoCoverage") | "\($f):\(.location.start.line) \(.mutatorName) \(.replacement)"' <report> | sed "s|^<wt>/||" | sort -u`.
   - Only Survived and NoCoverage fail; Timeout and RuntimeError count as killed, and CompileError and Ignored are unscored.
   - A Survived or NoCoverage mutant in a promised guarded region is a FAIL on every test-only item that promised that region. A survivor inside a current-file `+` range also FAILs the source-owning piece's current item. Route each item's survivors as one counted failure.
   - A survivor outside both the promised guarded regions and the changed-source ranges is pre-existing: a gap to its piece's builder if trivial and owned, else an open item for step 6's audit.
-  - Every survivor fix is a fresh builder brief with a critic, reruns this step's ordinary targeted checks, and never reruns mutation.
-- After a mutation run, remove `<wt>` after survivor attribution. At the end of this step, remove `<wt-pre-go>`.
-- Never the repo's full gate; /cycle runs it once.
+  - Every survivor fix is a fresh builder brief with a critic, quoting each of its survivors' lines from the survivor listing word for word, reruns this step's ordinary targeted checks, and never reruns mutation.
+- After a mutation run, copy its report to `<scratch>/mutation.json` and point the mutation run's ledger entry at that copy, then remove `<wt>` after survivor attribution. At the end of this step, remove `<wt-pre-go>`.
+- Never the repo's full gate; /cycle runs it.
 - Other red checks go back to the piece's builder, then it reruns only what failed. A subagent's fix gets a critic.
 
 ## 6. Audit
 
-A fresh read-only *auditor* subagent says what is still open, routes each open item by the gap rule, and writes the report. You don't write the report, and nothing of yours but the ledger reaches the auditor.
+A fresh read-only *auditor* subagent says what is still open, routes each open item by the gap rule, and writes the report. You don't write the report. Of what you write, the auditor reads the ledger, the `runs/` logs and mutation report copies it points at, the spec lines you wrote, and the briefs, sources, commands files, and patches your subagents worked from; never a note, a draft, or an account of the run.
 
 - Write the auditor brief to `<scratch>/audit-brief-<n>.md`, with `<n>` `1` for the audit and `2` for the re-audit. It holds the full text of `<bundles>/auditor.md`, then these, resolved to absolute paths:
   - the main checkout;
   - the spec;
-  - `<scratch>`, and every evidence file in it, listed by path: each `brief-*`, `report-*`, `critic-*`, `cold-brief-*`, `cold-*`, `diff-*.patch`, and `commands-*` file, the mutation report, and `runs/`;
+  - `<scratch>`, and every evidence file in it, listed by path: each `brief-*`, `report-*`, `critic-*`, `cold-brief-*`, `cold-*`, `diff-*.patch`, and `commands-*` file, `mutation.json`, and `runs/`;
   - the ledger;
   - the repo's instructions;
-  - step 7's template;
+  - step 7's template, its text copied in full;
   - the report path `<scratch>/audit-<n>.md`;
-  - on the re-audit, `<scratch>/audit-1.md` and the numbers of the items it sent for fixing.
+  - on the re-audit: `<scratch>/audit-1.md`; the numbers of every item it routed `fix-now` or `send-back` (briefed, or recorded `unbuilt` without a brief); every evidence file written since the audit, listed by path; and the ledger line number the entries written since the audit start at.
 
   Nothing else of yours goes in it: no notes, no draft, and no account of the run. The brief is self-contained.
-- An audit that leaves out an input its brief listed, breaks the template, or gives an item no route is the auditor's fault: start one fresh auditor on the same brief, once.
-- Check each claim the audit's report relies on, at its `file:line` or by rerunning its command, as AGENTS.md 'Reports' says. Where your check contradicts a claim, keep the claim and your evidence for step 7. Never edit the audit.
+- An audit that leaves out an input its brief listed, breaks the template, or gives an item no route is the auditor's fault: start one fresh auditor on the same brief, once. If that one fails the same way, carry on with its report as it stands (for the audit: the items it routes `fix-now` or `send-back`, then, when it routed any, the re-audit), and name the failure on step 7's `Orchestrator disagrees` line.
+- Check each claim each audit's report relies on, the re-audit's included, at its `file:line` or by rerunning its command, as AGENTS.md 'Reports' says. Where your check contradicts a claim, keep the claim and your evidence for step 7. Never edit the audit.
 - **The audit's `fix-now` and `send-back` items are built before the report.**
-  - An item a piece owns goes to that piece as a new builder brief, under step 3's rules and checked by step 4's critic.
-  - An item no piece owns becomes an addendum first, as Scope says, and is built the same way.
-  - An item whose fix needs a design call is settled as step 3 says before its builder starts. One that neither a fact nor an agreed rule settles goes to Needs from you as a decision, with the audit's options, and isn't built in this /go.
-  - Then rerun the targeted checks for what those briefs changed, as step 5 says, without mutation.
+  - Each item that isn't already a spec line becomes an addendum first, as Scope says: its `owns:` lists the fix's paths. When a piece or an earlier addendum already owns any of them, its `after:` names that one (several, comma-separated, when the paths span several) and, as /spec's shared-file rule says, the addendum edits those files last, so a FAIL or build failure in its brief's files goes back to the addendum; when none does, `after:` is `none`. It has the audit's Fix as its Change and a Proof, and gets the premise check and cold read /spec gives every addendum, the cold read being step 3's. Each item is then briefed under step 3's rules and checked by step 4's critic.
+  - An item whose fix needs a design call is settled from facts and agreed rules, as step 3's items 1 and 2 say, without asking the user now. One that neither a fact nor an agreed rule settles is not asked now: record it as an `unbuilt` ledger entry whose cause is the open call and the audit's options, and it isn't built in this /go.
+  - Then rerun the targeted checks for what those briefs changed and every Done-means check the spec lists, as step 5 says, without mutation.
   - An item left unbuilt under step 4's rules is an `unbuilt` ledger entry.
 
-  Then brief the re-audit, with those items' numbers. There's no third audit: the re-audit's report is the last. When the audit sends nothing for fixing, its report is the last.
+  Whenever the audit routes any item `fix-now` or `send-back`, briefed or not (an item recorded `unbuilt` above counts), brief the re-audit as above. There's no third audit: the re-audit's report is the last. When the audit routes none, its report is the last.
 
 ## 7. Report
 
-Save the last audit's Report section, word for word, to `<scratch>/report.md`, with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), then give it. After its last line, add `**Orchestrator disagrees:** 1. <the audit's claim, quoted> — <your evidence: the file:line, or the command and its exit code>` for each claim step 6's check contradicted, and leave the line out when there are none.
+Save the last audit's Report section, word for word, to `<scratch>/report.md`, with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), followed by the line `**Orchestrator disagrees:** 1. <the audit's claim, quoted, or the failure step 6 names> — <your evidence: the file:line, or the command and its exit code>`, one numbered entry for each claim step 6's check contradicted and each audit failure step 6 names, and leave the line out when there are none. Then give the saved file's content.
 
 The auditor fills in this template:
 
@@ -209,4 +201,4 @@ The auditor fills in this template:
 **Audited:** <the audit report paths>
 ```
 
-**Needs from you** is as AGENTS.md 'Reports' defines it. An item the audit sent for fixing that is still open is in Needs from you as unfinished, with its cause, never in Parked. Stop there: the user reviews, then runs /cycle with that spec path.
+**Needs from you** is as AGENTS.md 'Reports' defines it. It holds every item the audit routes there: each `decision`, `user-only`, and `unfinished` item, and, on the re-audit, each `fix-now` or `send-back` item still open, as unfinished with its cause; never in Parked. Stop there: the user reviews, then runs /cycle with that spec path.
