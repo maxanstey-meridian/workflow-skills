@@ -47,7 +47,7 @@ The kinds. The first eight apply to both `/go` and `/cycle`:
    - a FAIL bullet with no later PASS for the same item;
    - a mutation survivor (Survived or NoCoverage) that no fix brief with a passing critic verdict quotes;
    - an `unbuilt` ledger entry;
-   - a spec Piece or Addendum that the spec's `**Built pieces:**` line doesn't name;
+   - a spec Piece or Addendum that the spec's `**Built pieces:**` line doesn't name (one item with any `unbuilt` entry for it);
    - a Done-means check with no passing run since the last fix and no `not-run` entry for it (in `/cycle`, only on the re-audit or when the ledger has a `stopped` entry: step 7's gate runs every Done-means check after the audit round);
    - a builder's or fixer's "could not check", "not traced", or "not confirmed";
    - a reviewer's or zoom-out finding that no fix closed, that the orchestrator dropped or merged, or whose severity is `decision`;
