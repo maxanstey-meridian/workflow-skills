@@ -10,13 +10,12 @@ Being one-shot, it isn't perfect. That's what `/spec`, `/go`, and `/cycle` are f
 
 | | |
 | --- | --- |
-| Model | GLM 5.3 Flash, reasoning effort `high` (`ollama/glm-5.3-flash:cloud#high`, Ollama's cloud through a local Ollama) |
+| Model | GLM 5.3 Flash, flex tier, reasoning effort `high` (`neuralwatt/glm-5.3-flash-flex#high`, through Neuralwatt) |
 | Harness | OpenCode v2.2.5, `opencode run --standalone --auto --format json`, in an empty git repo |
 | Skills | this repo's skills, installed with `install.sh` into a clean home; `AGENTS.md` loaded as the instructions |
-| Date | 2026-11-07 |
-| Time | 19 min 41 s |
-| Tokens | 293 model calls; 317,419 input, 158,032 output (thinking included), 55,016,448 read from cache |
-| Cost | $0 charged (an Ollama subscription); $1.78 at the model's list price ($0.15 input, $0.50 output, $0.03 cached read, per million) |
+| Date | 2026-11-10 |
+| Tokens | 261 model calls; 324,759 input, 164,650 output (thinking included), 50,862,528 read from cache |
+| Cost | $1.08 at the model's list price ($0.0975 input, $0.325 output, $0.0195 cached read, per million) |
 | Database | Postgres 17 in a throwaway container on port 55471 |
 
 The prompt, verbatim:

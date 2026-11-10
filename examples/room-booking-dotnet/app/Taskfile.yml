@@ -1,0 +1,73 @@
+version: "3"
+
+tasks:
+  # --- API (.NET 10) ---
+  api:build:
+    desc: Build the .NET solution.
+    cmds:
+      - dotnet build Cowork.slnx
+
+  api:test:
+    desc: Run the API tests (integration tests start a PostgreSQL container via Docker).
+    cmds:
+      - dotnet test
+
+  api:format:
+    desc: Apply analyser fixes, then CSharpier owns layout.
+    cmds:
+      - dotnet format Cowork.slnx style --severity warn
+      - dotnet csharpier format src
+
+  # --- Rivet transport contract gates ---
+  contracts:generate:
+    desc: Regenerate the OpenAPI spec and the TypeScript schema from the C# contracts.
+    cmds:
+      - dotnet rivet --project src/Api/Api.csproj --output packages/contracts/generated --title "Cowork Rooms API" --version 1.0.0 --server http://localhost:5213
+      - pnpm --filter @cowork/contracts generate
+
+  contracts:check:
+    desc: Fail when a contract field has no matching handler (coverage gate).
+    cmds:
+      - dotnet rivet --project src/Api/Api.csproj --check -q
+
+  contracts:verify:
+    desc: Fail when the committed OpenAPI spec is stale (drift gate).
+    cmds:
+      - dotnet rivet --project src/Api/Api.csproj --output packages/contracts/generated --title "Cowork Rooms API" --version 1.0.0 --server http://localhost:5213 --verify -q
+
+  # --- Frontend (Nuxt 4) ---
+  web:install:
+    cmds:
+      - pnpm install
+
+  web:dev:
+    desc: Run the Nuxt dev server (proxies /api to the API on :5213).
+    dir: apps/web
+    cmds:
+      - pnpm dev
+
+  web:test:
+    dir: apps/web
+    cmds:
+      - pnpm test
+
+  web:typecheck:
+    dir: apps/web
+    cmds:
+      - pnpm typecheck
+
+  web:build:
+    dir: apps/web
+    cmds:
+      - pnpm build
+
+  # --- The gate ---
+  check:
+    desc: "Everything CI runs: build, contract coverage and drift gates, both test suites."
+    cmds:
+      - task: api:build
+      - task: contracts:check
+      - task: contracts:verify
+      - task: api:test
+      - task: web:test
+      - task: web:typecheck

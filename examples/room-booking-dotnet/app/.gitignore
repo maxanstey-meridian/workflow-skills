@@ -1,25 +1,8 @@
-# Secrets, data, and tool noise
-.env
-*.user
-email-out/
-.data/
-
-# .NET
 bin/
 obj/
-*.swp
-*.swo
-TestResults/
-.dotnet/
-
-# Node
 node_modules/
 .nuxt/
 .output/
 dist/
-.nitro/
-.cache/
-coverage/
-
-# OS
-.DS_Store
+*.user
+.env

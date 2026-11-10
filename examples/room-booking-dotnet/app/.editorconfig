@@ -57,14 +57,10 @@ dotnet_style_readonly_field = true:suggestion
 # "Add braces" diagnostic (backs csharp_prefer_braces)
 dotnet_diagnostic.IDE0011.severity = warning
 
-dotnet_diagnostic.IDE0005.severity = error
-dotnet_diagnostic.IDE0051.severity = error
-dotnet_diagnostic.IDE0052.severity = error
-dotnet_diagnostic.IDE0060.severity = error
-dotnet_diagnostic.CA1801.severity = error
-dotnet_diagnostic.CA1811.severity = error
+dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.CA1822.severity = none
 
-# Naming rules
+# Interfaces must start with I
 dotnet_naming_rule.interfaces_should_be_prefixed.severity = warning
 dotnet_naming_rule.interfaces_should_be_prefixed.symbols = interfaces
 dotnet_naming_rule.interfaces_should_be_prefixed.style = prefix_I
@@ -76,6 +72,7 @@ dotnet_naming_symbols.interfaces.required_modifiers =
 dotnet_naming_style.prefix_I.required_prefix = I
 dotnet_naming_style.prefix_I.capitalization = pascal_case
 
+# Private constants/statics should be PascalCase
 dotnet_naming_rule.private_const_fields_pascal.severity = warning
 dotnet_naming_rule.private_const_fields_pascal.symbols = private_const_fields
 dotnet_naming_rule.private_const_fields_pascal.style = pascal_case_style
@@ -86,6 +83,7 @@ dotnet_naming_symbols.private_const_fields.required_modifiers = const
 
 dotnet_naming_style.pascal_case_style.capitalization = pascal_case
 
+# Private instance fields (and static non-const) should be _camelCase
 dotnet_naming_rule.private_fields_underscore.severity = warning
 dotnet_naming_rule.private_fields_underscore.symbols = private_fields
 dotnet_naming_rule.private_fields_underscore.style = underscore_camel
@@ -97,11 +95,20 @@ dotnet_naming_symbols.private_fields.required_modifiers =
 dotnet_naming_style.underscore_camel.required_prefix = _
 dotnet_naming_style.underscore_camel.capitalization = camel_case
 
-############################
-# Frontend files
-############################
-[*.{ts,vue,json,yml,yaml,md,html,css}]
-indent_size = 2
+dotnet_diagnostic.IDE0005.severity = error
+dotnet_diagnostic.IDE0051.severity = error
+dotnet_diagnostic.IDE0052.severity = error
+dotnet_diagnostic.IDE0060.severity = error
+dotnet_diagnostic.CA1801.severity = error
+dotnet_diagnostic.CA1811.severity = error
 
-[*.md]
-trim_trailing_whitespace = false
+############################
+# EF Core generated migrations: read-only, unlinted
+############################
+[src/Api/Migrations/*.cs]
+dotnet_diagnostic.IDE0005.severity = none
+dotnet_diagnostic.IDE0051.severity = none
+dotnet_diagnostic.IDE0052.severity = none
+dotnet_diagnostic.IDE0060.severity = none
+dotnet_diagnostic.IDE0161.severity = none
+csharp_style_namespace_declarations = block_scoped:none
