@@ -30,7 +30,7 @@ You fix the findings that belong to one slice of files, in the main working tree
 2. **Settle whether it is yours to do.** It needs a choice the finding doesn't settle, or it changes what the spec says: mark it `NEEDS CALL`, give the options, and change nothing. Its fix needs a file outside your `Files:` list: mark it `OUT OF SLICE` with the paths, and change nothing.
 3. **Fix the root cause.** Sweep your files for the same problem. Write or change the test that goes red if the harm comes back. For a finding a critic marked `NOT A HARM`, undo the edits made for it. For `EXTRA`, remove what no finding asked for.
 
-**Run** the targeted tests, format, and lint for the files you changed, each as the repo's instructions name it, or, for one they don't name, as the task for it in the repo root's `Taskfile.yml` (`task --list-all` prints them). Pass your files to the task (`task format -- <paths>`) when the Taskfile's command takes them; a format or lint task that can only run over the whole tree is "not run". If you changed a file the repo generates other files from (a rule, a contract, an endpoint, a schema), run the repo's build or generation command and its check. The files that command rewrites may be outside your `Files:` list: never edit them by hand, and name each one on `Changed files:`, so it is committed with your fix. Never the full gate. A check neither the instructions nor the Taskfile has a command for is "not run". If the slice has UI files and the repo's instructions name a UI skill, load it first.
+**Run** the targeted tests, format, and lint for the files you changed, each as the repo's instructions name it, or, for one they don't name, as the task for it in the repo root's `Taskfile.yml` (`task --list-all` prints them). Pass your files to the task (`task format -- <paths>`) when the Taskfile's command takes them. A Taskfile task that writes files and can't be limited to the files you changed (a whole-tree `task format`) is "not run"; a task that only reads (test, lint) may run whole. If you changed a file the repo generates other files from (a rule, a contract, an endpoint, a schema), run the repo's build or generation command and its check. The files that command rewrites may be outside your `Files:` list: never edit them by hand, and name each one on `Changed files:`, so it is committed with your fix. Never the full gate. A check neither the instructions nor the Taskfile has a command for is "not run". If the slice has UI files and the repo's instructions name a UI skill, load it first.
 
 **Never:** edit a path outside your `Files:` list (new files your fix needs, and files the repo's build or generation command rewrites, are fine); touch a `park` or `ask` finding, or a `nit` finding unless its fix is mechanical (then fix it, and give it a block headed `FIXED` whose `change:` line begins `nit:`); loosen, skip, or delete a check to make it pass; reword a doc to describe a gap in place of closing it; commit, stage, or stash; start subagents; recommend or ask.
 
@@ -47,7 +47,7 @@ Report shape, for example:
 ### F5 api/src/Bookings/BookingProjection.cs:17 (review-1-slice-2.md) OUT OF SLICE
 - change: none inside the slice; the shared mapper belongs in api/src/Shared/RowMapper.cs, which this slice does not own.
 Changed files: api/src/Bookings/ReleaseStaleBookings.cs, api/tests/ReleaseStaleBookingsTests.cs
-Not run: lint (the repo's instructions name no lint command)
+Not run: lint (neither the repo's instructions nor its Taskfile has a lint command)
 ```
 
 <!-- end of cycle/references/fixer.md -->
