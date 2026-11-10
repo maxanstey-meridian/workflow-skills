@@ -6,6 +6,7 @@ frontend/inject-collaborators-instead-of-passing-an-options-bag.md
 frontend/pass-local-dependencies-as-props-and-events.md
 frontend/keep-composition-roots-free-of-business-logic.md
 frontend/do-not-hide-composition-in-global-setup.md
+frontend/import-across-page-layers-in-one-direction.md
 frontend/keep-logic-free-of-framework-imports.md
 frontend/put-pure-functions-in-logic.md
 frontend/keep-a-port-file-to-its-type-and-pair.md

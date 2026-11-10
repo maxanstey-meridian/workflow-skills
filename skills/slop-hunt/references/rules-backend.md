@@ -12,6 +12,11 @@ Each line is one rule: its title, its one sentence, and the file that holds it.
 - **Never call one controller from another.** A controller or endpoint never calls, injects, inherits from, or stores another controller; share the Application capability underneath. [`backend/never-call-one-controller-from-another.md`]
 - **Never reach into another module's internals.** A module (one feature's folder under `Modules/` or `src/modules/`) never imports a sibling's Domain or Infrastructure, queries its tables, entities, or DbSets, or uses its non-public Application types. [`backend/never-reach-into-another-modules-internals.md`]
 - **Integrate modules through a port, contract, or kernel.** Two modules (feature folders under `Modules/` or `src/modules/`) work together in one of three ways only: a required port (the consumer's own type naming the capability it needs) bridged to the provider by a host adapter (an implementation in the host, which may depend on both sides); a published contract (the commands, queries, and types the provider deliberately exposes to other modules); or a shared kernel (a small concept both own and change only by agreement). [`backend/integrate-modules-through-a-port-contract-or-kernel.md`]
+- **Run module dependencies one way.** Dependencies between modules (feature folders under `Modules/` or `src/modules/`) form a one-way graph, so no module reaches itself by following them; a loop is a gap to fix, and no decision record or accepted cost stands in for its fix. [`backend/run-module-dependencies-one-way.md`]
+- **Depend only on a module yours cannot keep its rules without.** A module (a feature folder under `Modules/` or `src/modules/`) may depend on another only when it couldn't keep its own rules if the other had never been built, so which way a dependency runs is a fact about the domain, not a design choice. [`backend/depend-only-on-a-module-yours-cannot-keep-its-rules-without.md`]
+- **Name neither module when neither needs the other.** When each of two modules (feature folders under `Modules/` or `src/modules/`) could keep its rules if the other had never been built, neither names the other: the one that uses the other's data or behaviour owns a required port (its own type naming the capability it needs), bridged at the host. [`backend/name-neither-module-when-neither-needs-the-other.md`]
+- **Merge two modules that each need the other.** When each of two modules (feature folders under `Modules/` or `src/modules/`) can keep its rules only with the other, they are one concept in two modules, so merge them. [`backend/merge-two-modules-that-each-need-the-other.md`]
+- **Write each module dependency down as a claim.** The repo writes down each pair where one module (a feature folder under `Modules/` or `src/modules/`) can't keep its rules without another as a claim with its reason, and a module depends only on what it claims and, through those claims, on what they claim. [`backend/write-each-module-dependency-down-as-a-claim.md`]
 - **Close published contracts over published types.** A module's published contract (the types it deliberately exposes to other modules) and the transport contract (the route definitions and wire types in top-level `Contracts/<Feature>/`) refer only to published or shared types, never to a module's Domain, Application, Infrastructure, or presentation types; move wire-facing enums, records, and value shapes into the contract and map at the transport edge (controllers, endpoints, and the mappers beside them). [`backend/close-published-contracts-over-published-types.md`]
 - **Never reference transport contracts from a module.** A module's Contracts, Domain, Application, and Infrastructure (a module is one feature's folder under `Modules/`) never reference the top-level transport contracts (the API's wire types), and no `global using` brings them in; the transport edge maps to and from module types. [`backend/never-reference-transport-contracts-from-a-module.md`]
 - **Send client-facing rules on the read model.** A rule the client needs travels on the read model (the object the server returns for a screen), computed by the same code the write side uses: `availableActions` on a lifecycle entity's detail model, a named flag for a single decision, and app-wide permissions (capabilities) on the session. [`backend/send-client-facing-rules-on-the-read-model.md`]
@@ -180,6 +185,60 @@ Good: the reports module calling the forms module's published query.
 
 Bad: Forms' use case importing `Submissions.Application.SubmissionService`.
 Good: forms declaring a `SubmissionCounts` port that a host adapter implements by calling submissions' published query.
+<!-- rule: backend/run-module-dependencies-one-way.md -->
+## Run module dependencies one way
+
+**Law:** Dependencies between modules (feature folders under `Modules/` or `src/modules/`) form a one-way graph, so no module reaches itself by following them; a loop is a gap to fix, and no decision record or accepted cost stands in for its fix.
+
+**When:** Any backend with more than one module. The integration rule says how two modules talk; this one says which of the two may name the other. An edge from a module to one it can't keep its rules without can't form a loop, because a module can't need itself, so every loop holds at least one edge between two modules where neither needs the other, or where each needs the other. That edge is the one to fix.
+
+Bad: Cases reading CaseTypes' versions and CaseTypes reading Cases' open count, with a decision record that accepts the loop.
+Good: Cases depending on CaseTypes, and CaseTypes taking the count through its own `OpenCaseCounts` port, bridged at the host.
+<!-- rule: backend/depend-only-on-a-module-yours-cannot-keep-its-rules-without.md -->
+## Depend only on a module yours cannot keep its rules without
+
+**Law:** A module (a feature folder under `Modules/` or `src/modules/`) may depend on another only when it couldn't keep its own rules if the other had never been built, so which way a dependency runs is a fact about the domain, not a design choice.
+
+**When:** Any two modules where one names the other. Ask it both ways: could this module keep its rules if the other had never been built? When only one of them couldn't, that one may depend on the other, and nothing in the other names it.
+
+Bad: CaseTypes importing Cases to count the Cases on a type.
+Good: Cases depending on CaseTypes, because a typed Case's stages, statuses, and permissions come from its Case type version, while a Case type keeps every rule with no Cases at all.
+<!-- rule: backend/name-neither-module-when-neither-needs-the-other.md -->
+## Name neither module when neither needs the other
+
+**Law:** When each of two modules (feature folders under `Modules/` or `src/modules/`) could keep its rules if the other had never been built, neither names the other: the one that uses the other's data or behaviour owns a required port (its own type naming the capability it needs), bridged at the host.
+
+**When:** Two modules that work together though neither needs the other. This is the only case where a direction would be arbitrary, and the answer is no edge, not a chosen one. Each may still store the other's ids as opaque values. When one pair keeps needing more of these ports, the boundary may be false: merge the modules or redraw it before adding another port.
+
+Bad: Records importing Cases' published query to show the Case a record was issued on.
+Good: Records declaring a `CaseSummaries` port that a host adapter implements from Cases, since a record issued by hand is still a record and a Case with no record is still a Case.
+<!-- rule: backend/merge-two-modules-that-each-need-the-other.md -->
+## Merge two modules that each need the other
+
+**Law:** When each of two modules (feature folders under `Modules/` or `src/modules/`) can keep its rules only with the other, they are one concept in two modules, so merge them.
+
+**When:** Two modules where neither could keep its rules if the other had never been built. When the cause is one module holding two concepts that sit at different points, such as definitions that others pin and the instances made from them, split that module so each concept sits in its own place.
+
+Bad: `Invoices` and `InvoiceLines` as two modules, each checking its totals against the other.
+Good: one `Invoices` module.
+<!-- rule: backend/judge-which-module-needs-which-from-the-domain-first.md -->
+## Judge which module needs which from the domain first
+
+**Default:** Decide whether one module (a feature folder under `Modules/` or `src/modules/`) needs another from the domain first, from stored data second, and from the code last, because the code is what's under suspicion.
+
+**When:** Answering whether a module could keep its rules if another had never been built. The domain: the people who run it can say whether an X keeps its rules without a Y. Stored data: a required id of Y in X's own row, set when X is made, is evidence that X needs Y; an optional id, or one on a later child or link row, is evidence only that the two are associated, either way.
+
+Bad: "Records depends on Cases, because `RecordsController` already imports it."
+Good: "A record can be issued by hand with no Case, and `records.case_id` is optional, so Records doesn't need Cases."
+<!-- rule: backend/write-each-module-dependency-down-as-a-claim.md -->
+## Write each module dependency down as a claim
+
+**Law:** The repo writes down each pair where one module (a feature folder under `Modules/` or `src/modules/`) can't keep its rules without another as a claim with its reason, and a module depends only on what it claims and, through those claims, on what they claim.
+
+**When:** Any backend whose module dependencies a checker reads (Plumb reads `.plumb-modules.json`). Claim only the pairs where one module needs the other; modules that don't need each other stay unordered. A reference against the claims is wrong: replace it with a consumer-owned required port bridged at the host, or move a genuinely shared type to the shared kernel. A loop the claims don't explain is one question per pair: answer it, then add the claim, remove the reference, or merge or split the modules.
+
+Bad: a claims file generated from the imports the code has today.
+Good: `"Cases": { "CaseTypes": "a typed Case's stages, statuses, and permissions come from its pinned Case type version" }`, added by hand once the question was answered.
 <!-- rule: backend/close-published-contracts-over-published-types.md -->
 ## Close published contracts over published types
 

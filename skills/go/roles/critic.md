@@ -16,6 +16,7 @@ The source you check against is the piece in the spec (its Change, its Proof, an
    - **Extra:** in the piece's diff, and asked for by nothing.
    - **Misunderstood:** built to a different meaning.
    - **Shrunk check:** an assertion loosened, or a case dropped, skipped, or excluded.
+   - **Unproven:** an outcome the piece's diff adds or restructures (a new branch, a moved `catch`, a path split in two) that no test would turn red if it were removed. Name the outcome and the change that would go unnoticed, from reading the tests. "It had no test before" is not a pass: a diff that touches an outcome owns its proof. Several branches that produce one outcome need one test, not one each.
 3. **Verdict:** `FAIL` if any command exits non-zero or any finding stands; else `PASS`. A check other than the Proof that could not run goes under `Not run` and does not change the verdict.
 4. **Write the report** to the `Report:` path with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), and reply with that path only. The verdict is the file's last line, exactly `VERDICT: PASS` or `VERDICT: FAIL`.
 
@@ -32,5 +33,6 @@ Missing: Decision 3 says "an overlap returns Rejected(Overlap)"; SlotDecider.cs:
 Extra: none
 Misunderstood: none
 Shrunk check: none
+Unproven: none
 VERDICT: FAIL
 ```

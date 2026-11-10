@@ -77,6 +77,15 @@ Good: the page calls `groupRows` from `logic/`.
 
 Bad: `provideFormDraft(useFormDraft(id))`, for state one page uses, in `app.vue`.
 Good: the same line in that page.
+<!-- rule: frontend/import-across-page-layers-in-one-direction.md -->
+## Import across page layers in one direction
+
+**Default:** Imports between a page's folders point one way: `logic/` imports none of the others, `ports/` imports only `logic/`, `adapters/` imports only `logic/` and `ports/`, and a component never imports an adapter.
+
+**When:** The `logic/`, `ports/`, `adapters/`, `composables/`, and `components/` folders of a Vue or Nuxt frontend. Composables and composition roots (the app shell, a layout, or a page) may import any of them, and a port file may import the `useProvideInject` helper.
+
+Bad: `import { useSections } from "../composables/useSections"` in `logic/section-state.ts`.
+Good: `logic/section-state.ts` exports a plain function, and `composables/useSections.ts` imports it.
 <!-- rule: frontend/keep-logic-free-of-framework-imports.md -->
 ## Keep logic free of framework imports
 

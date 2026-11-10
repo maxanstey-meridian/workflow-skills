@@ -15,6 +15,12 @@ backend/call-only-use-cases-from-a-controller.md
 backend/never-call-one-controller-from-another.md
 backend/never-reach-into-another-modules-internals.md
 backend/integrate-modules-through-a-port-contract-or-kernel.md
+backend/run-module-dependencies-one-way.md
+backend/depend-only-on-a-module-yours-cannot-keep-its-rules-without.md
+backend/name-neither-module-when-neither-needs-the-other.md
+backend/merge-two-modules-that-each-need-the-other.md
+backend/judge-which-module-needs-which-from-the-domain-first.md
+backend/write-each-module-dependency-down-as-a-claim.md
 backend/close-published-contracts-over-published-types.md
 backend/never-reference-transport-contracts-from-a-module.md
 backend/redraw-a-boundary-that-needs-atomic-cross-module-changes.md

@@ -10,13 +10,13 @@ The run folder holds `build-<id>-<n>.md`, `critic-<id>-<n>.md`, and `status-befo
 
 1. **Run every Done-means command** the spec lists, from the main checkout, and record each with its exit code. One only the user can run (a deploy, a live check) is "not run: the user's". A Done-means command that is the repo's full gate (the command its instructions name as the gate) is not run, and nor is mutation: `/cycle` runs both. List them under Not checked.
 2. **Settle each Piece** in the spec as exactly one of:
-   - **done:** its last critic report (the one with the highest attempt number) ends `VERDICT: PASS`, the change is in the diff or in an untracked file the piece owns, and no Done-means command that covers it is red;
+   - **done:** its last critic report (the one with the highest attempt number) ends `VERDICT: PASS`, the change is in the diff or in an untracked file the piece owns, no Done-means command that covers it is red, and you found no gap in it that this work caused or left (step 4);
    - **not done:** anything else, with the cause in one line, quoted from the critic's findings, the builder's report, or a red command. A piece no builder started is "not done: waits on <id>";
    - **needs the user:** it stopped on a question only the user can answer; quote the question.
 
    A piece on the spec's `**Built pieces:**` line with no critic file in the run folder is "done in an earlier run (not re-checked)". A piece on that line whose last critic file (the one with the highest attempt number) does not end `VERDICT: PASS` opens Findings.
 3. **Settle each spec Decision:** name the piece whose diff honours it, or say "no piece built it".
-4. **Park** what the reports raised that is real, non-trivial, and outside this work: one line each, with the fix, about how many lines it is, the design call it needs, and who hits it. A gap users will hit without being told is `rec: fold in`; a trivial one is not parked.
+4. **Park** what the reports raised that is real, non-trivial, and outside this work: one line each, with the fix, about how many lines it is, the design call it needs, and who hits it. A gap users will hit without being told is `rec: fold in`; a trivial one is not parked. A gap this work caused or left (an outcome its diff adds or restructures that no test proves, a check a piece promised that isn't there) is never parked, whatever the critic's verdict: it is a numbered Finding, the piece that owns it is "not done", and Needs from you says what to add to the spec before `/go` runs again.
 5. **Write the report** in the template below, to the `Report:` path, with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), and reply with that path only. Start with what changes the picture. Plain English; gloss jargon. Every item in Needs from you carries your recommendation.
 
 **The last line of the report** is `**Built pieces:**` followed by the id of every piece you settled as done, and of every piece you called "done in an earlier run (not re-checked)", separated by `, `, or `none`. The orchestrator copies it into the spec.
