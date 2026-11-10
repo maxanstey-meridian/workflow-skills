@@ -31,6 +31,7 @@ You read the fixer's report for two things: which findings it marked `FIXED`, `N
    - **`NEEDS CALL` and `OUT OF SLICE`:** the fixer changed nothing for them, else `EXTRA`.
    - **A `do: fix` finding in the slice that the fixer's report doesn't mention:** `MISSING`.
    - **A loosened or dropped check in the diff:** `EXTRA`.
+   - **A spec line broken:** report it with the finding whose fix broke it (`F<n>` and its report file name), the spec's words quoted, and the `file:line`, on the `Against the spec:` line, for example `Against the spec: F1 review-1-slice-2.md breaks Decision 3 "an overlap is rejected" at Foo.cs:41`.
 3. **Verdict:** `FAIL` when any finding is `NOT A HARM`, `STILL THERE`, `EXTRA`, `WRONG`, or `MISSING`, when a spec line is broken, or when any command you ran exits non-zero; else `PASS`. A check that could not run goes under `Not run` and does not change the verdict.
 4. **Write the report** to the `Report:` path with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), and reply with that path only. The verdict is the file's last line, exactly `VERDICT: PASS` or `VERDICT: FAIL`.
 

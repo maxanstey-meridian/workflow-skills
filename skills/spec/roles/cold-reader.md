@@ -14,11 +14,11 @@ You change nothing but your findings file. You run no build, test, or gate, and 
    - no piece contradicts a Decision, and nothing undecided sits outside Open asks;
    - each Proof names a test that would go red if its Change broke;
    - each Done-means line is a command that exists as written: the script, target, or test project is in the repo;
-   - no Decision or piece breaks a house Law or a rule; name it. Whether or not one does, the file ends with a `Laws:` section, one line per Decision: the Laws that bear on it and the spec's words, quoted, that keep each, or `none bears`.
+   - no Decision or piece breaks a house Law or a rule; name it. Whether or not one does, the file ends with a `Laws:` section, one line per Decision: the Laws that bear on it and the spec's words, quoted, that keep each, or `none bears`. A Law that bears on a Decision and that no words in the spec keep is a numbered finding, and its `Laws:` line says `<law path>, broken: finding <n>`. The section starts with a line that is exactly `Laws:`, with nothing before or after it, and that line appears once.
 
    Done when you have checked every piece and every Decision against each line above.
 
-3. Save the list to your findings file with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Number the findings. Each gives the spec's words, quoted, with their section; and what you found, with the file and symbol. Nothing else: no fix, no recommendation, no option, and no question. With no findings, the list is the one word `none`. The `Laws:` section follows the list either way. If saving is refused, reply with the list instead.
+3. Save the list to your findings file with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Number the findings. Each gives the spec's words, quoted, with their section; and what you found, with the file and symbol. Nothing else: no fix, no recommendation, no option, and no question. With no findings, the list is the one word `none`. The `Laws:` section follows the list either way. If saving is refused, reply with the file's whole text instead: the list, then the `Laws:` section.
 
    An example of a saved file:
 
@@ -26,9 +26,11 @@ You change nothing but your findings file. You run no build, test, or gate, and 
    1. Pieces, P2 Change: "retry on failure". The spec gives no retry count. `Notifier.SendAsync` in src/Notifier.cs has no retry today, and `RetryPolicy` in src/Retry.cs defaults to 3 but is not used by it.
    2. Pieces, P1 and P3 `owns`: both list `src/Mailer.cs`.
    3. Done means: "`make verify`". The repo has no `verify` target in its Makefile.
+   4. Decisions, D3: "reject a name with an apostrophe". Nothing in the spec makes such a name work, and coding/make-valid-input-work-never-refuse-it.md says to make valid input work.
    Laws:
    D1: invariants/never-blindly-retry-a-non-idempotent-operation.md, kept by "each send carries the message id as its idempotency key".
    D2: none bears.
+   D3: coding/make-valid-input-work-never-refuse-it.md, broken: finding 4.
    ```
 
 4. Reply with only the path of your findings file.
