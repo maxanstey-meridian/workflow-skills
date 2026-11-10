@@ -1,0 +1,21 @@
+name: Roles
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  roles:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the rule files and role files, and check every citation
+        run: sh scripts/build-roles.sh
+      - name: Fail when a committed generated file is out of date
+        run: |
+          stale=$(git status --porcelain -- 'skills/*/references/')
+          [ -z "$stale" ] || { printf 'Run sh scripts/build-roles.sh and commit the result:\n%s\n' "$stale" >&2; exit 1; }

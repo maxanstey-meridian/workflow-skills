@@ -1,35 +1,8 @@
-## Ask For Outcomes, Not Mechanisms
+## Ask for outcomes, not mechanisms
 
-Controls should ask questions the user can answer from their domain knowledge.
+**Default:** A control asks a question the user can answer from what they know about their own work, not one about the mechanism behind it.
 
-Bad:
+**When:** Labels and options of any control.
 
-- Literal
-- Input
-- String template
-- Collision policy
-- Dynamic path expression
-
-Good:
-
-- Save every file in the same folder
-- Choose the folder using form data
-- Keep the uploaded filename
-- Rename the file
-- Do not overwrite an existing file
-
-Technical variants are often multiple implementations of one user intention.
-Collapse them behind that intention.
-
-For example, these are implementation mechanisms:
-
-- fixed value
-- value from one field
-- template containing multiple fields
-
-They can usually become one user action:
-
-> Specify a value using text and form fields.
-
-The revealed editor can support plain text, one inserted field, or several
-fields without requiring the user to classify their configuration first.
+Bad: Options "Literal", "Input", "String template", and "Collision policy".
+Good: Options "Save every file in the same folder", "Choose the folder using form data", and "Do not overwrite an existing file".

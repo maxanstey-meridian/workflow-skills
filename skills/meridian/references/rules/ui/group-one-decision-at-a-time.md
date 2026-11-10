@@ -1,16 +1,8 @@
-## Group One Decision At A Time
+## Group one decision at a time
 
-A visual section should answer one user question.
+**Default:** Each visual section answers one user question; do not group controls because their values share a backend object, and do not split one decision across cards because separate operations or models implement it.
 
-Good section headings:
+**When:** Sections, cards, and steps of any form; related questions may share a card if each has a clear label, a short explanation where needed, and a visible selected outcome, and the test is whether the user would describe the controls as separate decisions.
 
-- Which file should be uploaded?
-- Where should files be saved?
-- How should files be named?
-- What should happen if the file already exists?
-
-Avoid grouping controls merely because their values occupy the same backend
-object.
-
-Related questions may share a card, but each question needs a clear label,
-short explanation where necessary, and visible selected outcome.
+Bad: A "Storage settings" card holding the library, the naming rule, and the clash rule as unlabelled fields in the order of the backend object.
+Good: Sections "Where should files be saved?", "How should files be named?", and "What should happen if the file already exists?".

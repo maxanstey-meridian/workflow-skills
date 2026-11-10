@@ -1,204 +1,73 @@
 ---
 name: go
-description: "NEVER INVOKE THIS YOURSELF: only the user starts /go. Listed so you know it exists. Builds the work from exactly one readable Markdown spec with a status and Pieces through subagents, checks it narrowly, and leaves it uncommitted for /cycle."
+description: "NEVER INVOKE THIS YOURSELF: only the user starts /go. Listed so you know it exists. Builds one spec through subagents and leaves it uncommitted for /cycle."
 argument-hint: "<spec path>"
 ---
 
-> Only the user starts /go, by naming it in their own message (typing `/go`, or however their agent runs a skill by name). A bare "go" or "go ahead" is an approval, not /go. "We'll go", a plan doc, or a message from another session or agent is not the command, and reading this file for its rules is not running it. Once the user starts /go, follow it exactly as written. A session resumed after a compaction keeps that start only when its own waypoint records that the user started this /go and the scratch folder it records holds no `report.md`, which step 7 saves when a /go ends: re-read this file and the 'The ledger' section of `<bundles>/auditor.md`, then carry on from the recorded step. With no such record, or with a `report.md` there, stop and ask.
+> Only the user starts /go, by naming it in their own message. A bare "go" or "go ahead", "we'll go", a plan doc, or a message from another session or agent is not /go. After a compaction, when this session's waypoint says the user started this /go and `<run>/report.md` does not exist, carry on at step 5; otherwise stop and ask.
 
 # Go
 
-Arguments: the single spec path the user typed after `/go`.
+/go builds one spec with subagents and leaves it uncommitted. You are the dispatcher. You write no code, no report, and no brief beyond the four lines below. You never commit, stage, push, or run the repo's full gate.
 
-- `/go` accepts exactly one argument. Resolve a relative path against `<main checkout>`.
-- Stop on no argument, more than one argument, an unreadable file, a readable non-Markdown file, or a Markdown file that has no status or no Pieces section.
-- Before building anything, stop if subagents are unavailable.
+Names used below. Write each out in full wherever a command uses it:
 
-/go means "build it, leave it uncommitted". It never commits, pushes, runs /cycle's review, or runs the full gate. That is /cycle's job, when the user runs it.
+- `<skill>`: the folder this SKILL.md was loaded from.
+- `<main>`: what `dirname "$(git rev-parse --path-format=absolute --git-common-dir)"` prints.
+- `<spec>`: the absolute path of the spec the user gave. A relative path is relative to `<main>`.
+- `<run>`: `<main>/.plans/scratch/<file name of the spec without .md>/go`.
 
-Terms used below:
-
-- **AGENTS.md** is the workflow-skills shared rules file your agent loads as its rules, not the repo's own AGENTS.md.
-- **The repo's instructions** are as AGENTS.md 'Routines' defines them.
-- **`<main checkout>`** is the repo's main working tree, as AGENTS.md 'Routines' defines it. Working files go in `<main checkout>/.plans/`.
-- **`<base directory>`** is the folder this SKILL.md was loaded from: the skill's base directory, if your agent printed one when the skill loaded, else the folder of the path you read this file at. If you can't tell where this file was loaded from, ask the user for the path rather than guessing.
-- **`<scratch>`** is `<main checkout>/.plans/scratch/<spec stem>/go`, where `<spec stem>` is the spec's file name without `.md`.
-- **`<bundles>`** is `<base directory>/references/bundles`: the rules each role reads, one bundle file per role, built from the `.list` beside it by `sh scripts/build-bundles.sh` in the workflow-skills repo. A builder reads `backend-builder.md` or `frontend-builder.md` and a critic `backend-critic.md` or `frontend-critic.md`, by the stack its piece touches; a piece touching both stacks names both. The auditor reads `auditor.md`. Work in neither stack (scripts, docs, configuration, this repository) counts as backend. A rule a bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
-## The orchestrator
-
-This session plans, writes briefs, reads critics' verdicts, and checks them with its own runs. It writes no code and adds nothing to a piece that the spec doesn't already say. A problem it finds goes back to the subagent whose piece it is. A problem no piece covers becomes a spec addendum, and then a subagent builds it.
-
-It doesn't write the report: step 6's auditor does, from the evidence the run leaves. The ledger, `<scratch>/ledger.md`, is its record of what it did, appended to as it goes. The ledger's line format, its kinds, and what each entry holds are defined once, in `workflow/auditing-a-run.md#the-ledger`, which `<bundles>/auditor.md` carries. Read that section of `<bundles>/auditor.md` before step 1's first ledger entry.
-
-Of what you write, the auditor reads the ledger, the `runs/` logs and mutation report copies it points at, the spec lines you wrote, and the briefs, sources, commands files, and patches your subagents worked from; never a note, a draft, or an account of the run.
-
-## 1. Scope
-
-- Find the intent in the spec path and the user's answers to its asks.
-- The spec's status is settled before anything is built: a `draft` asks its open questions, records the answers, and becomes `agreed`, then `building`; an `agreed` spec becomes `building` before the first builder starts; a `building` spec continues: skip every piece and addendum its `**Built pieces:**` line names, and when it has no such line, add `**Built pieces:** none` directly under `## Pieces` first; stop on `built (<hash>)` or an unrecognized status.
-- Once the status check above has not stopped /go, and before any ledger entry is written: remove every `<scratch>/wt-*` worktree left by an earlier /go of this spec (`git worktree remove --force` each), then every other file and folder in `<scratch>`. Built pieces are already recorded in the spec's `**Built pieces:**` line, so nothing in `<scratch>` carries over.
-- An open decision that changes what gets built: ask first, numbered, each with a recommendation. Anything else inside what the spec describes: choose, and record the choice in the spec's Decisions and as a `call` ledger entry. Anything that changes what gets built beyond the spec is an addendum first.
-- Run `git status --short`, and list the other agent sessions working in this tree if you can. Peers' dirty files are theirs; leave them alone.
-- Snapshot the whole uncommitted tree at `<wt-pre-go>` = `<scratch>/wt-pre-go`, with no restore, install, build, or checks:
-  - `git worktree add --detach <wt-pre-go> HEAD`
-  - `git diff HEAD --binary | git -C <wt-pre-go> apply --allow-empty`
-  - `git ls-files -z --others -- . ':(exclude).plans/' <output exclusions> | tar --null -T - -cf - | tar -xf - -C <wt-pre-go>`
-  On a continued `building` spec, run only the first of those three commands: every uncommitted change in owned files is this spec's work, so HEAD is the baseline, and no dirty diff is applied and no untracked file copied.
-
-  Keep the snapshot until step 5's survivor attribution is done, then remove it.
-- Read the builder bundle(s) for the stacks the spec touches, in full (each opens with the Laws), and, if the UI changes, the repo's UI skill if its instructions name one.
-
-## 2. Split
-
-- Split the work into pieces by file: no two pieces touch the same file. A piece that needs another's result runs after it. A spec's Pieces are that split already: use them, and say where you changed one.
-- A shared change applied in three or more places gets one piece headed `Tracer bullet:`. A tracer bullet is the shared change plus one consumer, built end to end first. Pieces applying it elsewhere name the tracer in `after:` and wait for its targeted tests, format, and lint, plus the critic and orchestrator checks. A piece or addendum whose `after:` names an item left unbuilt, or one BLOCKED, is never briefed, and is itself an `unbuilt` ledger entry, its cause the item it waits on.
-- Subagents build the pieces, in parallel where they're independent: one fresh subagent per brief.
-
-## 3. Build
-
-Hard block: no builder starts on a question. Before you start any builder, its piece, every addendum it builds, and every decision either relies on must have no open question. That means none of these:
-
-- an ask without a recorded answer;
-- a "hangs on", "waits on", or "if ask N is yes/no" that isn't settled;
-- an "or", "TBD", "check whether", or "if the hosts show…" that leaves what gets built undecided;
-- a premise about framework or host behaviour that nobody has checked against the real thing;
-- a Decision or Piece that breaks a house Law (at the top of a builder bundle), or any other rule in the bundle(s) for the stacks it touches (it goes back to the spec as an addendum, not to a builder).
-
-If there is one, settle it before the builder starts:
-
-1. Check the facts yourself, or with a read-only *fact-gatherer* that reports facts only.
-2. Ask the user, with those facts, only what neither a fact nor an agreed rule settles. Settle the rest, and record what settled each.
-3. Write their answer into the spec.
-
-A builder is never where a question gets answered.
-
-A brief whose item rests on a call you made, even once it is written into the spec (the first brief of an addendum you wrote, a brief resting on a choice you recorded under Scope, or a re-brief's new call), gets a fresh read-only *cold reader* before its builder starts. Write its brief to `<scratch>/cold-brief-<piece>-<n>.md`, with the brief's `<n>`. It is self-contained, every path absolute, and holds: the main checkout; the item and the check it names as its proof, each quoted word for word from the spec, naming the Piece or Addendum it comes from, and the call, quoted from the spec's Decisions without its reasons or how you reached it; on a re-brief, the earlier critic reports' FAIL bullets and Outcome evidence for the item; doctrine: the builder bundle(s), read in full first, and the repo's instructions, where a rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line; scope: read the code, and run only commands that write nothing in the tree, and never edit, build, run the gate, or commit; rules: trace every caller and consumer the changed code feeds, with `file:line`s, say whether the call achieves the item's proof, shown against the code or a run that writes nothing, and name every place it doesn't, or breaks what works today, say whether the call changes the model or adds machinery, flags, special cases, or a second path around a model that is wrong, with that model's `file:line`s, facts only, with no recommendation, option, confidence, or ask; report path `<scratch>/cold-<piece>-<n>.md`, saved with a shell heredoc, or the whole report as the reply if saving is refused, and reply with the path only. Check its claims at their `file:line`s and revise the call where they hold before briefing the builder. A call it shows bolting on is revised to change that model instead, settled as Scope says: an open decision is asked first, and a change beyond what the spec says is an addendum first. The revised call is not read again, even when it is written in as an addendum. A call no revision rescues is an open question: settle it as the list above says, and if neither a fact nor the user's answer settles it, leave the item unbuilt and record it as an `unbuilt` ledger entry. One cold read per brief.
-
-**One item per brief.** A brief holds one coherent change: the edits one change drives, proven by one check. When subagents build a piece with several independent items, they get a run of briefs, one after another, each passing step 4 before the next goes out. Each subagent brief goes to a fresh subagent that owns the piece's files. One brief at a time per piece keeps the files single-owner; pieces still run in parallel where they're independent.
-
-Before each builder starts, snapshot the whole uncommitted tree at `<scratch>/wt-pre-<piece>-<n>`, with all three of step 1's commands on every run, a continued `building` spec included, and no setup or checks.
-
-Write each brief to `<scratch>/brief-<piece>-<n>.md` (`<n>` its place in the piece's run). Before writing it, resolve `<main checkout>`, the spec path, the report path, and every source, doctrine, and instruction path to absolute paths. Every builder brief must contain all of these and every rule the builder relies on:
-
-- **Main checkout and worktree:** the resolved absolute main checkout, and that the builder works in that main working tree.
-- **Owned and forbidden files:** the exact paths the item may change, the exact paths it must not change, and that it never edits another session's work.
-- **Spec and decisions:** the resolved absolute spec path, the item, its Proof, its intent, and every relied-on decision, each quoted word for word from the spec, naming the Piece, Addendum, Decision, or section it comes from. Never reword the spec in a brief: a call of yours is written into the spec's Decisions first, as Scope says for your choices, and is then quoted.
-- **Test-only items:** one distinct entry per test-only item, naming the guarded source files and the precise behaviour it promises to guard, identified by symbol or source region.
-- **Hard stop:** before editing, the builder reads its item, the spec's open asks, and the relied-on decisions. If it finds an open question, an undecided premise, or a design call the brief did not make, it builds nothing and reports those facts. If code or the host contradicts the item's premise while it builds, it stops, leaves its edits in place, and reports the contradiction and the files it touched.
-- **Doctrine:** the absolute path of the builder bundle for each stack the item touches (`<bundles>/backend-builder.md`, `<bundles>/frontend-builder.md`, or both), to read in full before anything else, and the repo's instructions. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
-- **Rules:** fix the root cause; reuse the existing component, flow, or pattern; sweep nearby code for the same problem; never make a check pass by shrinking what it checks; a gap with a doc page is still a gap; no new test unless nothing already proves the behaviour, and each test must fail if what it guards breaks; change only owned files; never commit, stage, format beyond owned files, or run the full gate.
-- **Commands:** every exact command the builder may run, from the worktree root, including the item's Proof and only the targeted checks for its owned files. When the repo names no command a check needs, the brief says so and the builder reports that check as not run.
-- **Report path:** the resolved absolute path to `<scratch>/report-<piece>-<n>.md`.
-- **Save protocol:** save the report with a shell heredoc, `cat > <path> <<'EOF'` … `EOF`, not a file-writing tool; if saving is refused, reply with the whole report.
-- **Reply protocol:** reply with only the report path.
-- **Report content:** facts only: the `file:line` evidence for each claim, and what it could not check. It gives no recommendation, option, confidence, or ask.
-
-Every builder brief is self-contained. It may name source paths, but it may not rely on AGENTS.md, a sibling skill, prior conversation, an earlier artifact, or another agent's instructions to understand the task.
-
-## 4. Integrate
-
-A fresh *critic* subagent checks each builder brief before the piece's next brief and before step 5. Run git commands from the root of the tree being built (`git rev-parse --show-toplevel`), and keep working files under `<main checkout>/.plans/`.
-
-- A builder, critic, or cold reader that replies with its report instead of a path: save the reply to its file verbatim.
-- Reports are claims. The critic checks the builder's; you check the critic's with your own runs.
-- **Contracts.** If the repo generates API contracts or clients, regenerate them when an endpoint changed and run the repo's contract check, as its instructions name.
-- **After each builder brief:**
-  1. Make the ready worktree `<wt>` at `<scratch>/wt-<piece>-<n>`, with no trailing slash, before the critic starts:
-     - `git worktree add --detach <wt> HEAD`
-     - `git diff HEAD --binary | git -C <wt> apply --allow-empty`
-     - `git ls-files -z --others -- . ':(exclude).plans/' <output exclusions> | tar --null -T - -cf - | tar -xf - -C <wt>`
-
-     Each output exclusion is a quoted Git pathspec, `':(exclude)<path>'`, for a disposable check-output path declared in the repo's instructions. This copies ignored inputs too; only `.plans/` and those declared outputs stay out. With no declared outputs there are no output exclusions.
-     - Run the restore, install, and build the repo's instructions name. When they name none, record the lockfiles' absence and what you ran as a `setup-inferred` ledger entry.
-     - Mark non-ignored untracked files with intent to add: `git -C <wt> ls-files --others --exclude-standard -z | xargs -0 git -C <wt> add -N --`.
-     - Save the fingerprint: `(cd <wt> && { git status --porcelain=v1 -z -- . <output exclusions>; git diff --binary HEAD -- . <output exclusions>; }) | shasum > <wt>.fp`.
-
-     Setup precedes the critic. A build failure is a command FAIL with its exit code, routed to the piece that owns the failing file. Any other setup failure is BLOCKED, your verdict, recorded as a `blocked` ledger entry, and no critic starts.
-  2. Changed files and the patch, both from the ready worktree after `add -N`, the patch against step 3's `<scratch>/wt-pre-<piece>-<n>` snapshot:
-     - `git -C <wt> diff --name-only --diff-filter=d HEAD -- <owned paths>`
-     - For each owned path, append the output of `git diff --no-index -U3 --binary -- <before-file> <wt-file>` to `<scratch>/diff-<piece>-<n>.patch`, between that snapshot and `<wt>`, using `/dev/null` when either side is absent and treating exit 1 as differences. Then remove the snapshot.
-
-     The changed-file list includes new files and the piece's earlier briefs, and deletions stay out of it. The patch holds only this brief's lines. Leave the patch unread.
-  3. Commands, in `<scratch>/commands-<piece>-<n>.md`, beside the item brief and the patch: the targeted tests for the changed test files and the behaviour the brief's Proof names, and format and lint in check mode on the changed paths where the command takes paths, else whole, as the instructions name it. For the check the item brief names as its proof, quoted from the spec's Proof or Change, at least one command exits non-zero while that outcome fails: one that runs the behaviour it covers, or, for a proof that code is gone, one that fails while that code is still there. A Proof check the spec marked red before the piece is such a command. A command that only shows the item's new code is present doesn't count. For a test-only item, the command runs its test, and that it would fail stays unverified: no command breaks code. Where no command can show the outcome here, say so in the file. Each command runs from the worktree root and carries its own `cd` where the repo's instructions run it from a subfolder.
-  4. Write the critic brief to `<scratch>/critic-brief-<piece>-<n>.md`: the full text of the critic bundle for each stack the item touches (`<bundles>/backend-critic.md`, `<bundles>/frontend-critic.md`, or both), then these, resolved to absolute paths: the main checkout, ready worktree, the item's owned and forbidden paths, spec, item brief, builder report, patch, commands, earlier critic reports, report `<scratch>/critic-<piece>-<n>.md`, and the repo's instructions. Add every relied-on decision quoted word for word from the spec, and the paths the repo's instructions declare as disposable check output. The brief is self-contained: it relies on no other file, on AGENTS.md, a sibling skill, prior conversation, or another agent's instructions to understand the task.
-- **The verdict** is the last line of the critic's report: `VERDICT: PASS | FAIL | PARTIAL`. FAIL beats every other verdict; PASS and PARTIAL both count as passed once your checks agree.
-  - On every verdict, recompute the fingerprint, rerun every command you built and every extra one in the critic's Checks run once, and read every cited line for judgement findings.
-  - A red from a peer session's file is a `peer-red` ledger entry wherever the orchestrator meets one.
-  - Any of your commands that exits non-zero on your rerun is a builder command FAIL, with your exit code. A confirmed Missing, Extra, Misunderstood, or Not achieved is a builder FAIL; you confirm a Not achieved shown by a run with your rerun of its command. Judgement findings reach the user labelled as the critic's; act on one only after reading its cited `file:line`.
-  - A changed fingerprint or an unparseable verdict is the critic's fault, not the builder's: start a fresh critic in a fresh worktree before any builder is briefed.
-  - **BLOCKED** is yours for a setup failure that isn't a build failure from a piece's files, and is recorded as a `blocked` ledger entry. A piece or addendum waiting on an unbuilt or BLOCKED item is handled as step 2's tracer bullet bullet says.
-  - After your checks, `git worktree remove --force <wt>`; one you couldn't remove is a `worktree-left` ledger entry.
-  - When a piece's or addendum's last brief has passed (a passed verdict your checks agree with), add its id to the spec's `**Built pieces:**` line, replacing `none` the first time, so a later `/go` or `/cycle` knows it is built.
-- **A FAIL** goes back, as its confirmed bullets, to the piece that owns that file, as a new brief to a fresh subagent. A test-only mutation FAIL keeps the test-item owner even when that piece does not own the cited source file. A problem no piece covers is an addendum.
-- **A brief that isn't working.** The first time an item comes back unbuilt or FAILs, make the missing design call yourself (after a FAIL that shows the outcome failing or the brief's premise false, a new call built on the critic's evidence, never the call that failed; a false premise in the spec's own text is a spec question, settled as Scope says), have it cold-read as step 3 says, then send the item back as a brief of its own, with that call written into the spec's Decisions first and quoted. Read the critic's sign facts at their `file:line`. Any of these means the brief failed first:
-  - an item comes back unbuilt, or FAILs, twice in a row;
-  - a check shrinks to make it pass;
-  - a required part of the item is reported as not traced, not checked, or not confirmed;
-  - a design call the builder made itself.
-
-  Don't revert anything yourself. Make the call as step 1 says, have it cold-read, then re-brief the item. If any sign or FAIL comes back on the narrowed brief, leave the item unbuilt, carry on with the other items, and record it as an `unbuilt` ledger entry.
-
-## 5. Check narrowly
-
-- Format and lint only the changed files.
-- Run the targeted tests for what changed, and the UI typecheck if the UI changed.
-- Run every Done-means check the spec lists. Run yourself any that no subagent could run. One that nobody here can run is a `not-run` ledger entry, with why nobody here can run it; the work isn't done until it's run or the user waives it. Never drop one silently.
-- **Mutation,** once, last, when the checks above are green. A mutant is a small deliberate change to the code, and a surviving mutant is one no test noticed. A mutation report is the JSON file the mutation command writes, in the mutation-testing-elements format. With no mutation command in the repo's instructions, record a `not-run` ledger entry. Otherwise:
-  - Make `<wt>` = `<scratch>/wt-mutation` as step 4 does, with the `add -N` but no fingerprint.
-  - Mutate each existing source file under a path a piece or addendum of this spec owns that differs from its `<wt-pre-go>` copy (this /go's changes, and on a continued `building` spec the earlier /go's too), plus every existing source file recorded for a test-only item, even when its piece does not own that source. Exclude deletions and other peers' files. Before mutation, resolve each test-only item's promised guarded regions to current-file line ranges in the ready mutation worktree.
-  - For each mutation file, compare its pre-/go snapshot file with the mutation file using `git diff --no-index -U0 -- <before-file> <mutation-file>`; exit 1 means differences. Compare an absent before-file with `/dev/null`. The current-file `+` ranges are this work's changed-source lines. When the repo command accepts ranges, supply the union of those ranges and the promised guarded regions.
-  - Count mutants with `jq '[.files[].mutants[] | select(.status != "Ignored")] | length' <report>`. Zero counted mutants is a `not-run` ledger entry ("no mutants in scope"). No report, or a worktree that won't set up, is BLOCKED: a `blocked` ledger entry, and it stops only this step.
-  - List survivors with `jq -r '.files | to_entries[] | .key as $f | .value.mutants[] | select(.status == "Survived" or .status == "NoCoverage") | "\($f):\(.location.start.line) \(.mutatorName) \(.replacement)"' <report> | sed "s|^<wt>/||" | sort -u`.
-  - Only Survived and NoCoverage fail; Timeout and RuntimeError count as killed, and CompileError and Ignored are unscored.
-  - A Survived or NoCoverage mutant in a promised guarded region is a FAIL on every test-only item that promised that region. A survivor inside a current-file `+` range also FAILs the source-owning piece's current item. Route each item's survivors as one counted failure.
-  - A survivor outside both the promised guarded regions and the changed-source ranges is pre-existing: a gap to its piece's builder if trivial and owned, else an open item for step 6's audit.
-  - Every survivor fix is a fresh builder brief with a critic, quoting each of its survivors' lines from the survivor listing word for word, reruns this step's ordinary targeted checks, and never reruns mutation.
-- After a mutation run, copy its report to `<scratch>/mutation.json` and point the mutation run's ledger entry at that copy, then remove `<wt>` after survivor attribution. At the end of this step, remove `<wt-pre-go>`.
-- Never the repo's full gate; /cycle runs it.
-- Other red checks go back to the piece's builder, then it reruns only what failed. A subagent's fix gets a critic.
-
-## 6. Audit
-
-A fresh read-only *auditor* subagent says what is still open, routes each open item by the gap rule, and writes the report. You don't write the report. Of what you write, the auditor reads the ledger, the `runs/` logs and mutation report copies it points at, the spec lines you wrote, and the briefs, sources, commands files, and patches your subagents worked from; never a note, a draft, or an account of the run.
-
-- Write the auditor brief to `<scratch>/audit-brief-<n>.md`, with `<n>` `1` for the audit and `2` for the re-audit. It holds the full text of `<bundles>/auditor.md`, then these, resolved to absolute paths:
-  - the main checkout;
-  - the spec;
-  - `<scratch>`, and every evidence file in it, listed by path: each `brief-*`, `report-*`, `critic-*`, `cold-brief-*`, `cold-*`, `diff-*.patch`, and `commands-*` file, `mutation.json`, and `runs/`;
-  - the ledger;
-  - the repo's instructions;
-  - step 7's template, its text copied in full;
-  - the report path `<scratch>/audit-<n>.md`;
-  - on the re-audit: `<scratch>/audit-1.md`; the numbers of every item it routed `fix-now` or `send-back` (briefed, or recorded `unbuilt` without a brief); every evidence file written since the audit, listed by path; and the ledger line number the entries written since the audit start at.
-
-  Nothing else of yours goes in it: no notes, no draft, and no account of the run. The brief is self-contained.
-- An audit that leaves out an input its brief listed, breaks the template, or gives an item no route is the auditor's fault: start one fresh auditor on the same brief, once. If that one fails the same way, carry on with its report as it stands (for the audit: the items it routes `fix-now` or `send-back`, then, when it routed any, the re-audit), and name the failure on step 7's `Orchestrator disagrees` line.
-- Check each claim each audit's report relies on, the re-audit's included, at its `file:line` or by rerunning its command, as AGENTS.md 'Reports' says. Where your check contradicts a claim, keep the claim and your evidence for step 7. Never edit the audit.
-- **The audit's `fix-now` and `send-back` items are built before the report.**
-  - Each item that isn't already a spec line becomes an addendum first, as Scope says: its `owns:` lists the fix's paths. When a piece or an earlier addendum already owns any of them, its `after:` names that one (several, comma-separated, when the paths span several) and, as /spec's shared-file rule says, the addendum edits those files last, so a FAIL or build failure in its brief's files goes back to the addendum; when none does, `after:` is `none`. It has the audit's Fix as its Change and a Proof, and gets the premise check and cold read /spec gives every addendum, the cold read being step 3's. Each item is then briefed under step 3's rules and checked by step 4's critic.
-  - An item whose fix needs a design call is settled from facts and agreed rules, as step 3's items 1 and 2 say, without asking the user now. One that neither a fact nor an agreed rule settles is not asked now: record it as an `unbuilt` ledger entry whose cause is the open call and the audit's options, and it isn't built in this /go.
-  - Then rerun the targeted checks for what those briefs changed and every Done-means check the spec lists, as step 5 says, without mutation.
-  - An item left unbuilt under step 4's rules is an `unbuilt` ledger entry.
-
-  Whenever the audit routes any item `fix-now` or `send-back`, briefed or not (an item recorded `unbuilt` above counts), brief the re-audit as above. There's no third audit: the re-audit's report is the last. When the audit routes none, its report is the last.
-
-## 7. Report
-
-Save the last audit's Report section, word for word, to `<scratch>/report.md`, with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), followed by the line `**Orchestrator disagrees:** 1. <the audit's claim, quoted, or the failure step 6 names> — <your evidence: the file:line, or the command and its exit code>`, one numbered entry for each claim step 6's check contradicted and each audit failure step 6 names, and leave the line out when there are none. Then give the saved file's content.
-
-The auditor fills in this template:
+Every subagent you start gets exactly these four lines as its whole brief, with the names written out in full. Add nothing to them:
 
 ```
-**TLDR:** <plain English>
-**Findings:** 1. <finding that changes the picture, stated in full>, or none
-**What changed:** <one line per piece>
-**Checked:** <the orchestrator's runs, from the ledger; mutation survivors>
-**Critic says:** <each brief's verdict and the critic's judgement findings, labelled as its; leave the line out when no critic ran>
-**Not checked:** <e.g. the full gate, e2e; PARTIAL gaps; "setup inferred: …"; `mutation: not run (the repo's instructions name no mutation command)` or `mutation: not run (no mutants in scope)`>
-**Parked:** 1. <gap> · fix: <the concrete fix, ~N lines> · design call: <none | the call> · who hits it: <who, and how> (rec: fold now | leave, why), or none
-**Worktrees left behind:** <paths; leave the line out when none>
-**Needs from you:** 1. … (rec: …) · last item: Review, then run /cycle <absolute spec path>.
-**Audited:** <the audit report paths>
+Read <skill>/references/<builder | critic | auditor>.md in full, then do what it says.
+Spec: <spec>
+Piece: <piece id> · attempt <1 or 2>
+Report: <run>/<build | critic>-<piece id>-<attempt>.md
 ```
 
-**Needs from you** is as AGENTS.md 'Reports' defines it. It holds every item the audit routes there: each `decision`, `user-only`, and `unfinished` item, and, on the re-audit, each `fix-now` or `send-back` item still open, as unfinished with its cause; never in Parked. Stop there: the user reviews, then runs /cycle with that spec path.
+The auditor's last two lines are `Piece: all` and `Report: <run>/report.md`. Start each subagent fresh: a new agent that has only its brief, not a fork of this conversation.
+
+**Missed report.** No file, or a file whose last line is not the one the role must end on, is a miss: start the role once more with the same brief; a second miss is not retried. A second miss means:
+
+- builder (ends `RESULT: BUILT` or `RESULT: STOPPED`): the piece is failed.
+- critic (ends `VERDICT: PASS` or `VERDICT: FAIL`): a fail; the piece goes to attempt 2, or is failed after attempt 2.
+- auditor (ends with a line starting `**Built pieces:**`): tell the user, and give the output of `ls "<run>"`.
+
+## Steps
+
+1. **Check the argument.** There is exactly one, and it is a readable `.md` file. Run `grep -q '^\*\*Status:\*\*' "<spec>" && grep -q '^## Pieces' "<spec>" && echo ok`. If it doesn't print `ok`, say which of the `**Status:**` line and the `## Pieces` heading is missing, and stop.
+2. **Check you can start subagents.** If you can't, say so and stop.
+3. **Check the status.** Read the `**Status:**` line and the `## Open asks` section.
+   - `draft`, or an open ask that isn't "none": list the open asks and stop. The user answers them, and `/spec` records the answers.
+   - `built`, or any word not listed here: say so and stop.
+   - `agreed`: change the word to `building`. `building`: leave it.
+   Done when: the status line reads `building`.
+4. **Prepare the run folder.** Run these three commands, in this order:
+   ```
+   git -C "<main>" check-ignore -q .plans/ || echo '.plans/' >> "$(git -C "<main>" rev-parse --path-format=absolute --git-path info/exclude)"
+   [ ! -d "<run>" ] || mv "<run>" "<run>-$(date +%Y%m%d-%H%M%S)"
+   mkdir -p "<run>" && touch "<run>/failed.txt" && git -C "<main>" status --short --untracked-files=all > "<run>/status-before.txt"
+   ```
+   The second command moves an earlier run's folder aside, so every /go starts with an empty `failed.txt`.
+   Done when: `<run>/status-before.txt` and `<run>/failed.txt` exist and `<run>/report.md` does not.
+5. **List the pieces.** Every `### P<n>` heading in the spec is a piece. Note each one's id and the ids on its `after:`.
+   - A piece is **built** when its id is on the spec's `**Built pieces:**` line (`grep '^\*\*Built pieces:\*\*' "<spec>"` prints it). The ids on it are separated by `, ` and match whole: `P1` is not `P10`.
+   - A piece is **failed** when its id is a whole line of `<run>/failed.txt` (`grep -Fx '<id>' "<run>/failed.txt"` prints it).
+6. **Build in rounds.** Repeat a to e until a makes an empty list:
+   a. Ready pieces: not on the `**Built pieces:**` line, not in `<run>/failed.txt`, and every id on its `after:` is on the line.
+   b. Start one builder per ready piece, all at once, attempt 1. Wait until every one has returned.
+   c. For each piece from b, run `tail -n 1 "<run>/build-<id>-1.md"`. If that is a miss, start that builder once more with the same brief, wait for it, and run the `tail` again. `RESULT: BUILT`: the piece gets a critic. Anything else, `RESULT: STOPPED` or a second miss, makes the piece failed: run `echo <id> >> "<run>/failed.txt"`, and start nothing more for it. Then start one critic for each piece that printed `RESULT: BUILT`, attempt 1, one at a time: wait for each to return before starting the next.
+   d. For each piece that had a critic, run `tail -n 1 "<run>/critic-<id>-1.md"`. If that is a miss, start that critic once more with the same brief, wait for it, and run the `tail` again. `VERDICT: PASS`: add the id to the spec's `**Built pieces:**` line, after `, ` (replacing `none` the first time). Anything else, `VERDICT: FAIL` or a second miss, is a fail.
+   e. For each piece with a fail, one piece at a time:
+      - Start one builder, attempt 2, and wait for it. Check it as c does. A piece that does not print `RESULT: BUILT` is failed, as in c, and gets no critic.
+      - Start one critic, attempt 2, and wait for it. Check it as d does. `VERDICT: PASS`: add the id to the line. Anything else makes the piece failed: run `echo <id> >> "<run>/failed.txt"`.
+      Leave a failed piece's files as they are and send it to nobody else.
+7. **Audit.** Start one auditor and wait until it has returned. Run `tail -n 1 "<run>/report.md"`. If that is a miss, start the auditor once more with the same brief, wait for it, and run the `tail` again. A line starting `**Built pieces:**` goes to step 8. Anything else is a second miss: do what Missed report says, and stop.
+8. **Relay.** Run `tail -n 1 "<run>/report.md"` and, with your edit tool, replace the `**Built pieces:**` line in the spec with that line. Then run `cat "<run>/report.md"`. Your reply is that output, word for word, then one line: `Report file: <run>/report.md`. Add no summary, no correction, and no next step of your own. Stop.
+
+## Never
+
+- Read a builder's or a critic's report beyond its one `tail -n 1`, or tell a subagent what another one said.
+- Fix, revert, or judge anything yourself, or run a builder's or critic's commands yourself. A piece the critic fails twice is the auditor's to report.
+- Start a critic while a builder is running, or a builder while a critic is running.

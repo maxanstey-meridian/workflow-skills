@@ -1,22 +1,8 @@
-## Make The Default Legible
+## Make the default legible
 
-A selected default must communicate its resulting behaviour.
+**Default:** A selected default says what it will do, and where its consequences are not obvious, says why it suits.
 
-Weak:
+**When:** Any control that starts with a value.
 
-```text
-(o) Library root
-```
-
-Better:
-
-```text
-(o) At the top of the Documents library
-    Files will be saved directly in Documents.
-```
-
-Use recommended defaults where the product has a safe, common choice. Explain
-why the default is suitable when the consequences are not obvious.
-
-Defaults must be safe. A convenient default that silently overwrites data,
-broadens access, or loses information is not a good default.
+Bad: `(o) Library root`
+Good: `(o) At the top of the Documents library`, with the text "Files will be saved directly in Documents."

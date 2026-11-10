@@ -1,138 +1,81 @@
 ---
 name: slop-hunt
-description: Independent read-only slop hunt over the repository containing the current working directory for weight the code hasn't earned, from whole capabilities that cost more than they give users (over-engineering, jobs that belong to the host or a library, a design that forces hand-rolled code) down to hand-rolled machinery, silent failures, defensive bloat, speculative abstraction, WET, dead code, compat layers, ceremony, test slop, and oversized files. Each finding is argued (proven or judgement), says what users would lose, and is ranked by the weight it removes. Use when the user runs /slop-hunt or asks for a slop hunt / slop review / anti-slop sweep / over-engineering review.
+description: Use when the user runs /slop-hunt or asks for a slop hunt, slop review, anti-slop sweep, or over-engineering review. A read-only hunt over the current repository for weight the code hasn't earned, from whole capabilities down to dead code. Each finding is argued, says what users would lose, and is ranked by the weight it removes.
 ---
-
 # Slop hunt
 
-Arguments: `/slop-hunt` takes none. Any argument stops the routine before it reads or writes anything: state that `/slop-hunt` takes no arguments and hunts the repository containing the current working directory.
+A hunt finds weight the code hasn't earned: code, machinery, or whole capabilities that cost more to own than they give users. You dispatch. You don't hunt, check, rank, or write the report: subagents do, each from one role file. You write only in `<run>` (and the one exclude line in step 1), and run no restore, build, test, or gate. `/slop-hunt` takes no arguments; given one, say so and stop. If you can't start subagents, say so and stop.
 
-A hunt finds **weight the code hasn't earned**: code, machinery, or whole capabilities that cost more to own than they give the people who use the product. Some findings delete or replace code with no change in what the app does (code weight). Others reshape or drop a capability, and say exactly what users lose (design weight); over-engineering mostly lives there, so a hunt that only reports what can be removed at no cost misses the point. Both kinds are defined in `references/hunting.md`, "What slop is". The hunt is read-only: it edits nothing outside `.plans/`, and runs no build, test, or gate. It isn't a bug hunt. A bug a hunter trips over gets one unchecked line under **Also noticed**, after the ranking; only one that loses data or opens a security hole opens the report first (step 5).
+- `<skill>` is the folder this SKILL.md was loaded from.
+- `<root>` is the repository being hunted, and `<main>` is its main checkout.
+- `<run>` is the run folder.
 
-**The baseline is house doctrine, the platform, and the libraries the repo already depends on, not the repo's own habits.** Most code is now written by agents, for which consistency is cheap, so a pattern repeated everywhere proves nothing about whether it should exist. A repeated pattern that costs weight is one finding, with every place it's used counted, not one finding per place. A recorded decision (a spec Decision, the repo's instructions, a commit) is evidence to cite, not a verdict: a finding may reopen it, and the user decides.
-
-**Argue every finding, and rank by weight, not provability.** A finding is **proven** (the code shows it mechanically) or **judgement** (an argued cost-and-value case, with its evidence, what users lose, and the best case against it). A ten-line certainty ranks below a 500-line doubt. A finding that can't be argued either way stays out (`references/hunting.md`, "How to read").
-
-**No finding uses up another's protection.** A protection is whatever stops a behaviour from breaking unnoticed: a test, a guard, a validator, a constraint, or a type. No finding's proof may rest on a protection another finding removes (`references/hunting.md`; checked in step 4).
-
-Terms used below:
-
-- **AGENTS.md** is the workflow-skills shared rules file your agent loads as its rules, not the repo's own AGENTS.md.
-- **The repo's instructions** are as AGENTS.md 'Routines' defines them.
-- **`<root>`** is the repository containing the current working directory, resolved with `git rev-parse --show-toplevel`. If that command fails, stop. Run the hunt's repository commands from `<root>` (`git -C <root>`, or `cd <root>` first).
-- **`<repo>`** is the basename of `<root>`.
-- **`<main checkout>`** is what `dirname "$(git -C <root> rev-parse --path-format=absolute --git-common-dir)"` prints. A linked worktree's hunt files still go in this main checkout.
-- **`<solution>`** is the `.sln` or `.slnx` that contains the hunted projects; with none, each hunted project file in turn.
-- **`<base directory>`** is the folder this SKILL.md was loaded from: the skill's base directory, if your agent printed one when the skill loaded, else the folder of the path you read this file at. If you can't tell where this file was loaded from, ask the user for the path rather than guessing.
-- **`<bundles>`** is `<base directory>/references/bundles`: the rules each role reads, one bundle file per role (`backend-hunter.md`, `frontend-hunter.md`, `design-reader.md`), built from the `.list` beside it by `sh scripts/build-bundles.sh` in the workflow-skills repo. A hunter reads the bundle for its area's stack, and both for the cross-cutting area or an area holding both stacks; work in neither stack (scripts, docs, configuration) counts as backend. The design reader and the verifiers read `design-reader.md`. A rule a bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
-- **`<id8>`** is the last 8 characters of this session's id, found as AGENTS.md 'Routines' describes (if it prints nothing, use the id this conversation states, else `openssl rand -hex 4` once). **`<hunt folder>`** is `<main checkout>/.plans/scratch/slop-hunt-<id8>`. Create it (`mkdir -p`, after AGENTS.md's `.plans/` ignore check), and remove any `report-*.md` and `verify-*.md` left there by an earlier hunt in this session. When you generated the id, name the folder in your first message, so it survives a compaction.
-
-## 0. Preflight
-
-Resolve the repository: `<root>`, `<repo>`, and HEAD's short hash, which the report's Paths line carries.
-
-- If `git rev-parse --show-toplevel` fails, stop; `/slop-hunt` hunts only the repository containing the current working directory.
-- Uncommitted files may be another session's work in progress. Hunt them as they stand; the hunters mark findings in them `(uncommitted)` (step 3).
-- Say which projects or packages are **published**. A project counts when it explicitly sets `IsPackable` true or `GeneratePackageOnBuild` in its project file or `Directory.Build.props`, or when a CI pack, push, or publish step names it (`dotnet pack`, `nuget push`, `npm publish`). The SDK default doesn't count, because `IsPackable` defaults to true for non-test projects. A `package.json` with `publishConfig` counts; one merely missing `"private": true` doesn't. In a published project or package, a public type or member is never dead because nothing in the repo calls it (`references/hunting.md`, Dead code).
-
-## 1. Read the doctrine
-
-Read `<base directory>/references/hunting.md` and `<bundles>/design-reader.md` in full (it opens with the Laws), then read the repository's instructions. Don't read earlier hunts or review docs until your own pass is done (step 4), so they don't steer it.
-
-## 2. Map before you hunt
-
-The map decides how the reading is shared out, never how much of it is done: every hand-written file in scope is read in full by one hunter, however large the codebase. It also says where the weight is, so the design reader, or the hunter for a one-area hunt, can ask whether each big piece should exist in its shape. Do it in the main session; every brief comes from it. When the repository fits under item 6's guide (one area), skip the area split and run one hunter; keep `scope.txt`, `areas.md` (one area, wave 1, holding every file in `scope.txt`), the size, `baseline.md`, `capabilities.md`, the hotspots (step 5 ranks by them), and the finders.
-
-1. **Fix the scope, then size it.** Build `<hunt folder>/scope.txt`, the hand-written files in scope, by running this in `<root>`: `git -C <root> -c core.quotePath=false grep -I -l --untracked -e '' -- . | grep -vE '(^|/)(Migrations|migrations|generated|vendor|__snapshots__|__fixtures__|fixtures|\.nuxt)/|\.(g|Designer)\.cs$|(lock\.json|\.lock|-lock\.yaml|\.snap|\.txt|\.csv|\.tsv)$' > <hunt folder>/scope.txt`. Git's text-only view lists the files with something to read: `-I` drops binaries (images, icons, fonts, PDFs, certificates), `--untracked` keeps untracked files while still honouring `.gitignore`, and empty files drop out because there's nothing in them. The `grep -vE` then drops generated code, lockfiles, snapshots, vendored code, data fixtures, and data files. This list is the single source for both sizing and reading: the hunters read exactly its files, so whatever it leaves out is left out of reading too. That is right for data (word lists, CSV seeds), because none of the signs applies to data, and a 100,000-line password list would otherwise make its module look ten times its size. Correct the list by hand where the pattern is wrong:
-   - A `.txt` build file (`CMakeLists.txt`, `requirements.txt`) is code: add it back to the list.
-   - A .NET `Fixtures/` folder (capital F) holds test code (xUnit fixtures, `WebApplicationFactory` subclasses): it stays in scope and gets read. The pattern only drops a lowercase `fixtures/` or `__fixtures__/`, which hold data.
-   - Any other big hand-maintained data file you see in the list (seed data, i18n bundles, GeoJSON, in JSON or YAML) goes into the pattern by path, and the Coverage line names it (step 5).
-
-   Size from that list. In `<root>`, `cloc --skip-uniqueness --list-file=<hunt folder>/scope.txt --by-file --csv --report-file=<hunt folder>/cloc.csv` does it (the list already has the excludes applied, so cloc needs none). With cloc, sum column 5 (`code`) per area (module or package folder) with `awk`, skipping the header row and the trailing `SUM` row. Without cloc, run `tr '\n' '\0' < <hunt folder>/scope.txt | xargs -0 wc -l`, sum column 1 per area by the path in column 2, and drop every line whose path is `total` (xargs can print several). Every file in `scope.txt` with no row in `cloc.csv` (an extension cloc doesn't know, among others) still goes into an area, sized by its `wc -l`, so the split is made from `scope.txt`, with `cloc.csv` giving the sizes. Print the per-area table, since item 6's split is made from it.
-2. **Learn the house shape.** Read the solution or workspace layout, the composition root (`Program.cs` and the DI registration, or `nuxt.config` and plugins), and one representative slice end to end, from the endpoint or page down to persistence. Write `<hunt folder>/baseline.md`, in a few lines: how a slice is laid out, which libraries the repo already depends on and for which job (validation, persistence, HTTP, results, logging, mapping, scheduling, messaging), where deployment config lives (appsettings, Bicep or Terraform, pipelines), and the naming. It tells hunters where things live and what the repo can already reach for. It isn't a standard to judge against: describe what's there, without saying any of it is deliberate, earned, or the house way.
-3. **Map the capabilities.** Write `<hunt folder>/capabilities.md`: one line per capability, `<capability> · <files or folders> · <lines> · <share of scope>%`, sorted by lines. A capability is a job the code does for its users (sweeping, erasure, holds, previews) or machinery it carries to do them (a queue, a scheduler, a validator or readiness check, a serialiser, a lock or lease scheme, an options system, a diagnostics layer). Build it from the composition root, the folder layout, the entry points, and the size table; a file may belong to more than one, and the lines column says when it's shared. Aim for 10 to 25 lines, with everything over about 2% of scope on its own line. This is the starting point for the design reader, or for the hunter when there's one area (step 3), and what the report's weight map comes from.
-4. **Find the hotspots.** Code that changes often costs most when it's heavy. `git -C <root> log --since=12.months --no-renames --format= --name-only -- . | grep -v '^$' | sort | uniq -c | sort -rn | head -40` gives churn; set it beside the size table. Churn orders the reading (big, high-churn files first) and weights the ranking (step 5); it never decides what gets read.
-5. **Run the mechanical finders** that the repo already has, or that run without adding files to it, scoped to `<root>`. Their output is leads, never findings: a hunter checks each lead by reading the code. Save each one's output to `<hunt folder>/leads-<tool>.txt`.
-   - TypeScript: `knip` (unused files, exports, and dependencies; run it from `<root>`, and on Nuxt run it only when `.nuxt/` is already prepared, since without it every auto-import reads as unused), and `npx jscpd@5 --reporters console --ignore '**/Migrations/**,**/migrations/**,**/generated/**,**/*.g.cs,**/*.Designer.cs,**/__snapshots__/**,**/vendor/**,**/fixtures/**,**/__fixtures__/**,**/*.txt,**/*.csv,**/*.tsv,**/*lock.json,**/*.lock,**/*-lock.yaml,**/*.snap' <root>` (duplication; jscpd 5 respects `.gitignore` by default, but not the generated-code excludes, and without them migration snapshots and generated contracts swamp the real clones). Use the repo's own install of either, else `npx` with a pinned major (`npx knip@5`).
-   - .NET: `dotnet format style <solution> --verify-no-changes --no-restore --severity hidden --diagnostics IDE0051 IDE0052 IDE0060 --include .` (unused private members and parameters, which IDE0051 and IDE0052 report only at `hidden`; it changes no source, and it needs the solution already restored). It also prints import-ordering and whitespace errors, so keep only the lines naming the three rules (`grep -E 'IDE00(51|52|60)'`). It writes design-time build output to `obj/` (git-ignored), so don't run it while another session's build or gate is running. `jscpd` covers C# too. JetBrains `jb inspectcode <solution> --no-build --swea -o=<hunt folder>/inspectcode.sarif` finds unused public and internal members, if it's installed.
-   - The repo's own linter or doctrine checker (plumb, when its instructions name it or the repo defines a Plumb task or script).
-
-   Never add a config file, package, or analyzer setting to the repo, or run a restore, build, or `nuxi prepare`, to make a finder run. One that can't run as things stand is skipped, and the report says so.
-   - Check what the finders can't see: an analyzer or lint config that marks hand-written code as generated or excluded (an `.editorconfig` glob, a lint ignore) leaves those files out of the finder's results. Name them in the leads file, so an empty result isn't read as a clean one.
-6. **Split into areas**: one per module, bounded context, or package, each one hunter can read in full (as a guide, up to about 8,000 hand-written lines). A module over the guide is split along its own folders (Application, Domain, Infrastructure, and the controllers, or its feature folders) until every area is under it; small neighbours may be merged up to the guide, never past it. A single file, or a folder with no subfolders, that is over the guide becomes its own area, and its hunter reads it in parts (by line range) until it has read all of it. Add one **cross-cutting** area when there's more than one: shared kernel and infrastructure code, plus the duplication leads that span areas, because a per-area hunter can't see a copy in another area. Hunters run in waves of up to 8, in no particular order; there are as many waves as the areas need. Before the first wave, write the plan to `<hunt folder>/areas.md`: one `## <area> · <lines> lines · wave <n>` heading per area, with each file on its own `- <path>` line under it.
-7. **Assign every file.** Every file in `scope.txt` belongs to exactly one area, and its hunter reads it in full. Nothing is skimmed or sampled: a big area is split, or read in parts, never partly read. Before the first wave, run this in the hunt folder: `grep '^- ' areas.md | cut -c3- | sort > assigned.txt; sort scope.txt | diff - assigned.txt && sort assigned.txt | uniq -d`. A pass is an empty diff and no duplicate lines. Otherwise fix `areas.md` and run the check again. The files read in full are the union of the area reports' `Files read in full:` lists; the Coverage line names every file in `scope.txt` outside that union.
-
-## 3. Weigh, then hunt
-
-**The design pass comes first.** With more than one area, one fresh subagent with the **reviewer** role, the **design reader**, weighs the capabilities before any area is hunted. For a multi-area hunt without subagents, do the design pass yourself, by the same brief. With one area, there is no separate design reader: that area's hunter weighs the capabilities itself, with `capabilities.md` in its brief.
-
-Before writing a design-reader, hunter, or verifier brief, resolve every path and fact below and write it into the brief itself. The brief may not rely on `AGENTS.md`, a sibling skill, prior conversation, or an earlier artifact to understand the task:
-
-- **Locations:** the resolved absolute `<main checkout>`, `<root>`, and `<hunt folder>`, and `<repo>`.
-- **Repository facts:** the resolved absolute path of the repo's instructions, the resolved paths of its README, `docs/`, ADRs, and the specs in `<main checkout>/.plans/`, and exactly which projects or packages are published.
-- **Doctrine:** the resolved absolute paths of `<base directory>/references/hunting.md` and of the role's bundle or bundles below, to read in full before anything else. A rule the bundle cites by its library path, such as `invariants/concurrency-review.md`, is in the bundle under its `<!-- rule: <path> -->` line.
-- **Read-only scope:** the role edits nothing outside its named report, runs no tests, builds, or gate, and never commits, stages, or publishes.
-- **Report protocol:** the resolved absolute report path; save the report with a shell heredoc, `cat > <path> <<'EOF'` … `EOF`, not a file-writing tool; if saving is refused, reply with the whole report; otherwise reply with only the report path.
-
-The design reader's brief gives, in addition to the common facts:
-
-- the resolved absolute paths of `<hunt folder>/capabilities.md`, `<hunt folder>/baseline.md`, `<hunt folder>/cloc.csv`, and the hotspot list;
-- `<base directory>/references/hunting.md`, to read first: what slop is, how to read, signs 1, 4, 11, 12, and 13 above all, and the report format;
-- `<bundles>/design-reader.md`, every rule in it;
-- the job: for every capability in `capabilities.md`, and above all one that forces machinery on others (a check that rules libraries out, a format others must write to), say what it gives users, what the cheapest shape that gives them that is (the platform, a library, the host's or caller's job, a smaller design, or nothing), what users would lose, and what the change would cost. It reads the entry points, the composition root, and as much of each capability as it needs to judge it; the area hunters do the full read. Its report opens with the weight map over every line of `capabilities.md` (hunting.md, "Your report"), then its findings in the same finding line, numbered `D1`, `D2`, and so on, and ends with a `Capabilities weighed:` line listing them;
-- its resolved absolute report path, `<hunt folder>/report-design.md`.
-
-**Then each area gets a hunter**: a fresh reviewer-role subagent, one per area, in parallel within each wave (step 2, item 6): start the next wave once the last one's reports are in. Without subagents, hunt each area yourself in turn, by the same brief. Every brief is self-contained and gives:
-
-- the area's exact files, every one to be read in full, with each file's size from `cloc.csv` and the area's uncommitted files;
-- the resolved absolute paths of `<hunt folder>/baseline.md` and `<hunt folder>/capabilities.md`;
-- `<bundles>/backend-hunter.md` or `<bundles>/frontend-hunter.md` for the area's stack, and both for the cross-cutting area or an area holding both stacks, every rule in each;
-- its exact lead files from step 2;
-- when the separate design reader ran, `<hunt folder>/report-design.md`, whose findings that touch its area it confirms, prices more exactly, or contradicts with what it reads, rather than reporting them again;
-- its resolved absolute report path, `<hunt folder>/report-<area>.md`.
-
-Read findings from the files, not the replies. If a hunter or the design reader replies with its report instead of a path, save the reply to its named file verbatim before doing anything else. After a compaction, a report is complete when it ends with its `Files read in full:` line (the design reader's with its `Capabilities weighed:` line); rerun a hunter whose file isn't complete. A wave is done when every area in it has a complete report. Compare every report's list of files read with the area's files in `areas.md`: when a hunter didn't read every file in full, a fresh hunter, briefed as above with only the files it missed, saves to `<hunt folder>/report-<area>-2.md` (then `-3`, and so on). An area's coverage is the union of the `Files read in full:` lists in its reports, and the hunt doesn't report until every file is read.
-
-## 4. Verify
-
-A hunter's report is claims (AGENTS.md 'Reports'). Before a finding reaches the user, it gets three checks: its proof, its cited commit, and its replacement at the repo's versions (the Proof, History, and Replacement bullets).
-
-- **Who checks.** When the hunt holds more findings than you can recheck yourself (as a guide, over 30), start one fresh **verifier** per area report (a reviewer-role subagent), in the same waves of up to 8 as the hunters. Brief it with step 3's common self-contained facts, the same hunter facts except the lead files and with `<bundles>/design-reader.md` in place of the hunter's bundle, and the resolved absolute area-report path in place of the area's file list. It gets `<hunt folder>/verify-<area>.md` as its output file. It reads the files its findings cite, not the whole area. It does all three checks for every finding in its area and saves kept or dropped, and why, by finding number. Its "dropped" drops the finding. You do all three checks yourself for the findings you check: every design-reader finding, every `high`-risk finding, and with no verifiers, every finding. You also give every bug that opens the report the bug check. The Coverage line says which findings you checked, which the verifiers checked, and which stand on the hunter's word.
-- **Proof.** Check it against the code, by the standard its sign sets in `hunting.md`. A **proven** finding without its proof is dropped. A **judgement** finding is checked on its facts: the counts, what the code does, what the replacement does at the repo's versions, who asked for it, and that the argument follows from them. It's dropped only for a wrong fact the argument rests on. Disagreeing with the judgement isn't a reason to drop it: the checker keeps the finding and adds its counter-case to the finding's `against`, so the user weighs both.
-- **History.** Read the commit the hunter cites for why the code is there (`git -C <root> show <hash>`). A guard or a copy that a bug-fix commit added stays unless the replacement keeps what it fixed, or the bug can no longer happen, and the finding says which.
-- **Replacement.** For a sign 1 finding, check the delta too: each thing the hunter says the custom code does beyond the replacement, and each it says the replacement can't do. A lead a hunter dropped as "no exact replacement" goes back to the design reader's findings or gets weighed by you: it isn't a reason (hunting.md, sign 1). Confirm that the replacement exists at the version the repo is on: the package version in its project file, `Directory.Packages.props` (Central Package Management), `Directory.Build.props`, or `package.json`, and the resolved version in the lockfile (`packages.lock.json`, or the JS lockfile), then the installed package (`node_modules/<pkg>/package.json` and its types, `~/.nuget/packages/<id>/<version>/`, the target framework's API docs) or the official docs for that version. A replacement that adds a new dependency must already be a dependency of the repo, or house doctrine furniture; otherwise it's an open ask.
-- **The bug check.** A bug that opens the report is checked by reading the code until the failure is shown. One that doesn't hold is dropped.
-- Merge duplicates across areas: one finding, every location. A hunter's note on a design finding (confirmed, priced, or contradicted) joins that finding.
-- A code finding inside a capability that a design finding would drop or replace stays, marked `moot if D<n> lands`, since the user may keep the capability.
-- Cross-check the protections. For each finding that removes or weakens a protection, the protection it names as remaining must not be removed or changed by any other finding. Where one finding's proof cites code another finding touches (B is dead only once A goes; the inner check is redundant only while the outer one stays), merge them into one finding, or re-prove the later one as if the earlier had landed. A protection with no named successor isn't slop: drop the finding, unless the finding drops the behaviour it protects on purpose, which a judgement finding may do (it names the tests that change with it).
-- Then read earlier hunts and specs in this repository's `<main checkout>/.plans/` only (`scratch/slop-hunt*` folders other than `<hunt folder>`, any spec still `building`), and the backlog the repo's instructions names, if any. An earlier report is in scope only when its Paths line names this repository's `<root>` and `git -C <root> diff --quiet <hash>` exits 0; never compare paths across repositories. Tag each finding `NEW`, or `ALREADY-COVERED (<doc>)`.
-
-## 5. Rank and report
-
-Rank by weight: what the change removes (lines, types, concepts, dependencies, and the machinery it stops forcing elsewhere), weighted by churn, since slop in a hotspot is paid for every week, and set against what users lose. Never rank by how easy a finding was to prove: a judgement finding over a large capability ranks above a proven one over ten lines. Break ties by lower risk. The finding line and the risk scale are the ones in `hunting.md` ("Your report"); add `NEW` or `ALREADY-COVERED (<doc>)` to each line.
-
-- **Design** comes first: the design reader's findings, and any area finding that drops or reshapes a capability, ranked among themselves. Each is a decision for the user, so each also goes in Needs from you, with your recommendation.
-- **Code** comes next: the rest, ranked. Check the top ten yourself; if one drops, re-rank and check the one that moves up. Give the top 25 in full, and group the rest by sign, one short line each (`#N · NEW|ALREADY-COVERED · file:line · what · risk`).
-- **Cleanup** is one line at the end: every finding under about ten lines with no behaviour change (hunting.md, "Your report"), as `#N file:line what` separated by semicolons. It's real work, but the report doesn't lead with it.
-
-A hunt over a lean codebase may find little, and the report says so plainly. But the weight map always shows where the lines go, so "nothing found" is a claim the user can check against it.
-
-The report is about the slop, and it leads with it. The hunters' **Also noticed** lines are bugs, not slop: list them after the ranking, unranked, one line each, marked unchecked unless you checked them. They aren't parked or put to the user as fold decisions, because triaging bugs isn't this routine's job; the user takes them elsewhere (this routine's report format wins over AGENTS.md 'Gaps get fixed' here). The one exception is a bug that loses data or opens a security hole: check it yourself. It moves to the `Findings:` line, stated in full, since it changes the picture (AGENTS.md 'Lead with what changes the picture'); one that doesn't hold is dropped.
-
-Save the report to `<hunt folder>/report.md`, as AGENTS.md 'Routines' says to save a report, then give it:
+`<root>`, `<main>`, and `<run>` are absolute paths step 1 finds: write them out in full, and in double quotes, in every later command. A brief is exactly these four lines, with nothing added:
 
 ```
-**TLDR:** <plain English: where the weight is, how much of it is earned, and the biggest thing that isn't>
-**Findings:** 1. <a broken premise, or a bug that loses data or opens a security hole, or files not read in full (which, and why), or a finder that couldn't see some files, stated in full>, or none
-**Paths:** <root> → <repo>@<short hash>
-**Coverage:** <repo>: files not read in full: <none, or which and why; any file of `scope.txt` not read in full also opens the report on the Findings line> · data files left out by path: <paths, or none> · finders run: <names> · skipped: <names, why> · verified: <by me: numbers> · <by verifiers: n> · <hunter's word: n>
-**Weight map:** the capabilities from `capabilities.md` with their lines and share, each marked earned (with what earns it, in a few words) or with its finding number
-**Design:** the design findings, ranked, each with what users lose and the case against it
-**Code:** the ranked code findings, most weight first (top 25 in full, the rest grouped by sign)
-**Cleanup:** <#N file:line what; …>, or none
-**Start with:** the design decision to settle first, then 3–5 lowest-risk code wins, by number
-**Also noticed:** <bugs the hunters tripped over, one line each, file:line, (unchecked)>, or none
-**Needs from you:** 1. … (rec: …), one item per design finding; then say which code findings (and any Also-noticed bugs) to take on, then run /spec in this conversation, which takes no arguments and reads them from it
+Read <skill>/references/<role>.md in full, then do what it says.
+Hunt folder: <run>
+Yours: <name>
+Report: <absolute path>
 ```
 
-**Needs from you** is as AGENTS.md 'Reports' defines it.
+Start each subagent fresh: a new agent that has only its brief, not a fork of this conversation. A subagent replies with its report path. If it replies with the report instead, save the reply unchanged to that path. No file, or a file whose last line is not the one the role must end on, is a miss: start the role once more with the same brief; a second miss is not retried. Only a hunter's report has a required last line: `Not read in full:`.
+
+After a compaction, `<run>` is the folder the waypoint names. Never run steps 1 to 6 again; carry on at the first of steps 7 to 10 whose report files are missing.
+
+1. **Locate.** Run `git rev-parse --show-toplevel` (this is `<root>`; if it fails, stop), then `dirname "$(git -C "<root>" rev-parse --path-format=absolute --git-common-dir)"` (this is `<main>`). `<run>` is `<main>/.plans/scratch/slop-hunt-` plus the output of `date +%Y%m%d-%H%M%S`. Run `git -C "<main>" check-ignore -q .plans/ || echo '.plans/' >> "$(git -C "<main>" rev-parse --path-format=absolute --git-path info/exclude)"`, then `mkdir -p "<run>"`. Tell the user the path.
+   Done when: `<run>` exists.
+2. **List the files.** The list is what gets read; data, lockfiles, and generated code are left out on purpose. Run:
+   ```
+   dirs='(^|/)(Migrations|migrations|generated|vendor|__snapshots__|__fixtures__|fixtures|\.nuxt)/'; { git -C "<root>" -c core.quotePath=false grep -I -l --untracked -e '' -- . | grep -vE "$dirs|\.(g|Designer)\.cs\$|(lock\.json|\.lock|-lock\.yaml|\.snap|\.txt|\.csv|\.tsv)\$"; git -C "<root>" -c core.quotePath=false grep -I -l --untracked -e '' -- '*CMakeLists.txt' '*requirements*.txt' | grep -vE "$dirs"; } | LC_ALL=C sort -u > "<run>/scope.txt"
+   ```
+   The second `git grep` adds back the `.txt` build files, which are code, through the folder filter only; both lists include untracked files.
+   Done when: `scope.txt` is non-empty.
+3. **Size them.** Run:
+   ```
+   cd "<root>" && tr '\n' '\0' < "<run>/scope.txt" | LC_ALL=en_US.UTF-8 xargs -0 wc -l | awk '{n=$1; sub(/^ *[0-9]+ /,""); if ($0!="total") print n "\t" $0}' > "<run>/sizes.txt"
+   sort -rn "<run>/sizes.txt" | head -15
+   ```
+   A hand-kept data file over 2,000 lines in that list (seeds, i18n files, GeoJSON) is not code: remove its line from `scope.txt` with your file-editing tool, run `printf '%s\n' '<path>' >> "<run>/left-out.txt"`, and run this step again.
+   Done when: no data file over 2,000 lines is among the 15 biggest.
+4. **Churn.** Run:
+   ```
+   git -C "<root>" -c core.quotePath=false log --since=12.months --no-renames --format= --name-only -- . | grep -Fxf "<run>/scope.txt" | sort | uniq -c | sort -rn | head -40 > "<run>/churn.txt"
+   ```
+   Done when: the file exists (it may be empty).
+5. **Run the finders** the repo already has, as leads and nothing more. Run each from `<root>`. Never add a config file, package, or setting to the repo, and never restore, build, or `nuxi prepare` to make one run: run `echo 'skipped: <why>' > "<run>/leads-<tool>.txt"` instead.
+   - `knip`, when `<root>/package.json` exists. On Nuxt (a `nuxt.config.*` file), only when `<root>/.nuxt` exists, since without it every auto-import reads as unused. Run `cd "<root>" && { if [ -x node_modules/.bin/knip ]; then node_modules/.bin/knip; else npx --yes knip@5; fi; } > "<run>/leads-knip.txt" 2>&1`.
+   - `jscpd`, for any stack. It reads the files of `scope.txt` and nothing else, so it skips what step 2 left out and what step 3 moved to `left-out.txt`. Run `jq -R -s --arg root "<root>" '{path: (split("\n") | map(select(length > 0) | $root + "/" + .))}' "<run>/scope.txt" > "<run>/jscpd.json" && cd "<root>" && npx --yes jscpd@5 --config "<run>/jscpd.json" --reporters console > "<run>/leads-jscpd.txt" 2>&1`.
+   - .NET, only if `find "<root>" -path '*/obj/project.assets.json' | head -1` prints a path. With `<solution>` the `.sln` or `.slnx` file (each in turn if there are several), run `cd "<root>" && dotnet format style "<solution>" --verify-no-changes --no-restore --severity hidden --diagnostics IDE0051 IDE0052 IDE0060 --include . 2>&1 | grep -E 'IDE00(51|52|60)' >> "<run>/leads-dotnet-format.txt"`; and, if `jb` is installed, `jb inspectcode "<solution>" --no-build --swea -o="<run>/leads-inspectcode.txt"`.
+   - The repo's own linter or doctrine checker, in check mode, when its instructions name one: run that command with `> "<run>/leads-lint.txt" 2>&1` after it.
+
+   Done when: every finder above that applies to the repo's stack has a leads file.
+6. **Split into areas.** Start `areas.md` and the function that adds an area (`area` takes a name and a regex that matches the start of its files' paths; each file must match exactly one area):
+   ```
+   { echo "Root: <root>"; echo "Head: $(git -C "<root>" rev-parse --short HEAD)"; } > "<run>/areas.md"
+   cat > "<run>/area.sh" <<'EOF'
+   area() { n=$(p="$2" awk -F'\t' '$2 ~ ENVIRON["p"] {s+=$1} END{print s+0}' sizes.txt); { echo; echo "## $1 · $n"; p="$2" awk -F'\t' '$2 ~ ENVIRON["p"] {print "- " $2}' sizes.txt; } >> areas.md; }
+   EOF
+   ```
+   Then split the files in `sizes.txt` into areas: one per module or package, about 8,000 lines at most. Split a bigger module along its folders, merge small neighbours up to the limit, and give a single file over the limit its own area. Scripts, docs, and config go with the nearest module. With more than one area, add a `cross-cutting` one for shared kernel and infrastructure files. Area names are lowercase words joined by hyphens. Add the areas in one command that loads `area.sh` first (a shell keeps no function between commands); the `area` calls below are an example:
+   ```
+   cd "<run>" && . ./area.sh && area api '^src/Api/' && area web '^(web|e2e)/'
+   ```
+   Then check the split:
+   ```
+   cd "<run>" && grep '^- ' areas.md | cut -c3- | LC_ALL=C sort | diff - scope.txt
+   ```
+   Done when: the check prints nothing. A `<` line is a file in two areas, a `>` line a file in none. If it prints anything, run this step again from the `areas.md` start command (it empties the file, so never call `area` again without it) with corrected patterns, at most three tries in all. If the check still prints anything after the third try, stop and tell the user what it printed.
+7. **Design reader.** If `areas.md` has more than one `## ` heading, start one subagent: role `design-reader`, Yours `design`, Report `<run>/report-design.md`.
+   Done when: that file exists, there is one area, or the design reader was started twice.
+8. **Hunters.** Start one subagent per `## ` heading in `areas.md`, at most 8 running at once: role `hunter`, Yours the heading's name, Report `<run>/report-<name>.md`. When a report exists, run `tail -n 1 "<run>/report-<name>.md"`. If that line names files after `Not read in full:`, add them to `areas.md` as a `-rest` area, with `<name>` the area's name and the paths on that line separated by `, `, and start one hunter for it (Yours `<name>-rest`, Report `<run>/report-<name>-rest.md`):
+   ```
+   cd "<run>" && . ./area.sh && area <name>-rest "^($(tail -n 1 "report-<name>.md" | sed 's/^Not read in full: //; s/[][\.*^$+?(){}|]/\\&/g; s/, /|/g'))\$"
+   ```
+   That adds the heading `## <name>-rest · <their sizes added up>` with each file on a `- <path>` line. Never do this for a `-rest` area.
+   Done when: every area has a report file, or was started twice.
+9. **Verifiers.** For each `<run>/report-<x>.md`, start one subagent, at most 8 running at once: role `verifier`, Yours `report-<x>.md`, Report `<run>/verify-<x>.md`.
+   Done when: each report has its `verify-` file, or its verifier was started twice.
+10. **Reporter.** Start one subagent: role `reporter`, Yours `all`, Report `<run>/report.md`. A second miss: tell the user and stop.
+    Done when: `<run>/report.md` exists.
+11. **Relay.** Run `cat "<run>/report.md"`. Your reply is that output, word for word, then one line: `Report file: <run>/report.md`. Add no finding, ranking, or recommendation of your own.

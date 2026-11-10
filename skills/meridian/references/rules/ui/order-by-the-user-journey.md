@@ -1,22 +1,8 @@
-## Order By The User Journey
+## Order by the user journey
 
-Order decisions according to how users reason about the task:
+**Default:** Order decisions as the user reasons about the task (establish context, make the primary choice, configure only what it requires, handle exceptional behaviour, review the result, confirm or save), and never ask a later question before the user has the context for it.
 
-1. Establish context.
-2. Make the primary choice.
-3. Configure only what that choice requires.
-4. Handle exceptional behaviour.
-5. Review the result.
-6. Confirm or save.
+**When:** Any form or flow with more than one decision.
 
-Do not make users answer downstream questions before they have enough context.
-
-Keep dependent controls adjacent to the choice that reveals them. Do not split
-one conceptual decision across separate cards merely because separate
-operations or models implement it.
-
-A useful test is:
-
-> Would the user describe these as separate decisions?
-
-If not, they should not appear as separate steps.
+Bad: "What should happen if the file already exists?" asked before the user has chosen where files go.
+Good: The same question asked after the destination is chosen.

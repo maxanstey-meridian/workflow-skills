@@ -1,0 +1,14 @@
+# The roles of this routine, built by scripts/build-roles.sh into ../references/. Two kinds of line:
+#   role <name> <reads> <part>[,<part>...]
+#     builds references/<name>.md: a Rules block, then the parts (files in this folder, without .md), in order.
+#     <reads> names the rule files the block tells the role to read, always and in full: comma-separated
+#     names of skills/meridian/references/rules-<name>.list.
+#   rule <file> <rule path>
+#     copies one meridian rule to references/<file>, for an orchestrator that needs that rule alone.
+
+role reviewer           core,invariants,tests,backend,backend-tooling,frontend  reviewer
+role doctrine-reviewer  core,invariants,tests,backend,backend-tooling,frontend  doctrine-reviewer
+role fixer              core,invariants,tests,backend,backend-tooling,frontend  fixer
+role critic             core,invariants,tests,backend,backend-tooling,frontend  critic
+role auditor            core,invariants,tests,backend,backend-tooling,frontend  auditor
+rule commits.md         tools/write-commit-subjects-as-type-scope-subject.md,tools/never-copy-a-commit-subjects-style-from-the-log.md,tools/pick-the-commit-type-from-the-fixed-list.md,tools/scope-a-commit-to-the-folder-it-changes.md,tools/say-what-changed-and-why-in-the-commit-body.md,tools/mark-a-breaking-change-in-the-commit-footer.md,tools/make-one-commit-per-reviewed-unit.md,tools/derive-the-version-from-the-commits.md

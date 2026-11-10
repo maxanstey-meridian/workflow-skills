@@ -1,0 +1,5 @@
+# The house shape and the capability map
+
+**The house shape.** Read the solution or workspace layout, the composition root (`Program.cs` and the DI registration, or `nuxt.config` and the plugins), and one representative slice end to end, from the endpoint or page down to persistence. Note, in a few lines: how a slice is laid out, which libraries the repo already depends on and for which job (validation, persistence, HTTP, results, logging, mapping, scheduling, messaging), where deployment config lives (appsettings, Bicep or Terraform, pipelines), and the naming. Describe what is there; never say any of it is deliberate, earned, or the house way.
+
+**The capability map.** A capability is a job the code does for its users (sweeping, erasure, holds, previews) or machinery it carries to do them (a queue, a scheduler, a validator or readiness check, a serialiser, a lock or lease scheme, an options system, a diagnostics layer). The map is one line per capability, sorted by lines, 10 to 25 lines, with everything over about 2% of scope on its own line.

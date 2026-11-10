@@ -1,20 +1,8 @@
-## Treat Disabled States As Explanations
+## Treat disabled states as explanations
 
-A disabled control must have an evident reason and a clear route to enabling it.
+**Default:** A disabled control shows why it is disabled and how to enable it: hide an irrelevant control until its prerequisite is chosen, show the prerequisite beside it, or say in plain words what the user must do.
 
-Prefer:
+**When:** Any control that can be disabled.
 
-- hiding an irrelevant control until its prerequisite is selected
-- showing the prerequisite beside the disabled control
-- explaining the required action in direct language
-
-Weak:
-
-> Add a compatible input in step 3.
-
-Better:
-
-> To choose a folder from form data, first add a Text field under Data to export.
-
-Use step numbers only as secondary navigation aids. Describe the actual action
-because numbering changes and users think in tasks, not indices.
+Bad: A greyed-out "Choose folder from form data" with no text.
+Good: The same control with "To choose a folder from form data, first add a Text field under Data to export."

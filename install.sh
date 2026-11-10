@@ -272,9 +272,9 @@ case $1 in
     [ $# -eq 1 ] || usage
     link_agents_skills
     if grep -q '[^[:space:]]' "$codex_home/AGENTS.override.md" 2>/dev/null && [ ! "$codex_home/AGENTS.override.md" -ef "$repo/AGENTS.md" ]; then
-      echo "skipped the rules: Codex reads $codex_home/AGENTS.override.md in place of AGENTS.md while it holds anything but blank lines; move its lines into developer_instructions in $codex_home/config.toml (see the README), remove it, and rerun"
+      echo "skipped the rules: Codex reads $codex_home/AGENTS.override.md in place of AGENTS.md while it holds anything but blank lines; move its lines into developer_instructions in $codex_home/config.toml (see INSTALL.md), remove it, and rerun"
       failed=1
-    elif link_only_rules_file "$codex_home/AGENTS.md" "developer_instructions in $codex_home/config.toml (see the README)"; then
+    elif link_only_rules_file "$codex_home/AGENTS.md" "developer_instructions in $codex_home/config.toml (see INSTALL.md)"; then
       echo "Your own Codex rules go in developer_instructions = '''…''' at the top of $codex_home/config.toml, before any [section] line: $codex_home/AGENTS.md is this repo's file now, so an edit there changes the repo."
     fi
     ask_for_hook "add these lines to the end of $codex_home/config.toml, so the waypoint comes back after a compaction (additionalContextLimit = 0 passes the whole waypoint, not a preview):

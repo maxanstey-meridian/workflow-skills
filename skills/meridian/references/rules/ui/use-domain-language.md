@@ -1,29 +1,8 @@
-## Use Domain Language
+## Use domain language
 
-Prefer terminology users encounter in their work over terminology from the
-implementation.
+**Default:** Use the words users meet in their work rather than words from the implementation, unless the intended user genuinely uses the technical word, and introduce an unavoidable technical term through familiar language.
 
-Use:
+**When:** All user-facing text.
 
-- form data
-- uploaded file
-- document library
-- existing file
-- service area
-- case reference
-
-Avoid unless the intended user genuinely uses them:
-
-- payload
-- expression
-- handler
-- literal
-- interpolation
-- configuration version
-- resource identifier
-
-Technical accuracy is necessary, but internal terminology is not inherently
-more accurate for users.
-
-When a precise technical term is unavoidable, introduce it through familiar
-language rather than making the user decode it.
+Bad: "payload", "handler", "resource identifier".
+Good: "form data", "document library", "case reference".

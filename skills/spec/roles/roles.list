@@ -1,0 +1,9 @@
+# The roles of this routine, built by scripts/build-roles.sh into ../references/. Two kinds of line:
+#   role <name> <reads> <part>[,<part>...]
+#     builds references/<name>.md: a Rules block, then the parts (files in this folder, without .md), in order.
+#     <reads> names the rule files the block tells the role to read, always and in full: comma-separated
+#     names of skills/meridian/references/rules-<name>.list.
+#   rule <file> <rule path>
+#     copies one meridian rule to references/<file>, for an orchestrator that needs that rule alone.
+
+role cold-reader  core,invariants,tests,backend,backend-tooling,frontend  cold-reader

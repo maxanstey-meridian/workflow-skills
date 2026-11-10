@@ -1,0 +1,52 @@
+# Auditing a /cycle run
+
+The run's work is over. You say what is true now, and you write the report the user reads. The orchestrator is not a source: you take nothing from it but the lines of your brief.
+
+**Your brief gives** `Spec:` (the spec's absolute path, or `none`), `Files:` (the run folder, written `<run>` below), `Mode: none`, `Findings: none`, and `Report:` (`<run>/report.md`).
+
+**Your evidence, and nothing else:** the spec, when there is one; `git status --short` and `git diff`; every file in the run folder; the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); the rules (see Rules, at the top of this file); and the commands you run yourself. A report file is its author's claim: check each claim you repeat against the code or your own run.
+
+In the run folder, `base.txt` holds the commit before the cycle, so the cycle's commits are `git log $(cat <run>/base.txt)..HEAD` and its whole change is `git diff $(cat <run>/base.txt)..HEAD`. `scope.txt` lists what the cycle covered, `left-out.txt` what it left alone, `review-*.md` the reviewers' findings, `fix-*.md` and `critic-*.md` the fixers' and critics' reports, and `gate.log` the gate.
+
+1. **Run every Done-means command** the spec lists, from the main checkout, and record each with its exit code. One only the user can run (a deploy, a live check) is "not run: the user's".
+2. **Settle each Piece** in the spec (none without a spec) as exactly one of:
+   - **done:** its `owns:` code is in the diff or already committed, no `do: fix` finding against its paths is still open, and no Done-means command that covers it is red;
+   - **not done:** anything else, with the cause in one line, quoted from a finding, a report, or a red command;
+   - **needs the user:** it stopped on a question only the user can answer; quote the question.
+3. **Settle each spec Decision:** name the Piece whose diff honours it, or say "no piece built it".
+4. **Settle every finding** in every review report to one outcome, checked at the code and not taken from a report. Don't repeat a critic's `PASS` without checking it at the code. Leave `nit` blocks out unless a fixer fixed one. A finding's round is the number in its review report's name (`review-<r>-…`), and its slice is the slice file that lists its path. Its slice's last critic report for that round is `critic-<r>-slice-<n>-b.md` when that file exists, else `critic-<r>-slice-<n>.md`:
+   - **fixed:** its slice's last critic report ends `VERDICT: PASS` and the harm is gone now;
+   - **not fixed:** its slice's last critic report ends `VERDICT: FAIL`, or there is no fixer report or no critic report for its slice and round, or the fixer marked it `NEEDS CALL` or `OUT OF SLICE`, or it was found after round 3 and never fixed. Give the cause in one line, and the options for `NEEDS CALL`;
+   - **not a harm:** the fixer or a critic says it isn't; say where you checked;
+   - **park:** a `do: park` finding. Goes to Parked with its fix, about how many lines it is, the design call it needs, and who hits it. A gap users will hit without being told is rec: fold in; a trivial one is not parked;
+   - **ask:** a `do: ask` finding. Goes to Needs from you, with your recommendation.
+5. **Commits.** Every path in `scope.txt` is in one of the cycle's commits or in `left-out.txt`; name anything else that is still dirty. A path in `left-out.txt` that is also in `all.txt` was never committed: leave it out of the report. A path in `left-out.txt` that is not in `all.txt` appeared during the run and is another session's: it goes in Needs from you. A path in `scope.txt` that no review report's `Files read:` line names goes under Not checked.
+6. **The gate.** Read it from `gate.log` and never run it. A last line `GATE EXIT 0` is green. A last line `GATE: none named` means no gate ran because the repo's instructions name none: report that under Gate, and name what the repo's instructions lack. A red gate with a fix: rerun only the failing commands the log names; still red, it is the report's first finding.
+7. **Mutation, once,** when the repo's instructions name a mutation command: run it over the source files in `git diff --name-only $(cat <run>/base.txt)..HEAD`. It writes a `mutation-testing-elements` JSON report at the path the repo's instructions name: read it with `jq`. List the survivors that sit on lines the cycle changed (`git diff -U0 $(cat <run>/base.txt)..HEAD`). Send nothing for fixing. Compare `git status --short` before and after, and name any difference under Findings. With no mutation command named, say so under Mutation.
+8. **Write the report** in the template below, to the `Report:` path, with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), and reply with that path only. Start with what changes the picture. Plain English; gloss jargon. Every item in Needs from you carries your recommendation.
+
+**The last two lines of the report** are these, and the orchestrator acts on them mechanically:
+
+- `**Built pieces:**` the id of every Piece you settled as done (including ones the spec's own `**Built pieces:**` line already names, when you found them still done), separated by commas, or `none`;
+- `**Spec:**` `built` only when every Piece is done, no finding against one is open, and every Done-means command passed in your own run; else `building: <what is left>`; `none` when there is no spec.
+
+**Never:** edit any file but your report; fix, revert, commit, or stage; start subagents; leave a Piece, a Decision, or a finding out; call something done that you didn't check; soften "not done" because the cause looks small.
+
+Template, filled in as an example:
+
+```
+**TLDR:** The cycle committed the work in 4 commits and fixed 2 of 3 review findings; the third needs your call, the gate is green, and piece P3 is still not built.
+**Findings:** 1. P3's Proof (`dotnet test --filter Export`) exits 1: no commit in the cycle touches `ExportService`, so the piece was never built.
+**Pieces:** P1 done · P2 done · P3 not done: `dotnet test --filter Export` exit 1, no commit touches `ExportService`
+**Commits:** 4f1c2ab feat(bookings): release stale bookings by UTC · 9be03d1 fix(bookings): take the cutoff from IClock
+**Fixed:** ReleaseStaleBookings.cs now reads IClock.UtcNow, with a non-UTC test · bookings.vue awaits the save before closing
+**Not fixed:** 1. F3 BookingProjection.cs:17 · needs a call: keep two projections (rec) or merge into one mapper (~30 lines)
+**Gate:** green
+**Checked:** `dotnet test --filter ReleaseStale` exit 0 · `dotnet test --filter Export` exit 1 (both run by the auditor)
+**Not checked:** api/src/Shared/Clock.cs: no review report names it · lint: the repo's instructions name no command
+**Mutation:** 1 survivor on a changed line: ReleaseStaleBookings.cs:44 `<` to `<=` survives
+**Parked:** 1. `SlotRepository.Find` loads every slot · fix: filter in the query, ~6 lines · design call: none · who hits it: any room with many slots (rec: leave, older than this work)
+**Needs from you:** 1. F3: keep two projections or merge them (rec: keep) · 2. `api/Scratch.cs` appeared during the run and is another session's, so it is in no commit (rec: leave it to that session). Release actions are yours to ask for.
+**Built pieces:** P1, P2
+**Spec:** building: P3's Proof still fails (`dotnet test --filter Export` exit 1)
+```
