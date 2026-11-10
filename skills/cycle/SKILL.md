@@ -84,7 +84,7 @@ After each step, run `echo "<next step> <r>" > <run>/at.txt`, where `<next step>
     6. Start one `reviewer` (re-review). Done when its report ends as the Briefs table says, or it has missed twice.
 11. **Commit the round.** Commit `<run>/fixed-<r>.txt`. Then, if `<r>` is 3, go to step 12. Else add 1 to `<r>` and go to step 7.
 12. **Gate, once.**
-    1. Take the gate command from the repo's instructions. If they name none, run `echo 'GATE: none named' > <run>/gate.log`, then go to step 13.
+    1. Take the gate command from the repo's instructions. If they name none, run `cd "$(git rev-parse --show-toplevel)" && task --list-all 2>/dev/null | grep -c '^\* gate:'`: if it prints `1`, the gate command is `task gate`. Else run `echo 'GATE: none named' > <run>/gate.log`, then go to step 13.
     2. Run `( set -o pipefail; <gate> ) > <run>/gate.log 2>&1; echo "GATE EXIT $?" >> <run>/gate.log; tail -n 1 <run>/gate.log`, in the background if your agent's time limit is shorter than the gate. If it prints `GATE EXIT 0`, go to step 13.
     3. Start one gate `fixer`, then one gate `critic`. Done when each has reported or has missed twice.
     4. Run the Uncommitted list `| grep -vFxf <run>/left-out.txt > <run>/fixed-gate.txt`.

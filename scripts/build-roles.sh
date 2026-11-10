@@ -12,7 +12,7 @@
 # It refuses (exit 1, the files still written) a rule that is in no list or in more than one (the four unlisted index
 # files: in any), a rule file that breaks the rule format in CONTRIBUTING.md (core/rule-strength.md and the index
 # files are exempt), a generated file over the byte budget, a missing part or rule, a role that reads a rule file no
-# list builds, a cited <path>#<slug> whose file has
+# list builds, a rule file no role of its routine reads, a cited <path>#<slug> whose file has
 # no heading with that slug, a citation in a routine, a part, the README, INSTALL.md, CONTRIBUTING.md, or AGENTS.md that names
 # no rule file, and a generated file no line builds.
 # Run it after editing a rule, a rule list, a part, or a roles.list: sh scripts/build-roles.sh
@@ -290,6 +290,10 @@ for list in "$repo"/skills/*/roles/roles.list; do
     [ -e "$part" ] || continue
     base=$(basename "$part" .md)
     awk '$1 == "role" { print "," $4 "," }' "$list" | grep -Fq ",$base," || fail "skills/$routine/roles/$base.md: no line in roles.list uses it"
+  done
+  # Every rule file is read: one no role of this routine reads holds rules that reach none of its subagents.
+  for name in $names; do
+    awk '$1 == "role" { print "," $3 "," }' "$list" | grep -Fq ",$name," || fail "skills/$routine/references/rules-$name.md: no role in skills/$routine/roles/roles.list reads $name, so its rules reach no subagent of this routine"
   done
 done
 

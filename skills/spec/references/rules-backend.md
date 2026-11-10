@@ -174,14 +174,14 @@ Good: both controllers calling `ListFormsQuery`.
 
 **When:** Any code inside a module, on .NET or TypeScript.
 
-Bad: the reports module joining the forms module's `Forms` table.
-Good: the reports module calling the forms module's published query.
+Bad: the Cases module joining the CaseTypes module's `CaseTypes` table.
+Good: the Cases module calling the CaseTypes module's published query.
 <!-- rule: backend/integrate-modules-through-a-port-contract-or-kernel.md -->
 ## Integrate modules through a port, contract, or kernel
 
 **Law:** Two modules (feature folders under `Modules/` or `src/modules/`) work together in one of three ways only: a required port (the consumer's own type naming the capability it needs) bridged to the provider by a host adapter (an implementation in the host, which may depend on both sides); a published contract (the commands, queries, and types the provider deliberately exposes to other modules); or a shared kernel (a small concept both own and change only by agreement).
 
-**When:** Any dependency between modules. Choose the consumer's port when the consuming use case should set the shape, the provider's published contract when it offers one stable capability to several consumers, and the shared kernel (in `Common`) only for a concept the modules really co-own. A required port does not move to `Common` because its adapter calls another module; each module depends only on the contract relevant to its own side.
+**When:** Any dependency between modules. Choose the provider's published contract only when the consumer couldn't keep its own rules if the provider had never been built, the consumer's port when the consumer could (neither module then names the other) or when the consuming use case should set the shape, and the shared kernel (in `Common`) only for a concept the modules really co-own. A required port does not move to `Common` because its adapter calls another module; each module depends only on the contract relevant to its own side.
 
 Bad: Forms' use case importing `Submissions.Application.SubmissionService`.
 Good: forms declaring a `SubmissionCounts` port that a host adapter implements by calling submissions' published query.
@@ -190,7 +190,7 @@ Good: forms declaring a `SubmissionCounts` port that a host adapter implements b
 
 **Law:** Dependencies between modules (feature folders under `Modules/` or `src/modules/`) form a one-way graph, so no module reaches itself by following them; a loop is a gap to fix, and no decision record or accepted cost stands in for its fix.
 
-**When:** Any backend with more than one module. The integration rule says how two modules talk; this one says which of the two may name the other. A loop made only of edges from a module to one it can't keep its rules without means the modules on it need each other, which makes them one concept split across modules; every other loop holds at least one edge between two modules where neither needs the other. The split, or that edge, is the one to fix.
+**When:** Any backend with more than one module. The integration rule says how two modules talk; this one says which of the two may name the other. A loop made only of edges from a module to one it can't keep its rules without means the modules on it need each other, which makes them one concept split across modules; every other loop holds at least one edge from a module to one it could keep its rules without. The split, or that edge, is the one to fix.
 
 Bad: Cases reading CaseTypes' versions and CaseTypes reading Cases' open count, with a decision record that accepts the loop.
 Good: Cases depending on CaseTypes, and CaseTypes taking the count through its own `OpenCaseCounts` port, bridged at the host.
@@ -262,7 +262,7 @@ Good: the controller maps `CreateFormRequest` to `CreateFormCommand`.
 
 **Default:** When two modules (feature folders under `Modules/` or `src/modules/`) keep needing each other's internal concepts, or one invariant keeps needing atomic changes to both, merge them or redraw the boundary before adding integration ports (the consumer's own types naming a capability it needs) or coordination.
 
-**When:** Any design that adds another integration port, or any coordination, between two modules that already depend on each other.
+**When:** Any design that adds another integration port, or any coordination, between two modules that already work together through a port or a contract.
 
 Bad: a saga (a multi-step coordinator) and two ports so `Orders` and `OrderLines` stay consistent.
 Good: one `Orders` module.

@@ -143,6 +143,8 @@ Give the folders as paths (`~/.myagent/skills`, not a bare name).
 - the paths never to commit;
 - the docs voice, if the README shouldn't use `/readme`'s house voice.
 
+A command you'd rather not write there can be a task in the repo root's `Taskfile.yml` ([Task](https://taskfile.dev/)): where the instructions name no command, the routines run `task gate` for the gate, `task build` for the build, and `task test`, `task lint`, and `task format` for those checks, when the Taskfile has them.
+
 Claude Code skips a repo's `AGENTS.md` when the repo also has a `CLAUDE.md` or a `CLAUDE.local.md`, so in such a repo, add the line `@AGENTS.md` to `CLAUDE.md`. Reading `AGENTS.md` needs Claude Code 2.1.277 or later.
 
 The skills keep their working files in the main checkout's `.plans/`, and add `.plans/` to `.git/info/exclude` when the repo doesn't ignore it.

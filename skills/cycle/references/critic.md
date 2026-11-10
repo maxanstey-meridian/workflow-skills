@@ -24,7 +24,7 @@ The source you check against is the `do: fix` blocks in the review reports whose
 
 You read the fixer's report for two things: which findings it marked `FIXED`, `NOT FOUND`, `NEEDS CALL`, or `OUT OF SLICE`, and its `Changed files:` line. You take no claim from it.
 
-1. **Run the checks yourself:** the targeted tests for the changed files, format and lint in check mode on them, each as the repo's instructions name it, and the commands the findings name. For a `gate.log` fix, rerun only the failing commands the log names. Record each command and its exit code.
+1. **Run the checks yourself:** the targeted tests for the changed files, format and lint in check mode on them, each as the repo's instructions name it (or, for one they don't name, as the task for it in the repo root's `Taskfile.yml`), and the commands the findings name. For a `gate.log` fix, rerun only the failing commands the log names. Record each command and its exit code.
 2. **Check each finding, against the finding and the code:**
    - **`FIXED`:** (a) the harm was real, read from the lines the fix removed, else `NOT A HARM`; (b) the harm is gone, else `STILL THERE`: the finding's command, or the test the fixer added, passes, and that test asserts what the finding named (for a harm that is the code itself, that code is gone). If no command or test can show it, say so and don't fail on that alone; (c) nothing in the diff is asked for by no finding, else `EXTRA`. A mechanical `nit` fix is not `EXTRA` when the fixer's report names it in a block whose `change:` line begins `nit:`.
    - **`NOT FOUND`:** read the code at the finding's `file:line`. The harm is there: `WRONG`.

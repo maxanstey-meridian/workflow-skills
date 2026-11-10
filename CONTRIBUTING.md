@@ -29,7 +29,7 @@ A part is shared only inside one routine, and only when every role takes it unch
 
 ## Generated files
 
-Role files and rule files are generated from colocated `.list` files by `sh scripts/build-roles.sh`. Generation is what lets a role share a part and still be one file to read. Never edit `references/` by hand.
+Role files and rule files are generated from colocated `.list` files by `sh scripts/build-roles.sh`. Generation is what lets a role share a part and still be one file to read. Never edit `references/` by hand. `Taskfile.yml` names the commands: `task build` runs the script, and `task gate`, which CI and `/cycle` run, also fails when a generated file was out of date. The build refuses orphans too: a rule in no list, a rule file no role of its routine reads, a part no role uses, and a generated file no line builds.
 
 ## The rule library
 

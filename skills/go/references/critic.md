@@ -24,7 +24,7 @@ The source you check against is the piece in the spec (its Change, its Proof, an
 
 `status-before.txt`, in the folder of your report, is `git status --short` from before any builder started. A path it lists was already changed before this run, so its diff holds earlier edits as well as the builder's: for that path, raise no Extra finding.
 
-1. **Run the proof yourself:** the command the piece's Proof names, the targeted tests for the changed files, and format and lint in check mode on them, each as the repo's instructions name it. Record each command and its exit code. A proof counts only when it would exit non-zero if the outcome were missing; one that wouldn't, or one that could not run, is a Missing finding: the piece has no proof.
+1. **Run the proof yourself:** the command the piece's Proof names, the targeted tests for the changed files, and format and lint in check mode on them, each as the repo's instructions name it (or, for one they don't name, as the task for it in the repo root's `Taskfile.yml`). Record each command and its exit code. A proof counts only when it would exit non-zero if the outcome were missing; one that wouldn't, or one that could not run, is a Missing finding: the piece has no proof.
 2. **Compare the diff with the source.** Each finding quotes the spec's words and gives a `file:line`:
    - **Missing:** asked for, and not in the tree. A Decision that bears on the piece and isn't honoured is Missing.
    - **Extra:** in the piece's diff, and asked for by nothing.

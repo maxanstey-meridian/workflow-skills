@@ -1,0 +1,22 @@
+version: '3'
+
+tasks:
+  build:
+    desc: Build the rule files and role files, and check every rule, list, role, and citation
+    cmds:
+      - sh scripts/build-roles.sh
+
+  orphans:
+    desc: Fail on a rule in no list, a rule file no role reads, a part no role uses, or a generated file no line builds
+    cmds:
+      # The build makes these checks, and it has no check-only mode: it writes the generated files as it goes.
+      - task: build
+
+  gate:
+    desc: Fail when the build refuses anything, or when a generated file was out of date
+    cmds:
+      - |
+        sum() { find skills/*/references -type f | LC_ALL=C sort | xargs shasum | shasum; }
+        before=$(sum)
+        sh scripts/build-roles.sh
+        [ "$before" = "$(sum)" ] || { echo 'The build changed generated files, so they were out of date. They are rebuilt now: review and commit them.' >&2; exit 1; }

@@ -4,5 +4,5 @@
 
 **When:** Any code inside a module, on .NET or TypeScript.
 
-Bad: the reports module joining the forms module's `Forms` table.
-Good: the reports module calling the forms module's published query.
+Bad: the Cases module joining the CaseTypes module's `CaseTypes` table.
+Good: the Cases module calling the CaseTypes module's published query.
