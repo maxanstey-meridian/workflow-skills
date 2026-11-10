@@ -103,7 +103,7 @@ Report: <run>/cold-read.md
 ```
 
 1. The role replies with the path of its findings file. If the reply is a numbered list of findings, save it unchanged to the `Report:` path; any other reply with no file is a miss.
-2. No file, or a file whose last line is not the one the role must end on, is a miss: start the role once more with the same brief; a second miss is not retried. The cold reader's file has no required last line, so here a miss is no file, and after a second miss the cold read is reported as skipped.
+2. No file, or a file whose last line is not the one the role must end on, is a miss: start the role once more with the same brief; a second miss is not retried. The cold reader's file has no required last line, so here a miss is no file, or a file where `grep -cx 'Laws:' <run>/cold-read.md` does not print `1`, and after a second miss the cold read is reported as skipped.
 3. Read the file. Fix each finding in the spec; a question only the user can answer becomes an open ask; a finding that shows the code is wrong becomes a piece. A finding you don't take is named in the report, with why it doesn't hold.
 
 Done when every finding is fixed in the spec, is an open ask, or is named in the report as not taken.
