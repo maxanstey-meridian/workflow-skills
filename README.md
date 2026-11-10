@@ -36,15 +36,27 @@ It links the workflow skills (`spec`, `go`, `cycle`, `waypoint`, `slop-hunt`, `r
 
 ## The skills
 
-| Skill | Arguments | What it does | What it never does |
-|---|---|---|---|
-| `/spec` | none | Turns the agreed work into one named `.plans/spec-<slug>.md` that `/go` builds from and `/cycle` reviews against. | Edits code, runs builds or the gate, or commits. |
-| `/go` | `<spec path>` | Builds the agreed work through subagents: one builder per piece, then a critic that checks the piece against the spec, with one retry. A fresh auditor then runs the spec's Done-means checks and writes the report, which the session relays as written. It leaves the work uncommitted. It stops before building when subagents are unavailable, or when the spec still has open asks. | Commits, pushes, runs `/cycle`'s review, or runs the full gate. |
-| `/cycle` | `[<spec path>] [full \| diff]` | Reviews all uncommitted work with fresh subagents, commits, fixes, re-reviews, and commits again, for three rounds at most, with a critic that checks each round's fixes against their findings. The full gate then runs once, and a fresh auditor reconciles every finding, runs one mutation run when a command exists, and writes the report, which the session relays as written. With a spec, it also checks the work against that spec; without one, it reviews the work on its own merits. `diff` is the default. | Pushes, tags, or publishes. |
-| `/waypoint` | none | Saves the session's state to a note before you compact or step away. | Commits, pushes, or tidies. |
-| `/slop-hunt` | none | Hunts the repository containing the current working directory for weight the code hasn't earned: capabilities that cost more than they give users (weighed first by a design reader, or by the hunter itself in a one-area hunt), then hand-rolled machinery, silent failures, speculative abstraction, duplication, dead code, and test slop. Ranks each by the weight it removes, with its replacement and what users would lose. | Edits anything outside `.plans/` (bar one line in `.git/info/exclude` when the repo doesn't ignore `.plans/`), or runs builds, tests, or the gate. |
-| `/readme` | `[path]` | Brings the README up to date with what users can see changed since it was last committed and moves it into the house shape and voice, checking every command, path, count, and link against the repo. With no README, it writes one. | Commits, pushes, or tags. |
-| `meridian` | | The house doctrine (architecture, invariants, UI, testing, and tooling) as a library of rules, one per file and all in one format (a title, a strength line with the rule in one sentence, a When line, and a Bad and Good pair), under `references/rules/<responsibility>/`. The routines' subagents read the rules as generated files, each rule in exactly one: `skills/meridian/references/rules-<name>.list` names a file's rules, and `sh scripts/build-roles.sh` concatenates each into a tracked `rules-<name>.md` in every routine's `references/` folder. The same script builds each role's file there from the hand-written files in that routine's `roles/` folder, as its `roles.list` says. It also writes the Laws, Defaults, and Preferences indexes in `references/rules/core/` from each rule's strength line. It refuses a rule in no list or in two, a rule that breaks the format, a generated file too big to come back in one file read, a cited heading that doesn't exist, a citation that names no rule file, and anything in a `references/` folder it didn't build. After editing a rule, a list, or a role, run it; CI runs it too, and fails if a committed file is out of date. [`CONTRIBUTING.md`](CONTRIBUTING.md) says how the routines are put together and what must stay true. Where a spec leaves a UI's accessibility, formatting, or validation open, it follows the GOV.UK Design System and style guide, unless the repo's UI skill decides. | |
+| Skill | What it does | Never |
+|---|---|---|
+| `/spec` | Writes the agreed work into one spec file. | Edits code or commits. |
+| `/go <spec path>` | Builds the spec through subagents and leaves it uncommitted. | Commits or pushes. |
+| `/cycle [<spec path>] [full \| diff]` | Reviews all uncommitted work with fresh subagents, fixes it, and commits it. | Pushes, tags, or publishes. |
+| `/waypoint` | Saves the session's state to a note before you compact or step away. | Commits or pushes. |
+| `/slop-hunt` | Hunts the repo for weight the code hasn't earned, and ranks what it finds. | Edits code or runs builds. |
+| `/readme [path]` | Brings the README up to date with the code, or writes one. | Commits or pushes. |
+| `meridian` | The house doctrine the routines hold work to, as a library of rules. | |
+
+**`/spec`** writes `.plans/spec-<slug>.md`, which `/go` builds from and `/cycle` reviews against. It runs no build and no gate.
+
+**`/go`** gives each piece of the spec a builder, then a critic that checks the piece against the spec, with one retry. A fresh auditor then runs the spec's Done-means checks and writes the report, which the session relays as written. It stops before building when subagents are unavailable or the spec still has open asks. It never runs `/cycle`'s review or the full gate.
+
+**`/cycle`** reviews, commits, fixes, re-reviews, and commits again, for three rounds at most. A critic checks each round's fixes against their findings. The full gate then runs once, and a fresh auditor reconciles every finding, runs one mutation run when the repo has a command for it, and writes the report. With a spec, it also checks the work against that spec. `diff` is the default.
+
+**`/slop-hunt`** looks first for capabilities that cost more than they give users, then for hand-rolled machinery, silent failures, speculative abstraction, duplication, dead code, and test slop. Each finding comes with its replacement and what users would lose. It writes only inside `.plans/`, bar one line in `.git/info/exclude` when the repo doesn't ignore `.plans/`.
+
+**`/readme`** covers what users can see changed since the README was last committed, moves it into the house shape and voice, and checks every command, path, count, and link against the repo.
+
+**`meridian`** covers architecture, invariants, UI, testing, and tooling. Each rule is one file in one format: a title, a strength line with the rule in one sentence, a When line, and a Bad and Good pair. Where a spec leaves a UI's accessibility, formatting, or validation open, it follows the GOV.UK Design System and style guide, unless the repo's UI skill decides. [`CONTRIBUTING.md`](CONTRIBUTING.md) says how the rules reach the routines' subagents; after editing a rule, a list, or a role, run `sh scripts/build-roles.sh`.
 
 `/go` and `/cycle` are yours to start. The skills tell the agent never to start them itself. They say so in prose rather than with `disable-model-invocation`: that flag takes the skill's description out of the agent's context, so it no longer recognises "then we'll go" as the routine and improvises one instead. This README writes each skill as `/name`; your agent's section in [`INSTALL.md`](INSTALL.md) says how yours calls one.
 
