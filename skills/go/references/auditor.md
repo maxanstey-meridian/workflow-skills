@@ -22,7 +22,7 @@ The run's work is over. You say what is true now, and you write the report the u
 
 The run folder holds `build-<id>-<n>.md`, `critic-<id>-<n>.md`, and `status-before.txt`: the tree's `git status --short` before any builder started. A path listed there was already dirty, so say so beside any piece that owns it.
 
-1. **Run every Done-means command** the spec lists, from the main checkout, and record each with its exit code. One only the user can run (a deploy, a live check) is "not run: the user's". A Done-means command that is the repo's full gate (the command its instructions name as the gate) is not run, and nor is mutation: `/cycle` runs both. List them under Not checked.
+1. **Run every Done-means command** the spec lists, from the main checkout, and record each with its exit code. One only the user can run (a deploy, a live check) is "not run: the user's". A Done-means command that is the repo's full gate (the command its instructions name as the gate, or, when they name none, `task gate` from the repo root's `Taskfile.yml`) is not run, and nor is mutation: `/cycle` runs both. List them under Not checked.
 2. **Settle each Piece** in the spec as exactly one of:
    - **done:** its last critic report (the one with the highest attempt number) ends `VERDICT: PASS`, the change is in the diff or in an untracked file the piece owns, no Done-means command that covers it is red, and you found no gap in it that this work caused or left (step 4);
    - **not done:** anything else, with the cause in one line, quoted from the critic's findings, the builder's report, or a red command, or a gap you found (step 4), with its `file:line`. A piece no builder started is "not done: waits on <id>";
@@ -44,7 +44,7 @@ Template, filled in as an example:
 **Findings:** 1. Decision 4 (audit rows are written in the same transaction) is built by no piece.
 **What changed:** P1 done · P2 done (attempt 2; `src/Booking/SlotDecider.cs` was already dirty before the run) · P3 not done: `dotnet test --filter Export` exit 1, "Expected 3 rows, got 0" · P4 not done: waits on P3 · P5 needs the user: "Should a cancelled slot be released at once or at the next sweep?"
 **Checked:** `dotnet test tests/Booking` exit 0 · `pnpm -C web typecheck` exit 0 (both run by the auditor)
-**Not checked:** the full gate and mutation (/cycle runs them) · lint: the repo's instructions name no command
+**Not checked:** the full gate and mutation (/cycle runs them) · lint: neither the repo's instructions nor its Taskfile has a command
 **Parked:** 1. `SlotRepository.Find` loads every slot · fix: filter in the query, ~6 lines · design call: none · who hits it: any room with many slots (rec: leave, outside this spec), or none
 **Needs from you:** 1. P3: decide whether an empty export is an error (rec: yes; the spec's Proof assumes it) · 2. P5: decide whether a cancelled slot is released at once or at the next sweep (rec: at once) · 3. Review the diff, then run /cycle <absolute spec path>.
 **Built pieces:** P1, P2

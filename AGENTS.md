@@ -92,7 +92,6 @@ This section is for whoever writes the report the user reads: the session that t
 ## Shared trees, files, and memory
 
 - Other sessions may share your tree. "Review all dirty work" means **all** of it, including other sessions' work, unless the user says "ours". Other sessions' dirty files are theirs: don't edit, revert, or stash them.
-- Format only the files you changed; never run a formatter across the whole tree.
 - Stage explicit paths. Never `git add -A`, `-u`, or `.`.
 - Never `git reset --hard`, `git checkout -- .`, or `git clean`, and never stash someone else's work.
 - Memory notes and waypoints say which session wrote them (`metadata.session: <session title>`), so another session doesn't act on them.

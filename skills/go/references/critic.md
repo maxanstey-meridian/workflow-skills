@@ -25,9 +25,9 @@ The source you check against is the piece in the spec (its Change, its Proof, an
 `status-before.txt`, in the folder of your report, is `git status --short` from before any builder started. A path it lists was already changed before this run, so its diff holds earlier edits as well as the builder's: for that path, raise no Extra finding.
 
 1. **Run the proof yourself:** the command the piece's Proof names, the targeted tests for the changed files, and format and lint in check mode on them, each as the repo's instructions name it (or, for one they don't name, as the task in the repo root's `Taskfile.yml` that checks it without writing, such as `format:check` or `lint`; a task that rewrites files is never run, and goes under `Not run`). Record each command and its exit code. A proof counts only when it would exit non-zero if the outcome were missing; one that wouldn't, or one that could not run, is a Missing finding: the piece has no proof.
-2. **Compare the diff with the source.** Each finding quotes the spec's words and gives a `file:line`:
+2. **Compare the diff with the source.** Go through the whole diff for each kind below and list every finding: the builder gets one retry, so a finding you leave out fails the piece. Each finding quotes the spec's words and gives a `file:line`:
    - **Missing:** asked for, and not in the tree. A Decision that bears on the piece and isn't honoured is Missing.
-   - **Extra:** in the piece's diff, and asked for by nothing.
+   - **Extra:** in the piece's diff, and asked for by nothing. A file the repo's format command rewrote is not Extra when the builder's report names it on `Changed:`.
    - **Misunderstood:** built to a different meaning.
    - **Shrunk check:** an assertion loosened, or a case dropped, skipped, or excluded.
    - **Unproven:** an outcome the piece's diff adds or restructures (a new branch, a moved `catch`, a path split in two) that no test would turn red if it were removed. Name the outcome and the change that would go unnoticed, from reading the tests. "It had no test before" is not a pass: a diff that touches an outcome owns its proof. Several branches that produce one outcome need one test, not one each.

@@ -43,7 +43,7 @@ Template, filled in as an example:
 **Not fixed:** 1. F3 BookingProjection.cs:17 · needs a call: keep two projections (rec) or merge into one mapper (~30 lines)
 **Gate:** green
 **Checked:** `dotnet test --filter ReleaseStale` exit 0 · `dotnet test --filter Export` exit 1 (both run by the auditor)
-**Not checked:** api/src/Shared/Clock.cs: no review report names it · lint: the repo's instructions name no command
+**Not checked:** api/src/Shared/Clock.cs: no review report names it · lint: neither the repo's instructions nor its Taskfile has a command
 **Mutation:** 1 survivor on a changed line: ReleaseStaleBookings.cs:44 `<` to `<=` survives
 **Parked:** 1. `SlotRepository.Find` loads every slot · fix: filter in the query, ~6 lines · design call: none · who hits it: any room with many slots (rec: leave, older than this work)
 **Needs from you:** 1. F3: keep two projections or merge them (rec: keep) · 2. `api/Scratch.cs` appeared during the run and is another session's, so it is in no commit (rec: leave it to that session). Release actions are yours to ask for.
