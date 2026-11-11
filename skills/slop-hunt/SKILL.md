@@ -33,9 +33,9 @@ After a compaction, `<run>` is the folder the waypoint names. Never run steps 1 
    Done when: `scope.txt` is non-empty.
 3. **Size them.** Run:
    ```
-   cd "<root>" && tr '\n' '\0' < "<run>/scope.txt" | LC_ALL=en_US.UTF-8 xargs -0 wc -l | awk '{n=$1; sub(/^ *[0-9]+ /,""); if ($0!="total") print n "\t" $0}' > "<run>/sizes.txt"
-   sort -rn "<run>/sizes.txt" | head -15
+   sh "<skill>/scripts/sizes.sh" "<root>" "<run>"
    ```
+   It writes `<run>/sizes.txt`, one line count and path per file, and prints the 15 biggest.
    A hand-kept data file over 2,000 lines in that list (seeds, i18n files, GeoJSON) is not code: remove its line from `scope.txt` with your file-editing tool, run `printf '%s\n' '<path>' >> "<run>/left-out.txt"`, and run this step again.
    Done when: no data file over 2,000 lines is among the 15 biggest.
 4. **Churn.** Run:
@@ -50,16 +50,14 @@ After a compaction, `<run>` is the folder the waypoint names. Never run steps 1 
    - The repo's own linter or doctrine checker, in check mode, when its instructions name one: run that command with `> "<run>/leads-lint.txt" 2>&1` after it.
 
    Done when: every finder above that applies to the repo's stack has a leads file.
-6. **Split into areas.** Start `areas.md` and the function that adds an area (`area` takes a name and a regex that matches the start of its files' paths; each file must match exactly one area):
+6. **Split into areas.** Start `areas.md`:
    ```
    { echo "Root: <root>"; echo "Head: $(git -C "<root>" rev-parse --short HEAD)"; } > "<run>/areas.md"
-   cat > "<run>/area.sh" <<'EOF'
-   area() { n=$(p="$2" awk -F'\t' '$2 ~ ENVIRON["p"] {s+=$1} END{print s+0}' sizes.txt); { echo; echo "## $1 · $n"; p="$2" awk -F'\t' '$2 ~ ENVIRON["p"] {print "- " $2}' sizes.txt; } >> areas.md; }
-   EOF
    ```
+   `<skill>/scripts/area.sh` defines the function that adds an area: `area` takes a name and a regex that matches the start of its files' paths, and each file must match exactly one area.
    Then split the files in `sizes.txt` into areas: one per module or package, about 8,000 lines at most. Split a bigger module along its folders, merge small neighbours up to the limit, and give a single file over the limit its own area. Scripts, docs, and config go with the nearest module. With more than one area, add a `cross-cutting` one for shared kernel and infrastructure files. Area names are lowercase words joined by hyphens. Add the areas in one command that loads `area.sh` first (a shell keeps no function between commands); the `area` calls below are an example:
    ```
-   cd "<run>" && . ./area.sh && area api '^src/Api/' && area web '^(web|e2e)/'
+   cd "<run>" && . "<skill>/scripts/area.sh" && area api '^src/Api/' && area web '^(web|e2e)/'
    ```
    Then check the split:
    ```
@@ -70,7 +68,7 @@ After a compaction, `<run>` is the folder the waypoint names. Never run steps 1 
    Done when: that file exists, there is one area, or the design reader was started twice.
 8. **Hunters.** Start one subagent per `## ` heading in `areas.md`, at most 8 running at once: role `hunter`, Yours the heading's name, Report `<run>/report-<name>.md`. When a report exists, run `tail -n 1 "<run>/report-<name>.md"`. If that line names files after `Not read in full:`, add them to `areas.md` as a `-rest` area, with `<name>` the area's name and the paths on that line separated by `, `, and start one hunter for it (Yours `<name>-rest`, Report `<run>/report-<name>-rest.md`):
    ```
-   cd "<run>" && . ./area.sh && area <name>-rest "^($(tail -n 1 "report-<name>.md" | sed 's/^Not read in full: //; s/[][\.*^$+?(){}|]/\\&/g; s/, /|/g'))\$"
+   cd "<run>" && . "<skill>/scripts/area.sh" && area <name>-rest "^($(tail -n 1 "report-<name>.md" | sed 's/^Not read in full: //; s/[][\.*^$+?(){}|]/\\&/g; s/, /|/g'))\$"
    ```
    That adds the heading `## <name>-rest · <their sizes added up>` with each file on a `- <path>` line. Never do this for a `-rest` area.
    Done when: every area has a report file, or was started twice.

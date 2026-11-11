@@ -18,10 +18,7 @@ You start subagents and run the commands below. You review nothing, fix nothing,
 - `<fixed>`: `<run>/fixed-<r>.txt` in steps 10 and 11, `<run>/fixed-gate.txt` in step 12. `<fix name>`: `fix-<r>-*.md` in steps 10 and 11, `fix-gate.md` in step 12.
 - **After a compaction:** `<run>` is the folder the waypoint names. Never run step 1 again. Run `cat <run>/at.txt`, which prints a step number and `<r>`. Carry on at that step, from its start.
 - **Uncommitted list:** `cd "$(git rev-parse --show-toplevel)" && { git -c core.quotepath=off diff --name-only --no-renames HEAD; git -c core.quotepath=off ls-files --others --exclude-standard; } | grep -v '^\.plans/' | sort -u`
-- **Sort the new paths:** run these in order. A path a fixer's `Changed files:` line names whole is a fixer's: it goes to `scope.txt`. Any other path that appeared during the run is another session's: it goes to `left-out.txt`. A command that prints nothing and exits 1 found no lines: carry on.
-  1. `find <run> -name '<fix name>' -exec grep -h '^Changed files:' {} + | awk '{sub(/^Changed files: /,""); n=split($0,a,", "); for(i=1;i<=n;i++) print a[i]}' > <run>/changed.txt`
-  2. `grep -vFxf <run>/scope.txt <fixed> > <run>/unsorted.txt`
-  3. `grep -Fxf <run>/changed.txt <run>/unsorted.txt >> <run>/scope.txt; grep -vFxf <run>/changed.txt <run>/unsorted.txt >> <run>/left-out.txt`
+- **Sort the new paths:** run `sh <skill>/scripts/sort-new-paths.sh <run> <fixed> '<fix name>'`. A path a fixer's `Changed files:` line names whole is a fixer's: it goes to `scope.txt`. Any other path that appeared during the run is another session's: it goes to `left-out.txt`.
 - **Commit `<list>`:**
   1. Run `cd "$(git rev-parse --show-toplevel)" && git -c core.quotepath=off ls-files --others --exclude-standard | grep -Fxf <list> > <run>/new.txt; { [ ! -s <run>/new.txt ] || GIT_LITERAL_PATHSPECS=1 git add --intent-to-add --pathspec-from-file=<run>/new.txt; }`. It marks the new files in `<list>` so the next command counts them.
   2. Run `cd "$(git rev-parse --show-toplevel)" && tr '\n' '\0' < <list> | GIT_LITERAL_PATHSPECS=1 xargs -0 git -c core.quotepath=off diff --stat HEAD -- | tail -n 40`.
@@ -69,7 +66,7 @@ After each step, run `echo "<next step> <r>" > <run>/at.txt`, where `<next step>
 5. **Review.** Start, all at once, one `reviewer` per slice file and one `doctrine-reviewer` per file that `find <run> -name 'stack-*.txt' -size +0` prints. Done when every report ends as the Briefs table says, or its role has missed twice.
 6. **Commit the work.** Commit `<run>/scope.txt`.
 7. **Anything to fix?** Run `find <run> -name 'review-<r>-*.md' -exec grep -h '^TO FIX: ' {} + | grep -vx 'TO FIX: 0'`. If it prints nothing, go to step 12. Else go to step 8.
-8. **Fix.** Run `find <run> -name 'review-<r>-*.md' -exec awk '/^### F[0-9]+ /{p=$0; sub(/^### F[0-9]+ /,"",p); sub(/:[0-9]+$/,"",p)} /^- do: fix$/{print p}' {} + | sort -u > <run>/hit-<r>.txt; grep -lFxf <run>/hit-<r>.txt <run>/slice-*.txt`. Start one `fixer` for each slice file it prints, all at once. Done when every fixer has reported or has missed twice.
+8. **Fix.** Run `sh <skill>/scripts/slices-to-fix.sh <run> <r>`, which writes the paths this round's `do: fix` blocks name to `<run>/hit-<r>.txt`. Start one `fixer` for each slice file it prints, all at once. Done when every fixer has reported or has missed twice.
 9. **Critic.**
    1. After all the fixers have finished, start one `critic` per slice that had a fixer, one at a time.
    2. For each critic that left a report whose last line (`tail -n 1`) is `VERDICT: FAIL`, start one second `fixer` for that slice, then one second `critic`. A critic that left no report gets no second fixer.

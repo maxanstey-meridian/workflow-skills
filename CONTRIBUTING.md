@@ -13,6 +13,7 @@ The orchestrator only dispatches. The auditor writes the report, so the orchestr
 ```
 skills/<routine>/
   SKILL.md            hand-written: the orchestrator's file
+  scripts/            hand-written: commands that use $0, $1, and so on, which a SKILL.md can't hold
   roles/              hand-written: the routine's roles, and roles.list
   references/         generated: one file per role, and the rule files
 

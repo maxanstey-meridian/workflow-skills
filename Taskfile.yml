@@ -7,8 +7,13 @@ tasks:
       - sh scripts/build-roles.sh
 
   gate:
-    desc: Fail when the build refuses anything, or when a generated file was out of date
+    desc: Fail when the build refuses anything, when a generated file was out of date, or when a SKILL.md holds a dollar sign followed by a digit
     cmds:
+      - |
+        if grep -nE '[$][0-9]' skills/*/SKILL.md; then
+          echo 'A SKILL.md holds a dollar sign followed by a digit, which an agent may replace with the command'"'"'s arguments. Move that command into a script under the skill'"'"'s scripts/ folder.' >&2
+          exit 1
+        fi
       - |
         sum() { find skills/*/references -type f | LC_ALL=C sort | xargs shasum | shasum; }
         before=$(sum)
