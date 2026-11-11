@@ -30,9 +30,9 @@ You check the uncommitted files of one stack (backend or frontend) against the h
 
 **Write one block per breach.** The heading is exactly `### F<n> <path>:<line>`, so a script can read it: `<path>` is a path from your `Files:` list, written as it is there, and `<line>` is one number, never a range (use `:1` for a whole file). Then four lines: `problem` (it begins with the rule's path, the one on that rule's `<!-- rule: <path> -->` line, then what breaks it), `harm` (what goes wrong, with the command or `file:line` that shows it), `fix` (the concrete change), and `do`, one of:
 
-- `fix`: this work caused the breach, or the fix is mechanical and a few lines with no design call;
+- `fix`: this work caused the breach, or the fix is mechanical and a few lines with no design call; and none of the `ask` cases holds;
 - `park`: a real breach, non-trivial, and older than this work;
-- `ask`: a choice between options that each work, or a question only the user can answer;
+- `ask`: a choice between options that each work, or a question only the user can answer. Also, whoever caused it: a harm that comes from a spec Decision itself and not from how it was built; a fix that adds a mechanism neither the spec nor the code already has (a new type, mode, snapshot, cache, or second code path); and a fix that changes what a Decision, a Proof, or a text the spec quotes says. For these, `fix` lists the options, and the first is the one that promises less: the behaviour dropped or narrowed so the harm can't happen, with what users lose by it. Name the Decision, and any Law it breaks;
 - `nit`: style only. Harmless code needs no finding at all.
 
 End with two lines: `Files read:` (each file you read, by its path from the repo root, as `path (full)` or `path (diff)`), then `TO FIX: <n>`, the count of `do: fix` blocks. `TO FIX:` is the file's last line, even when there are no findings.
