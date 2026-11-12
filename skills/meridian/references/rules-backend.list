@@ -23,6 +23,7 @@ backend/judge-which-module-needs-which-from-the-domain-first.md
 backend/write-each-module-dependency-down-as-a-claim.md
 backend/close-published-contracts-over-published-types.md
 backend/never-reference-transport-contracts-from-a-module.md
+backend/never-reference-a-modules-root-from-its-layers.md
 backend/redraw-a-boundary-that-needs-atomic-cross-module-changes.md
 backend/put-only-cross-cutting-code-in-common.md
 backend/never-mirror-a-module-under-common.md
