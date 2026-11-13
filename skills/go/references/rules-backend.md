@@ -8,7 +8,7 @@ Each line is one rule: its title, its one sentence, and the file that holds it.
 
 - **Keep Domain free of IO and frameworks.** Domain depends on nothing outside itself: no repositories, HTTP, database access, framework imports, SDK clients, logging, or a sibling module's published contract (the types it deliberately exposes to other modules). [`backend/keep-domain-free-of-io-and-frameworks.md`]
 - **Keep Application independent of Infrastructure.** Application may depend on Domain and never on Infrastructure; Application owns its ports and Infrastructure implements them. [`backend/keep-application-independent-of-infrastructure.md`]
-- **Call only use cases from a controller.** A controller, endpoint, or other transport code calls Application use cases (the Application code for one operation) or services only, and holds no orchestration of its own. [`backend/call-only-use-cases-from-a-controller.md`]
+- **Call only use cases from a controller.** A controller, endpoint, or other transport code calls Application use cases (the Application code for one operation), services, or named queries (the Application's types for one read each) only, and holds no orchestration of its own. [`backend/call-only-use-cases-from-a-controller.md`]
 - **Never call one controller from another.** A controller or endpoint never calls, injects, inherits from, or stores another controller; share the Application capability underneath. [`backend/never-call-one-controller-from-another.md`]
 - **Never reach into another module's internals.** A module (one feature's folder under `Modules/` or `src/modules/`) never imports a sibling's Domain or Infrastructure, queries its tables, entities, or DbSets, or uses its non-public Application types. [`backend/never-reach-into-another-modules-internals.md`]
 - **Integrate modules through a port, contract, or kernel.** Two modules (feature folders under `Modules/` or `src/modules/`) work together in one of three ways only: a required port (the consumer's own type naming the capability it needs) bridged to the provider by a host adapter (an implementation in the host, which may depend on both sides); a published contract (the commands, queries, and types the provider deliberately exposes to other modules); or a shared kernel (a small concept both own and change only by agreement). [`backend/integrate-modules-through-a-port-contract-or-kernel.md`]
@@ -153,7 +153,7 @@ Good: a use case that takes a `CreateFormCommand` and returns a `CreateFormResul
 <!-- rule: backend/call-only-use-cases-from-a-controller.md -->
 ## Call only use cases from a controller
 
-**Law:** A controller, endpoint, or other transport code calls Application use cases (the Application code for one operation) or services only, and holds no orchestration of its own.
+**Law:** A controller, endpoint, or other transport code calls Application use cases (the Application code for one operation), services, or named queries (the Application's types for one read each) only, and holds no orchestration of its own.
 
 **When:** Transport code in a module (one feature's folder under `Modules/` or `src/modules/`), on .NET or TypeScript.
 
@@ -350,7 +350,7 @@ Good: `await forms.Save(form); await mailer.Send(notice);` in the use case.
 <!-- rule: backend/give-each-read-shape-a-named-query.md -->
 ## Give each read shape a named query
 
-**Default:** A repository loads and saves the state a mutation needs; list rows, dropdown options, exports, dashboards, and API read models (the objects the server returns for a screen) each belong to a named query, not to the write repository.
+**Default:** A repository loads and saves the state a mutation needs; list rows, dropdown options, exports, dashboards, and API read models (the objects the server returns for a screen) each belong to a named query (a type for one read, whose name ends `Query`), not to the write repository.
 
 **When:** Read paths on .NET or TypeScript. A trivial query may load through the repository and map locally; when the read grows wider, slower, or UI-specific, replace the query's implementation and leave the repository alone.
 
