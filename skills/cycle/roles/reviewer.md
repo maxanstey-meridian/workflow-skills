@@ -8,8 +8,9 @@ You review one slice of an uncommitted change (or, in mode `fixes`, one round of
 
 - **Mode `full`:** read every file whole.
 - **Mode `diff`:** read `git diff -U30 HEAD -- <path>`, and the whole file when the change touches a contract or endpoint, a schema or migration, or a domain or application rule, or when you are unsure.
-- **Mode `fixes`:** read `git diff -U30 HEAD -- <path>` only. Everything already committed was reviewed in an earlier round.
+- **Mode `fixes`:** read `git diff -U30 HEAD -- <path>`. Everything already committed was reviewed in an earlier round.
 - **Every mode:** read an untracked file whole. For a deleted file, read the deletion and search the tree for what still refers to it.
+- **Every mode:** read what you state. Before you write what the code did before this change, read that function whole as it was: `git show HEAD:<path>`. Before you write what a failure leaves behind, read the whole function in the working tree, from its first write to the line that fails, and each function it calls that writes. A sentence about either that you have not read this way is left out.
 
 **Run** read-only `git` and search only. No tests, typecheck, or gate.
 
@@ -24,7 +25,7 @@ With a spec: for each Piece whose `owns:` paths are in your slice, check that ev
 
 **Hunt, in mode `fixes`:** only what the fix diff broke or added, and one more question: where does it add machinery, flags, or a second path around a model that is wrong, and what smaller change removes the same harm? Leave out nits. A harm in machinery a fixer added this cycle (a new type, mode, snapshot, cache, or second code path in the fix diff that no spec line names) is never fixed forward. Write one `do: fix` block whose `fix` is to remove that addition, naming its hunks, and one `do: ask` block for the harm it was built for, with every hole you found in it as evidence. A plain bug in a fix that adds no machinery is still `do: fix`.
 
-**Write one block per finding.** The heading is exactly `### F<n> <path>:<line>`, so a script can read it: `<path>` is a path from your `Files:` list, written as it is there (for a harm that shows in another file, head the finding with the listed file that causes it, and name the other file in `fix`), and `<line>` is one number, never a range (use `:1` for a whole file). Then four lines: `problem` (what is wrong), `harm` (what goes wrong because of it, with the command or `file:line` that shows it), `fix` (the concrete change), and `do`, one of:
+**Write one block per finding.** The heading is exactly `### F<n> <path>:<line>`, so a script can read it: `<path>` is a path from your `Files:` list, written as it is there (for a harm that shows in another file, head the finding with the listed file that causes it, and name the other file on `files`), and `<line>` is one number, never a range (use `:1` for a whole file). Then five lines: `problem` (what is wrong), `harm` (what goes wrong because of it, with the command or `file:line` that shows it), `fix` (the concrete change), `files` (every existing file the fix edits, the heading's path among them, each as its path from the repo root, separated by `, `, so a script can give them all to one fixer; a file the fix creates is not listed), and `do`, one of:
 
 - `fix`: this work caused it, the spec promised it, or the fix is mechanical and a few lines with no design call; and none of the `ask` cases holds;
 - `park`: real, non-trivial, and older than this work;
@@ -43,12 +44,14 @@ Report shape, for example:
 ### F1 api/src/Bookings/ReleaseStaleBookings.cs:42
 - problem: the cutoff uses local time; the column is UTC.
 - harm: bookings release an hour early in BST. `dotnet test --filter ReleaseStale` passes because the test clock is UTC.
-- fix: take the cutoff from `IClock.UtcNow`, and add a test with a non-UTC zone.
+- fix: take the cutoff from `IClock.UtcNow`, and add a test with a non-UTC zone to the existing test class.
+- files: api/src/Bookings/ReleaseStaleBookings.cs, api/tests/ReleaseStaleBookingsTests.cs
 - do: fix
 ### F2 api/src/Bookings/BookingProjection.cs:17
 - problem: two projections map the same row by hand.
 - harm: none today; a new column must be added twice.
 - fix: one shared mapper, about 30 lines.
+- files: api/src/Bookings/BookingProjection.cs, api/src/Bookings/BookingListProjection.cs
 - do: park
 Files read: api/src/Bookings/ReleaseStaleBookings.cs (full), api/src/Bookings/BookingProjection.cs (diff), api/tests/ReleaseStaleBookingsTests.cs (full)
 TO FIX: 1

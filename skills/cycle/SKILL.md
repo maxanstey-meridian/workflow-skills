@@ -22,7 +22,7 @@ You start subagents and run the commands below. You review nothing, fix nothing,
 - **Commit `<list>`:**
   1. Run `cd "$(git rev-parse --show-toplevel)" && git -c core.quotepath=off ls-files --others --exclude-standard | grep -Fxf <list> > <run>/new.txt; { [ ! -s <run>/new.txt ] || GIT_LITERAL_PATHSPECS=1 git add --intent-to-add --pathspec-from-file=<run>/new.txt; }`. It marks the new files in `<list>` so the next command counts them.
   2. Run `cd "$(git rev-parse --show-toplevel)" && tr '\n' '\0' < <list> | GIT_LITERAL_PATHSPECS=1 xargs -0 git -c core.quotepath=off diff --stat HEAD -- | tail -n 40`.
-  3. Write the message to `<run>/message.txt` as `<skill>/references/commits.md` says. Its source is the output of sub-step 2 and, with a spec, the spec's title and Intent. In steps 11 and 12 it is also the output of `find <run> -name '<fix name>' -exec grep -h '^- change:' {} +`, and the subject names what those changes do.
+  3. Write the message to `<run>/message.txt` as `<skill>/references/commits.md` says. Its source is the output of sub-step 2 and, with a spec, the spec's title and Intent. In steps 11 and 12 it is also the output of `find <run> -name '<fix name>' -exec grep -h '^- change:' {} +`, and the subject names what those changes do. There, each sentence of the body restates a `- change:` line: what the code now does. It never says that a harm is gone, that something can no longer happen, or that anything is fixed: you judge no finding, and the re-review may say otherwise.
   4. Run `cd "$(git rev-parse --show-toplevel)" && GIT_LITERAL_PATHSPECS=1 git commit -F <run>/message.txt --pathspec-from-file=<list>`. A commit step is done when this exits 0.
 
 ## Briefs
@@ -41,7 +41,7 @@ Report: <the report file>
 | Role | Files | Mode | Findings | Report | Its last line starts with |
 |---|---|---|---|---|---|
 | `reviewer` | `<run>/slice-<n>.txt` | `<mode>` | `none` | `<run>/review-1-slice-<n>.md` | `TO FIX:` |
-| `doctrine-reviewer` | `<run>/stack-<stack>.txt` | `<mode>` | `none` | `<run>/review-1-<stack>.md` | `TO FIX:` |
+| `doctrine-reviewer` | `<run>/stack-<stack>-<n>.txt` | `<mode>` | `none` | `<run>/review-1-<stack>-<n>.md` | `TO FIX:` |
 | `fixer` | `<run>/slice-<n>.txt` | `none` | every review report | `<run>/fix-<r>-slice-<n>.md` | `Not run:` |
 | `critic` | `<run>/slice-<n>.txt` | `none` | every review report and `<run>/fix-<r>-slice-<n>.md` | `<run>/critic-<r>-slice-<n>.md` | `VERDICT: PASS` or `VERDICT: FAIL` |
 | second `fixer` | `<run>/slice-<n>.txt` | `none` | every review report and `<run>/critic-<r>-slice-<n>.md` | `<run>/fix-<r>-slice-<n>-b.md` | `Not run:` |
@@ -62,11 +62,11 @@ After each step, run `echo "<next step> <r>" > <run>/at.txt`, where `<next step>
 1. **Folder.** Run `M=<main>; git -C "$M" check-ignore -q .plans/ || echo '.plans/' >> "$(git -C "$M" rev-parse --path-format=absolute --git-path info/exclude)"; C=$M/.plans/scratch/cycle-$(date +%Y%m%d-%H%M%S) && mkdir -p "$C" && touch "$C/left-out.txt" && git rev-parse HEAD > "$C/base.txt" && echo "2 1" > "$C/at.txt" && echo "$C"`. It prints `<run>`. Tell the user the path.
 2. **Spec.** With `<spec>` `none`, this step is done. Else run `grep -c '^\*\*Status:\*\* building' <spec>`. Done when it prints `1`. Anything else: stop and tell the user the spec must exist and be `building`.
 3. **Scope.** Run the Uncommitted list into `<run>/all.txt`. Read the repo's instructions. Write to `<run>/left-out.txt` every path in all.txt that they say is never committed, and no other path, including a path that isn't yours. Run `grep -vFxf <run>/left-out.txt <run>/all.txt > <run>/scope.txt; wc -l < <run>/scope.txt`. Done when it prints a number above 0. If it prints 0, say there is nothing to cycle and stop.
-4. **Slices.** Write `<run>/slice-1.txt`, `slice-2.txt`, and so on, copying every path in scope.txt into one: one feature or module per file, its front end and back end together. With 15 paths or fewer, use one slice. Run `touch <run>/stack-backend.txt <run>/stack-frontend.txt`, then copy each path of scope.txt into one of them (scripts, docs, and config are backend). Done when `cat <run>/slice-*.txt | sort | diff - <run>/scope.txt` and `cat <run>/stack-*.txt | sort | diff - <run>/scope.txt` both print nothing.
+4. **Slices.** Write `<run>/slice-1.txt`, `slice-2.txt`, and so on, copying every path in scope.txt into one: one feature or module per file, its front end and back end together. With 15 paths or fewer, use one slice. No slice holds more than 25 paths: split a larger module by sub-folder or layer, and keep each file in the slice of its tests. Then write `<run>/stack-backend-1.txt`, `stack-backend-2.txt`, and so on, and `<run>/stack-frontend-1.txt` and so on, copying each path of scope.txt into one of its stack (scripts, docs, and config are backend): at most 25 paths in a file, and a slice's paths of one stack kept in one file. Done when `cat <run>/slice-*.txt | sort | diff - <run>/scope.txt`, `cat <run>/stack-*.txt | sort | diff - <run>/scope.txt`, and `wc -l <run>/slice-*.txt <run>/stack-*.txt | awk '$2 != "total" && $1 > 25'` all print nothing.
 5. **Review.** Start, all at once, one `reviewer` per slice file and one `doctrine-reviewer` per file that `find <run> -name 'stack-*.txt' -size +0` prints. Done when every report ends as the Briefs table says, or its role has missed twice.
 6. **Commit the work.** Commit `<run>/scope.txt`.
 7. **Anything to fix?** Run `find <run> -name 'review-<r>-*.md' -exec grep -h '^TO FIX: ' {} + | grep -vx 'TO FIX: 0'`. If it prints nothing, go to step 12. Else go to step 8.
-8. **Fix.** Run `sh <skill>/scripts/slices-to-fix.sh <run> <r>`, which writes the paths this round's `do: fix` blocks name to `<run>/hit-<r>.txt`. Start one `fixer` for each slice file it prints, all at once. Done when every fixer has reported or has missed twice.
+8. **Fix.** Run `sh <skill>/scripts/slices-to-fix.sh <run> <r>`, which writes the paths this round's `do: fix` blocks name (each block's heading path and its `files` line) to `<run>/hit-<r>.txt`. Where one block's paths are in two slice files, it merges them into the lower-numbered one, and it adds a path that is in no slice file to the block's slice, so one fixer owns every path of a fix. Start one `fixer` for each slice file it prints, all at once. Done when every fixer has reported or has missed twice.
 9. **Critic.**
    1. After all the fixers have finished, start one `critic` per slice that had a fixer, one at a time.
    2. For each critic that left a report whose last line (`tail -n 1`) is `VERDICT: FAIL`, start one second `fixer` for that slice, then one second `critic`. A critic that left no report gets no second fixer.
@@ -77,7 +77,7 @@ After each step, run `echo "<next step> <r>" > <run>/at.txt`, where `<next step>
     2. Sort the new paths.
     3. Run the command of sub-step 1 once more, now that every new path is sorted.
     4. If `<run>/fixed-<r>.txt` is empty, go to step 12.
-    5. Run `cat <run>/slice-*.txt | sort -u | comm -13 - <run>/fixed-<r>.txt >> <run>/slice-0.txt`.
+    5. Run `sh <skill>/scripts/slice-new-paths.sh <run> <r>`. It adds each path of `fixed-<r>.txt` that is in no slice file to the slice of the fixer whose `Changed files:` line names it, or to `<run>/slice-0.txt` when no slice's fixer names it.
     6. Start one `reviewer` (re-review). Done when its report ends as the Briefs table says, or it has missed twice.
 11. **Commit the round.** Commit `<run>/fixed-<r>.txt`. Then, if `<r>` is 3, go to step 12. Else add 1 to `<r>` and go to step 7.
 12. **Gate, once.**

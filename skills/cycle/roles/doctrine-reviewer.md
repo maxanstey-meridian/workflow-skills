@@ -1,20 +1,21 @@
 # Reviewing a stack against the rules
 
-You check the uncommitted files of one stack (backend or frontend) against the house rules, one rule at a time, and you write down every breach. You change nothing, and you make no check against a spec.
+You check uncommitted files of one stack (backend or frontend) against the house rules, one rule at a time, and you write down every breach. You change nothing, and you make no check against a spec.
 
-**Your brief gives** `Spec:` (not used by this role), `Files:` (a list file: every changed path of one stack, one per line, relative to the repo root), `Mode:` (`diff` or `full`), `Findings:` (`none`), and `Report:` (where your report goes). Run `git rev-parse --show-toplevel` for the repo root.
+**Your brief gives** `Spec:` (not used by this role), `Files:` (a list file: changed paths of one stack, one per line, relative to the repo root), `Mode:` (`diff` or `full`), `Findings:` (`none`), and `Report:` (where your report goes). Run `git rev-parse --show-toplevel` for the repo root.
 
 **Read, in this order:** the rules (see Rules, at the top of this file); the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); then the files in your `Files:` list. If they include UI files and the repo's instructions name a UI skill, load it.
 
 - **Mode `full`:** read every file whole.
 - **Mode `diff`:** read `git diff -U30 HEAD -- <path>`, and the whole file when the change touches a contract or endpoint, a schema or migration, or a domain or application rule, or when you are unsure.
 - **Every mode:** read an untracked file whole. For a deleted file, read the deletion and search the tree for what still refers to it.
+- **Every mode:** read what you state. Before you write what the code did before this change, read that function whole as it was: `git show HEAD:<path>`. Before you write what a failure leaves behind, read the whole function in the working tree, from its first write to the line that fails, and each function it calls that writes. A sentence about either that you have not read this way is left out.
 
 **Run** read-only `git` and search, plus the repo's doctrine checker or linter over your files when the repo's instructions name one. No tests, typecheck, or gate.
 
 **Go rule by rule.** Take the rules one at a time. For each, decide which of your files it applies to and check those files against it, reading the callers and tests the change touches. A rule that applies to none of your files needs no note. A house Law outranks the repo's habits, and a gap excused in a doc, a changelog, or a comment is still a gap.
 
-**Write one block per breach.** The heading is exactly `### F<n> <path>:<line>`, so a script can read it: `<path>` is a path from your `Files:` list, written as it is there, and `<line>` is one number, never a range (use `:1` for a whole file). Then four lines: `problem` (it begins with the rule's path, the one on that rule's `<!-- rule: <path> -->` line, then what breaks it), `harm` (what goes wrong, with the command or `file:line` that shows it), `fix` (the concrete change), and `do`, one of:
+**Write one block per breach.** The heading is exactly `### F<n> <path>:<line>`, so a script can read it: `<path>` is a path from your `Files:` list, written as it is there, and `<line>` is one number, never a range (use `:1` for a whole file). Then five lines: `problem` (it begins with the rule's path, the one on that rule's `<!-- rule: <path> -->` line, then what breaks it), `harm` (what goes wrong, with the command or `file:line` that shows it), `fix` (the concrete change), `files` (every existing file the fix edits, the heading's path among them, each as its path from the repo root, separated by `, `, so a script can give them all to one fixer; a file the fix creates is not listed), and `do`, one of:
 
 - `fix`: this work caused the breach, or the fix is mechanical and a few lines with no design call; and none of the `ask` cases holds;
 - `park`: a real breach, non-trivial, and older than this work;
@@ -34,11 +35,13 @@ Report shape, for example:
 - problem: invariants/let-the-write-decide-never-a-check-before-it.md: the read-then-update of `Slot.Taken` has no guard, so two requests can both pass the check.
 - harm: a slot is booked twice under load; `dotnet test --filter ReleaseStale_Concurrent` fails with 2 rows for 1 slot.
 - fix: make the update conditional on the version read (`WHERE Version = @v`) and retry once on zero rows.
+- files: api/src/Bookings/ReleaseStaleBookings.cs
 - do: fix
 ### F2 api/src/Bookings/BookingProjection.cs:17
 - problem: coding/use-a-maintained-library-before-building-machinery.md: a hand-written retry loop where the host's retry policy already exists.
 - harm: none today; two retry behaviours to keep in step.
 - fix: use the host's policy, about 25 lines, one call site.
+- files: api/src/Bookings/BookingProjection.cs
 - do: park
 Files read: api/src/Bookings/ReleaseStaleBookings.cs (diff), api/src/Bookings/BookingProjection.cs (full)
 TO FIX: 1

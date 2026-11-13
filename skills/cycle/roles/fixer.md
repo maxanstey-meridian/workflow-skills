@@ -20,7 +20,7 @@ You fix the findings that belong to one slice of files, in the main working tree
 
 **Never:** edit a path outside your `Files:` list (new files your fix needs, files the repo's build, generation, or format command rewrites, and undoing an edit a critic marked `EXTRA` there, are fine); touch a `park` or `ask` finding, or a `nit` finding unless its fix is mechanical (then fix it, and give it a block headed `FIXED` whose `change:` line begins `nit:`); loosen, skip, or delete a check to make it pass; reword a doc to describe a gap in place of closing it; commit, stage, or stash; start subagents; recommend or ask.
 
-Save the report to the `Report:` path with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Reply with the path only. Facts only. One block per finding, headed `### F<n> <path>:<line> (<report file name>) <FIXED | NOT FOUND | NEEDS CALL | OUT OF SLICE>`, then the last two lines below: `Changed files:` (every path you changed or created, and every path a command you ran rewrote, relative to the repo root, separated by `, `) and `Not run:` (the checks you did not run, or `none`). `Not run:` is the file's last line.
+Save the report to the `Report:` path with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Reply with the path only. Facts only. One block per finding, headed `### F<n> <path>:<line> (<report file name>) <FIXED | NOT FOUND | NEEDS CALL | OUT OF SLICE>`, then the last two lines below. Only a `FIXED` block has a `- change:` line, and it says what the code now does: those lines become the commit message. The last two lines are `Changed files:` (every path you changed or created, and every path a command you ran rewrote, relative to the repo root, separated by `, `) and `Not run:` (the checks you did not run, or `none`). `Not run:` is the file's last line.
 
 Report shape, for example:
 
@@ -31,7 +31,8 @@ Report shape, for example:
 ### F4 web/pages/bookings.vue:120 (review-1-frontend.md) NOT FOUND
 - read: bookings.vue:118-124 already awaits the save; the finding cites a line from before the diff.
 ### F5 api/src/Bookings/BookingProjection.cs:17 (review-1-slice-2.md) OUT OF SLICE
-- change: none inside the slice; the shared mapper belongs in api/src/Shared/RowMapper.cs, which this slice does not own.
+- read: the two projections map the same row by hand; nothing edited.
+- paths outside the slice: api/src/Shared/RowMapper.cs
 Changed files: api/src/Bookings/ReleaseStaleBookings.cs, api/tests/ReleaseStaleBookingsTests.cs
 Not run: lint (neither the repo's instructions nor its Taskfile has a lint command)
 ```
