@@ -20,6 +20,7 @@ skills/<routine>/
 skills/meridian/references/
   rules/              hand-written: the rule library
   rules-<name>.list   which rules go in each rule file
+  rules-<name>.md     generated: the rule files the skill's SKILL.md sends a reader to
 ```
 
 ## A routine owns its roles
@@ -34,7 +35,7 @@ Role files and rule files are generated from colocated `.list` files by `sh scri
 
 ## The rule library
 
-`skills/meridian/references/rules/` holds one rule per file, granular by single responsibility. Routines read it as generated rule files, one per `rules-<name>.list`, each small enough to come back whole in one file read.
+`skills/meridian/references/rules/` holds one rule per file, granular by single responsibility. Routines, and a reader of the `meridian` skill itself, read it as generated rule files, one per `rules-<name>.list`, each small enough to come back whole in one file read.
 
 ## Format of a rule
 
