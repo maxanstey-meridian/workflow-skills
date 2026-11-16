@@ -13,6 +13,7 @@ tools/use-typed-inject-for-typescript-backend-wiring.md
 tools/use-hono-for-a-new-typescript-backend.md
 tools/scaffold-a-new-workspace-with-rivet-ts.md
 tools/share-one-testcontainers-database-across-the-test-run.md
+tools/mutate-the-named-source-files-from-the-test-project.md
 tools/use-pg-advisory-lock-for-postgresql-advisory-locks.md
 tools/use-distributedlock-for-dotnet-distributed-locks.md
 tools/use-brighter-for-durable-messaging-in-dotnet.md
