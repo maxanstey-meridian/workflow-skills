@@ -1,0 +1,17 @@
+{
+  "name": "dsh-after-compaction",
+  "version": "0.1.0",
+  "description": "After a compaction in DeepSeek Harness, runs workflow-skills' after-compaction.sh and puts what it prints in front of the model.",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "files": ["index.js", "cordis.patch.yml"],
+  "peerDependencies": {
+    "@deepseek-ai/dsh-llm": "*"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

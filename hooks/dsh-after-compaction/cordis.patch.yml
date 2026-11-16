@@ -1,0 +1,3 @@
+- insert:
+    - id: after-compaction
+      name: dsh-after-compaction
