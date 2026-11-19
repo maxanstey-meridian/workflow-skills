@@ -29658,6 +29658,8 @@ var ConfSchema = external_exports.strictObject(
 var FrozenSchema = external_exports.strictObject({
   date: TextSchema,
   words: TextSchema,
+  // The rows command, verbatim. Optional only for a frozen.json written before the command pin existed.
+  command: external_exports.array(external_exports.string()).min(1).optional(),
   script: external_exports.strictObject({ file: TextSchema, sha256: TextSchema })
 });
 var CiteSchema = external_exports.strictObject({ File: external_exports.string(), Quote: external_exports.string() });
@@ -29866,13 +29868,14 @@ var loadCase = (folderArg, readFreeze = true) => {
   return new Case(folder, citationRoot(folder), frozen, readConf(folder));
 };
 var scriptFile = (theCase) => {
+  let file2 = null;
   for (const part of theCase.rowsCommand) {
     const candidate = path2.resolve(theCase.folder, part);
     if (isFile(candidate)) {
-      return candidate;
+      file2 = candidate;
     }
   }
-  return null;
+  return file2;
 };
 var scriptPin = (theCase) => {
   const file2 = scriptFile(theCase);
@@ -29885,14 +29888,19 @@ var pinMismatch = (theCase) => {
   if (theCase.frozen === null) {
     return null;
   }
-  const frozen = theCase.frozen.script;
+  const frozen = theCase.frozen;
+  if (frozen.command !== void 0 && !isDeepStrictEqual(frozen.command, theCase.rowsCommand)) {
+    return `the rows command changed since the freeze, and must be frozen again.
+  frozen:  ${JSON.stringify(frozen.command)}
+  now:     ${JSON.stringify(theCase.rowsCommand)}`;
+  }
   const now = scriptPin(theCase);
-  if (now !== null && now.file === frozen.file && now.sha256 === frozen.sha256) {
+  if (now !== null && now.file === frozen.script.file && now.sha256 === frozen.script.sha256) {
     return null;
   }
   const nowText = now !== null ? `${now.file} sha256 ${now.sha256}` : "no file (the rows command names none that exists)";
   return `the row script changed since the freeze, and must be frozen again.
-  frozen:  ${frozen.file} sha256 ${frozen.sha256}
+  frozen:  ${frozen.script.file} sha256 ${frozen.script.sha256}
   now:     ${nowText}`;
 };
 var checkPass = (name) => {
@@ -30024,6 +30032,7 @@ var barredForWritten = (theCase, row) => {
   return barred;
 };
 var inRecords = (theCase, file2) => RECORD_FOLDERS.some((name) => isRelativeTo(file2, resolvePath(path2.join(theCase.folder, name))));
+var inCaseRecords = (theCase, file2) => inRecords(theCase, file2) || file2 === resolvePath(theCase.rulingsPath) || file2 === resolvePath(theCase.frozenPath) || file2 === resolvePath(path2.join(theCase.folder, CONF_FILE));
 var cmdFreeze = (caseArg, words) => {
   const theCase = loadCase(caseArg, false);
   const pin = scriptPin(theCase);
@@ -30035,7 +30044,7 @@ var cmdFreeze = (caseArg, words) => {
   if (!isStr(words)) {
     throw new RecordError(["--words is empty: the freeze records the user's words."]);
   }
-  const frozen = { date: today(), words, script: pin };
+  const frozen = { date: today(), words, command: theCase.rowsCommand, script: pin };
   writeFileSync(theCase.frozenPath, `${JSON.stringify(frozen)}
 `, "utf8");
   console.log(`${theCase.label}: row script frozen ${frozen.date}: ${frozen.words}`);
@@ -30198,6 +30207,19 @@ var cmdRows = (caseArg, draft) => {
   }
   const fresh = printed.filter((row) => !oldIds.has(row.Id));
   rows.push(...fresh.map((row) => ({ ...row })));
+  const byNormalId = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const key = normaliseName(row.Id);
+    byNormalId.set(key, [...byNormalId.get(key) ?? [], row.Id]);
+  }
+  const collisions = [...byNormalId.values()].filter((ids) => ids.length > 1);
+  if (collisions.length > 0) {
+    throw new RecordError(
+      collisions.map(
+        (ids) => `${ids.join(" and ")}: the Ids are equal once compared lower-case with only letters and digits, so a test name could not tell them apart; strike the gone row before a row with the same name enters the table.`
+      )
+    );
+  }
   const sources = new Sources(theCase.root);
   const emptied = [];
   for (const row of rows) {
@@ -30352,6 +30374,9 @@ var checkValue = (theCase, passName, record2, label, rowId, field, sources, row)
     } else if (!sources.text(file2).includes(quote)) {
       problems.push(`${label}: the quote ${inspect(cite.Quote.slice(0, 60))} is not in ${cite.File}.`);
     }
+    if (source !== "written" && inCaseRecords(theCase, file2) && file2 !== resolvePath(theCase.rulingsPath)) {
+      problems.push(`${label}: it cites ${cite.File}, one of the case's own records: a citation names evidence outside the case's records, and only a ruling cites rulings.md.`);
+    }
     if (sourceFits && source === "written") {
       if (cite.File.startsWith(MERIDIAN_PREFIX)) {
         problems.push(`${label}: Source written may cite only a file under root, not ${cite.File}.`);
@@ -30450,6 +30475,7 @@ var cmdMerge = (caseArg, passName, sliceName) => {
   const rows = new Map(table.map((row) => [row.Id, row]));
   let merged = 0;
   let stayEmpty = 0;
+  let testsEmptied = 0;
   for (const record2 of fills) {
     if (shapesOf(record2)[0] === "empty") {
       stayEmpty += 1;
@@ -30461,6 +30487,7 @@ var cmdMerge = (caseArg, passName, sliceName) => {
     if (row === void 0) {
       throw new Error(`${rowId} passed the parity gate and is not a row of the table.`);
     }
+    const before = row[field];
     if (verdict !== void 0 && verdict.Verdict === "CONFIRMED" && isDeepStrictEqual(verdict.Judged, fieldObject)) {
       row[field] = fieldObject;
       merged += 1;
@@ -30468,19 +30495,31 @@ var cmdMerge = (caseArg, passName, sliceName) => {
       row[field] = null;
       stayEmpty += 1;
     }
+    if (passName === FILL && field !== CANTHAPPEN && field !== SHORTFALL && !isDeepStrictEqual(before, row[field]) && isValue(row[TEST])) {
+      row[TEST] = null;
+      testsEmptied += 1;
+    }
   }
   writeJsonl(theCase.tablePath, table);
-  console.log(`${where}: ${merged} fields merged; ${stayEmpty} stay empty, which leaves those rows open.`);
+  console.log(
+    `${where}: ${merged} fields merged; ${stayEmpty} stay empty, which leaves those rows open.` + (testsEmptied > 0 ? ` ${testsEmptied} Tests emptied: their expected field changed, so the test pass re-grades them.` : "")
+  );
   return 0;
 };
 var rowNamedBy = (testName, rowIds) => {
   const name = normaliseName(testName);
-  const hit = rowIds.find((rowId) => normaliseName(rowId) === name);
-  return hit === void 0 ? null : hit;
+  const hits = rowIds.filter((rowId) => normaliseName(rowId) === name);
+  if (hits.length > 1) {
+    throw new RecordError([
+      `the test ${inspect(testName)} names ${hits.map((each) => inspect(each)).join(" and ")}: the ids are equal once compared lower-case with only letters and digits, so no test name can tell them apart.`
+    ]);
+  }
+  return hits.length === 1 ? hits[0] : null;
 };
 var hasChild = (element, tag) => Array.from(element.childNodes).some((child) => child.nodeName === tag);
 var junitResults = (files, rowIds) => {
   const colours = /* @__PURE__ */ new Map();
+  const errored = /* @__PURE__ */ new Set();
   for (const file2 of files) {
     let testcases;
     try {
@@ -30491,9 +30530,9 @@ var junitResults = (files, rowIds) => {
     }
     for (const testcase of testcases) {
       let colour;
-      if (hasChild(testcase, "failure") || hasChild(testcase, "error")) {
+      if (hasChild(testcase, "failure")) {
         colour = "red";
-      } else if (hasChild(testcase, "skipped")) {
+      } else if (hasChild(testcase, "error") || hasChild(testcase, "skipped")) {
         colour = "not-run";
       } else {
         colour = "green";
@@ -30501,18 +30540,24 @@ var junitResults = (files, rowIds) => {
       const testName = testcase.getAttribute("name") ?? "";
       const named = rowNamedBy(testName, rowIds);
       if (named !== null) {
+        if (hasChild(testcase, "error")) {
+          errored.add(named);
+        }
         colours.set(named, [...colours.get(named) ?? [], colour]);
       }
     }
   }
-  return new Map(
-    Array.from(colours, ([rowId, each]) => [rowId, each.includes("red") ? "red" : each.includes("not-run") ? "not-run" : "green"])
-  );
+  return {
+    colours: new Map(
+      Array.from(colours, ([rowId, each]) => [rowId, each.includes("red") ? "red" : each.includes("not-run") ? "not-run" : "green"])
+    ),
+    errored
+  };
 };
 var cmdResults = (caseArg, files, sliceName) => {
   const theCase = loadCase(caseArg);
   const table = readTable(theCase);
-  const results = junitResults(
+  const { colours: results, errored } = junitResults(
     files,
     table.map((row) => row.Id)
   );
@@ -30548,7 +30593,7 @@ var cmdResults = (caseArg, files, sliceName) => {
     if (ran === void 0) {
       red.push(`${row.Id}: no run result`);
     } else if (ran === "not-run") {
-      red.push(`${row.Id}: no run result: its test was skipped`);
+      red.push(`${row.Id}: no run result: ${errored.has(row.Id) ? "its test errored, so it died before its assertion" : "its test was skipped"}`);
     } else if (ran !== expects) {
       red.push(`${row.Id}: ran ${ran}, the table expects ${expects}`);
     }

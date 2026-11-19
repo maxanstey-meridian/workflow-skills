@@ -87,6 +87,8 @@ const ConfSchema = z.strictObject(
 const FrozenSchema = z.strictObject({
   date: TextSchema,
   words: TextSchema,
+  // The rows command, verbatim. Optional only for a frozen.json written before the command pin existed.
+  command: z.array(z.string()).min(1).optional(),
   script: z.strictObject({ file: TextSchema, sha256: TextSchema }),
 });
 type Frozen = z.infer<typeof FrozenSchema>;
@@ -356,15 +358,17 @@ const loadCase = (folderArg: string, readFreeze = true): Case => {
 
 // ---------------------------------------------------------------- the row script's pin
 
-// The row script's file: the first element of the rows command that names an existing file, resolved against the case folder.
+// The row script's file: the last element of the rows command that names an existing file, resolved against the case folder.
+// A runner or interpreter sits at the front of the command; the script sits at the end.
 const scriptFile = (theCase: Case): string | null => {
+  let file: string | null = null;
   for (const part of theCase.rowsCommand) {
     const candidate = path.resolve(theCase.folder, part);
     if (isFile(candidate)) {
-      return candidate;
+      file = candidate;
     }
   }
-  return null;
+  return file;
 };
 
 // The row script's file (relative to the case folder) and the sha256 of its bytes, or null when the command names no file.
@@ -381,15 +385,22 @@ const pinMismatch = (theCase: Case): string | null => {
   if (theCase.frozen === null) {
     return null;
   }
-  const frozen = theCase.frozen.script;
+  const frozen = theCase.frozen;
+  if (frozen.command !== undefined && !isDeepStrictEqual(frozen.command, theCase.rowsCommand)) {
+    return (
+      "the rows command changed since the freeze, and must be frozen again.\n" +
+      `  frozen:  ${JSON.stringify(frozen.command)}\n` +
+      `  now:     ${JSON.stringify(theCase.rowsCommand)}`
+    );
+  }
   const now = scriptPin(theCase);
-  if (now !== null && now.file === frozen.file && now.sha256 === frozen.sha256) {
+  if (now !== null && now.file === frozen.script.file && now.sha256 === frozen.script.sha256) {
     return null;
   }
   const nowText = now !== null ? `${now.file} sha256 ${now.sha256}` : "no file (the rows command names none that exists)";
   return (
     "the row script changed since the freeze, and must be frozen again.\n" +
-    `  frozen:  ${frozen.file} sha256 ${frozen.sha256}\n` +
+    `  frozen:  ${frozen.script.file} sha256 ${frozen.script.sha256}\n` +
     `  now:     ${nowText}`
   );
 };
@@ -559,6 +570,13 @@ const barredForWritten = (theCase: Case, row: Row | undefined): Set<string> => {
 const inRecords = (theCase: Case, file: string): boolean =>
   RECORD_FOLDERS.some((name) => isRelativeTo(file, resolvePath(path.join(theCase.folder, name))));
 
+// One of the case's own records: a record folder under the case, or a record file at the case's root.
+const inCaseRecords = (theCase: Case, file: string): boolean =>
+  inRecords(theCase, file) ||
+  file === resolvePath(theCase.rulingsPath) ||
+  file === resolvePath(theCase.frozenPath) ||
+  file === resolvePath(path.join(theCase.folder, CONF_FILE));
+
 // ---------------------------------------------------------------- --freeze
 
 const cmdFreeze = (caseArg: string, words: string): number => {
@@ -572,7 +590,7 @@ const cmdFreeze = (caseArg: string, words: string): number => {
   if (!isStr(words)) {
     throw new RecordError(["--words is empty: the freeze records the user's words."]);
   }
-  const frozen: Frozen = { date: today(), words, script: pin };
+  const frozen: Frozen = { date: today(), words, command: theCase.rowsCommand, script: pin };
   writeFileSync(theCase.frozenPath, `${JSON.stringify(frozen)}\n`, "utf8");
   console.log(`${theCase.label}: row script frozen ${frozen.date}: ${frozen.words}`);
   console.log(`  pinned ${pin.file} sha256 ${pin.sha256}`);
@@ -742,6 +760,24 @@ const cmdRows = (caseArg: string, draft: boolean): number => {
   }
   const fresh = printed.filter((row) => !oldIds.has(row.Id));
   rows.push(...fresh.map((row) => ({ ...row })));
+
+  // Across the whole table, live or gone: the per-run check above sees one run's ids only, but a test
+  // name reads the whole table. Two ids it could not tell apart is a table no test can close, so the
+  // gone row is struck before a row with the same normalised name enters.
+  const byNormalId = new Map<string, string[]>();
+  for (const row of rows) {
+    const key = normaliseName(row.Id);
+    byNormalId.set(key, [...(byNormalId.get(key) ?? []), row.Id]);
+  }
+  const collisions = [...byNormalId.values()].filter((ids) => ids.length > 1);
+  if (collisions.length > 0) {
+    throw new RecordError(
+      collisions.map(
+        (ids) =>
+          `${ids.join(" and ")}: the Ids are equal once compared lower-case with only letters and digits, so a test name could not tell them apart; strike the gone row before a row with the same name enters the table.`,
+      ),
+    );
+  }
 
   const sources = new Sources(theCase.root);
   const emptied: string[] = [];
@@ -919,6 +955,12 @@ const checkValue = (
     } else if (!sources.text(file).includes(quote)) {
       problems.push(`${label}: the quote ${inspect(cite.Quote.slice(0, 60))} is not in ${cite.File}.`);
     }
+    // A citation names evidence outside the case's records, for every source: a value that cites its own
+    // fill file quotes itself, and the grep is sure to pass. The one exception is a ruling, which cites rulings.md.
+    // `written` is covered by its own bar above, which names the row script and the row's Where as well.
+    if (source !== "written" && inCaseRecords(theCase, file) && file !== resolvePath(theCase.rulingsPath)) {
+      problems.push(`${label}: it cites ${cite.File}, one of the case's own records: a citation names evidence outside the case's records, and only a ruling cites rulings.md.`);
+    }
     if (sourceFits && source === "written") {
       if (cite.File.startsWith(MERIDIAN_PREFIX)) {
         problems.push(`${label}: Source written may cite only a file under root, not ${cite.File}.`);
@@ -1021,6 +1063,7 @@ const cmdMerge = (caseArg: string, passName: string, sliceName: string): number 
   const rows = new Map(table.map((row) => [row.Id, row]));
   let merged = 0;
   let stayEmpty = 0;
+  let testsEmptied = 0;
   for (const record of fills) {
     if (shapesOf(record)[0] === "empty") {
       stayEmpty += 1;
@@ -1032,6 +1075,7 @@ const cmdMerge = (caseArg: string, passName: string, sliceName: string): number 
     if (row === undefined) {
       throw new Error(`${rowId} passed the parity gate and is not a row of the table.`);
     }
+    const before = row[field];
     if (verdict !== undefined && verdict.Verdict === "CONFIRMED" && isDeepStrictEqual(verdict.Judged, fieldObject)) {
       row[field] = fieldObject;
       merged += 1;
@@ -1039,27 +1083,45 @@ const cmdMerge = (caseArg: string, passName: string, sliceName: string): number 
       row[field] = null;
       stayEmpty += 1;
     }
+    // A Test is a claim about the row's expected value as it stood when it was judged: change the
+    // expectation, and the claim is re-graded by the test pass, not carried over.
+    if (passName === FILL && field !== CANTHAPPEN && field !== SHORTFALL && !isDeepStrictEqual(before, row[field]) && isValue(row[TEST])) {
+      row[TEST] = null;
+      testsEmptied += 1;
+    }
   }
   writeJsonl(theCase.tablePath, table);
-  console.log(`${where}: ${merged} fields merged; ${stayEmpty} stay empty, which leaves those rows open.`);
+  console.log(
+    `${where}: ${merged} fields merged; ${stayEmpty} stay empty, which leaves those rows open.` +
+      (testsEmptied > 0 ? ` ${testsEmptied} Tests emptied: their expected field changed, so the test pass re-grades them.` : ""),
+  );
   return 0;
 };
 
 // ---------------------------------------------------------------- --results
 
 // The row id a test names: the one whose normalised id equals the normalised test name, or none.
-// Two ids that are equal once normalised can't be in one table, because --rows refuses them, so at most one row is named.
+// rows refuses a table that holds two such ids, live or gone, so at most one row is named;
+// the refusal below guards a table written before that check existed.
 const rowNamedBy = (testName: string, rowIds: string[]): string | null => {
   const name = normaliseName(testName);
-  const hit = rowIds.find((rowId) => normaliseName(rowId) === name);
-  return hit === undefined ? null : hit;
+  const hits = rowIds.filter((rowId) => normaliseName(rowId) === name);
+  if (hits.length > 1) {
+    throw new RecordError([
+      `the test ${inspect(testName)} names ${hits.map((each) => inspect(each)).join(" and ")}: the ids are equal once compared lower-case with only letters and digits, so no test name can tell them apart.`,
+    ]);
+  }
+  return hits.length === 1 ? hits[0] : null;
 };
 
 const hasChild = (element: Element, tag: string): boolean => Array.from(element.childNodes).some((child) => child.nodeName === tag);
 
 // Each row a test's name equals -> red, not-run, or green, over every file of one run.
-const junitResults = (files: string[], rowIds: string[]): Map<string, Colour> => {
+// A failed assertion is red. An errored test died before its assertion, so it gives no result,
+// and neither does a skipped one: a row that expects red closes only on a failed assertion, not on a crash.
+const junitResults = (files: string[], rowIds: string[]): { colours: Map<string, Colour>; errored: Set<string> } => {
   const colours = new Map<string, Colour[]>();
+  const errored = new Set<string>();
   for (const file of files) {
     let testcases: Element[];
     try {
@@ -1070,9 +1132,9 @@ const junitResults = (files: string[], rowIds: string[]): Map<string, Colour> =>
     }
     for (const testcase of testcases) {
       let colour: Colour;
-      if (hasChild(testcase, "failure") || hasChild(testcase, "error")) {
+      if (hasChild(testcase, "failure")) {
         colour = "red";
-      } else if (hasChild(testcase, "skipped")) {
+      } else if (hasChild(testcase, "error") || hasChild(testcase, "skipped")) {
         colour = "not-run";
       } else {
         colour = "green";
@@ -1080,19 +1142,25 @@ const junitResults = (files: string[], rowIds: string[]): Map<string, Colour> =>
       const testName = testcase.getAttribute("name") ?? "";
       const named = rowNamedBy(testName, rowIds);
       if (named !== null) {
+        if (hasChild(testcase, "error")) {
+          errored.add(named);
+        }
         colours.set(named, [...(colours.get(named) ?? []), colour]);
       }
     }
   }
-  return new Map(
-    Array.from(colours, ([rowId, each]): [string, Colour] => [rowId, each.includes("red") ? "red" : each.includes("not-run") ? "not-run" : "green"]),
-  );
+  return {
+    colours: new Map(
+      Array.from(colours, ([rowId, each]): [string, Colour] => [rowId, each.includes("red") ? "red" : each.includes("not-run") ? "not-run" : "green"]),
+    ),
+    errored,
+  };
 };
 
 const cmdResults = (caseArg: string, files: string[], sliceName: string | undefined): number => {
   const theCase = loadCase(caseArg);
   const table = readTable(theCase);
-  const results = junitResults(
+  const { colours: results, errored } = junitResults(
     files,
     table.map((row) => row.Id),
   );
@@ -1129,7 +1197,7 @@ const cmdResults = (caseArg: string, files: string[], sliceName: string | undefi
     if (ran === undefined) {
       red.push(`${row.Id}: no run result`);
     } else if (ran === "not-run") {
-      red.push(`${row.Id}: no run result: its test was skipped`);
+      red.push(`${row.Id}: no run result: ${errored.has(row.Id) ? "its test errored, so it died before its assertion" : "its test was skipped"}`);
     } else if (ran !== expects) {
       red.push(`${row.Id}: ran ${ran}, the table expects ${expects}`);
     }
