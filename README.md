@@ -2,7 +2,7 @@
 
 **Agree the work before the agent builds it, and never let it review its own code.**
 
-These are the house routines for any agent that loads [Agent Skills](https://agentskills.io/specification) (`SKILL.md` folders). `/spec` writes the work you agreed into one file, `/go` builds it through subagents and leaves it uncommitted, and `/cycle` has fresh subagents review it, fix it, and commit it. Around them, `/waypoint` carries a session across a compaction, `/slop-hunt` finds weight the code hasn't earned, and `/readme` keeps a README true to the code. Each skill carries the procedure and the doctrine rules it needs, generated into its own folder, and `AGENTS.md` holds the shared rules, in every session and between routines.
+These are the house routines for any agent that loads [Agent Skills](https://agentskills.io/specification) (`SKILL.md` folders). `/spec` writes the work you agreed into one file, `/go` builds it through subagents and leaves it uncommitted, and `/cycle` has fresh subagents review it, fix it, and commit it. Around them, `/waypoint` carries a session across a compaction, `/slop-hunt` finds weight the code hasn't earned, `/readme` keeps a README true to the code, and `/test-oracle` builds the test oracle, every behaviour the code has with a sourced expected outcome, before the tests are written. Each skill carries the procedure and the doctrine rules it needs, generated into its own folder, and `AGENTS.md` holds the shared rules, in every session and between routines.
 
 It does the job of typing "usual process; subagents, don't commit, then we'll cycle" at the end of every conversation, without the agent improvising what you meant. The agent commits only when you say "commit" or run `/cycle`, and pushes, tags, or deploys only when you name that action. That's a rule the agent follows, not a lock on git.
 
@@ -11,7 +11,8 @@ It does the job of typing "usual process; subagents, don't commit, then we'll cy
 - macOS, Linux, or WSL on Windows: the install and the routines use POSIX `sh`, symlinks, and `openssl`.
 - git 2.31 or later: the routines use `git rev-parse --path-format`.
 - An agent that loads `SKILL.md` skills and can run shell commands and edit files.
-- Subagents, for `/go`, `/cycle`, `/slop-hunt`, and `/spec`'s cold read. Without them, `/cycle` and `/slop-hunt` stop and say so, `/spec` reports its cold read as skipped, and `/go` stops before building.
+- Subagents, for `/go`, `/cycle`, `/slop-hunt`, `/test-oracle`, and `/spec`'s cold read. Without them, `/cycle`, `/slop-hunt`, and `/test-oracle` stop and say so, `/spec` reports its cold read as skipped, and `/go` stops before building.
+- Python 3.11 or later, for `/test-oracle`: its ledger, the script that checks and merges a case's records, uses only Python's standard library. A row script written as a `uv run` script, like the tracer's, needs `uv` as well.
 - [ast-grep](https://ast-grep.github.io/) is optional: `AGENTS.md` bans writing files with `sed`, and agents use `ast-grep --rewrite` for the same change across many code files (`brew install ast-grep`, `npm i -g @ast-grep/cli`, or `cargo install ast-grep`). It doesn't parse Markdown, so prose files, and every file when it isn't installed, are edited one at a time.
 - A per-project memory directory is optional: `/waypoint` keeps waypoints in your agent's per-project memory directory if it has one, else in the main checkout's `.plans/waypoints/`.
 - [jq](https://jqlang.org/), for the after-compaction hook in Claude Code and Codex, and for reading `/cycle`'s mutation report. Mutation testing makes small deliberate changes to code, called mutants, to check the tests; a surviving mutant is one no test noticed, and a mutation report is the JSON file that records the results. See the mutation-command bullet under [Each repo](INSTALL.md#each-repo) for its required format (`brew install jq`; macOS 15 and later ship it). The install says so when it's missing.
@@ -30,7 +31,7 @@ Then, for each agent you use, run the install with its name:
 sh ~/src/workflow-skills/install.sh <agent>
 ```
 
-It links the workflow skills (`spec`, `go`, `cycle`, `waypoint`, `slop-hunt`, `readme`, and `meridian`) and the shared rules, `AGENTS.md`, into the places that agent reads, so `git pull` updates them. Your own personal rules keep loading beside the shared ones. Anything left for you to do prints under "To finish", followed by how to check the install.
+It links the workflow skills (`spec`, `go`, `cycle`, `waypoint`, `slop-hunt`, `readme`, `test-oracle`, and `meridian`) and the shared rules, `AGENTS.md`, into the places that agent reads, so `git pull` updates them. Your own personal rules keep loading beside the shared ones. Anything left for you to do prints under "To finish", followed by how to check the install.
 
 [`INSTALL.md`](INSTALL.md) has the rest: what the install will and won't touch, a section for each agent (where its skills and rules go, how to call a skill, and how to check the install), what to put in each repo, and how to update or uninstall.
 
@@ -44,6 +45,7 @@ It links the workflow skills (`spec`, `go`, `cycle`, `waypoint`, `slop-hunt`, `r
 | `/waypoint` | Saves the session's state to a note before you compact or step away. | Commits or pushes. |
 | `/slop-hunt` | Hunts the repo for weight the code hasn't earned, and ranks what it finds. | Edits code or runs builds. |
 | `/readme [path]` | Brings the README up to date with the code, or writes one. | Commits or pushes. |
+| `/test-oracle <case folder>` | Builds the test oracle, a table of behaviours each with a sourced expected outcome, before tests are written, and says which rows are still open. | Builds tests, or writes into the records itself. |
 | `meridian` | The house doctrine the routines hold work to, as a library of rules. | |
 
 **`/spec`** writes `.plans/spec-<slug>.md`, which `/go` builds from and `/cycle` reviews against. It runs no build and no gate.
@@ -56,9 +58,48 @@ It links the workflow skills (`spec`, `go`, `cycle`, `waypoint`, `slop-hunt`, `r
 
 **`/readme`** covers what users can see changed since the README was last committed, moves it into the house shape and voice, and checks every command, path, count, and link against the repo.
 
+**`/test-oracle`** builds the test oracle: what a piece of work must do, as every behaviour the code has, each with a sourced expected outcome, before its tests exist. A case is a folder named `__oracle__`, placed next to what it pins down. It holds `oracle.conf.json`, which names the row script's command, and the records. The row script, which can be shared between cases, writes the rows, one per behaviour, by reading the code with a real reader for its format, and the freeze pins it by its hash. A filler agent says what each row should do and cites where that is written down, and a disprover agent tries to break each field it wrote. Only confirmed fields merge into the table. `--open` says which rows are still open and which only you can rule on, and its exit 0 is the only "done". It never builds the tests: `/spec`, `/go`, and `/cycle` do, from the table, and the loop then checks that each row's test ran and gave the result the table expects.
+
 **`meridian`** covers architecture, invariants, UI, testing, and tooling. Each rule is one file in one format: a title, a strength line with the rule in one sentence, a When line, and a Bad and Good pair. Where a spec leaves a UI's accessibility, formatting, or validation open, it follows the GOV.UK Design System and style guide, unless the repo's UI skill decides. [`CONTRIBUTING.md`](CONTRIBUTING.md) says how the rules reach the routines' subagents; after editing a rule, a list, or a role, run `task build` (or `sh scripts/build-roles.sh`). `task gate` is this repo's gate: it fails when the build refuses anything or a generated file was out of date.
 
-`/go` and `/cycle` are yours to start. The skills tell the agent never to start them itself. They say so in prose rather than with `disable-model-invocation`: that flag takes the skill's description out of the agent's context, so it no longer recognises "then we'll go" as the routine and improvises one instead. This README writes each skill as `/name`; your agent's section in [`INSTALL.md`](INSTALL.md) says how yours calls one.
+`/go`, `/cycle`, and `/test-oracle` are yours to start. The skills tell the agent never to start them itself. They say so in prose rather than with `disable-model-invocation`: that flag takes the skill's description out of the agent's context, so it no longer recognises "then we'll go" as the routine and improvises one instead. This README writes each skill as `/name`; your agent's section in [`INSTALL.md`](INSTALL.md) says how yours calls one.
+
+### Set up a `/test-oracle` case
+
+1. **Make the folder.** Create `__oracle__/` next to what it pins down: a page, a CLI, a module. The name is exact; the ledger refuses `oracle` or `__oracles__`.
+2. **Name the row script's command.** Write `__oracle__/oracle.conf.json` with one key, `rows`, the command as a list. For a script that sits in the case folder:
+
+   ```json
+   {"rows": ["uv", "run", "rows.py"]}
+   ```
+
+   For one shared across cases, give a path relative to the case folder:
+
+   ```json
+   {"rows": ["uv", "run", "../../../.oracle/page-rows.py"]}
+   ```
+
+3. **Run the routine.** `/test-oracle <path to the __oracle__ folder>`. It walks you through writing the row script, shows you the rows it prints (`--rows --draft`, which writes nothing), and freezes the script when you say it looks right.
+
+The row script is the one program in the case you write with the agent, and the ledger holds it to this contract:
+
+- The ledger runs the command in the case folder, with the case folder's absolute path appended as the last argument. `["uv", "run", "rows.py"]` runs as `uv run rows.py <absolute path of __oracle__>`.
+- It prints one JSON object per line on stdout.
+- Each row has an `Id`, unique once compared lower-case with only letters and digits, and built from the row's content, never its position. It has its own evidence fields, such as `Where` as `file:line`, and every field to be filled set to `null`: `Test`, always, and at least one other. Print `"Expected": null, "CantHappen": null, "Shortfall": null, "Test": null` to let the filler record a can't-happen chain and a known shortfall as well as an expected outcome. A row may also carry a `Slice`, a folder name that groups rows for the filler; without one, a row gets `all`.
+- It reads its source with a real parser for that format, never regular expressions.
+- It says on stderr what it read and what it left out. What it can't place goes to a file, `unplaced.jsonl` in the tracer.
+
+The freeze pins the script by its sha256. Edit it, shared or not, and `--rows` refuses to write until you freeze it again. [`skills/test-oracle/tracer/__oracle__/`](skills/test-oracle/tracer/__oracle__/) is a working case: a row script that reads a small TypeScript CLI's syntax tree.
+
+What goes in git:
+
+| Committed | Ignored |
+|---|---|
+| `oracle.conf.json`, `frozen.json`, `rulings.md`, `table/` | `fill/`, `test/` (the pass folder, not your test sources), `reports/`, `unplaced.jsonl`, `results.xml` |
+
+The ledger doesn't write the ignore list. Put it in a `.gitignore` inside `__oracle__/`; the tracer's is a ready copy.
+
+A test names its row by holding the row's id in its name, in any case style. The ledger compares both lower-case with only letters and digits, so `greet.no-person.exit-2` is named by `test_greet_no_person_exit_2` and by `testGreetNoPersonExit2`. A test whose name holds no row's id belongs to no row.
 
 ## The routine in practice
 

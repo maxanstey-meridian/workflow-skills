@@ -13,9 +13,11 @@ The orchestrator only dispatches. The auditor writes the report, so the orchestr
 ```
 skills/<routine>/
   SKILL.md            hand-written: the orchestrator's file
-  scripts/            hand-written: commands that use $0, $1, and so on, which a SKILL.md can't hold
+  scripts/            hand-written: commands that use $0, $1, and so on, which a SKILL.md can't hold, and a routine's own scripts (test-oracle's ledger)
   roles/              hand-written: the routine's roles, and roles.list
   references/         generated: one file per role, and the rule files
+  kinds/              hand-written, test-oracle only: what is true of one kind of case
+  tracer/             hand-written, test-oracle only: a tiny CLI and, beside it, an `__oracle__` case with its row script, for running the skill on
 
 skills/meridian/references/
   rules/              hand-written: the rule library
@@ -31,7 +33,7 @@ A part is shared only inside one routine, and only when every role takes it unch
 
 ## Generated files
 
-Role files and rule files are generated from colocated `.list` files by `sh scripts/build-roles.sh`. Generation is what lets a role share a part and still be one file to read. Never edit `references/` by hand. `Taskfile.yml` names the commands: `task build` runs the script, and `task gate`, which CI and `/cycle` run, also fails when a generated file was out of date. The build refuses orphans too: a rule in no list, a rule file no role of its routine reads, a part no role uses, and a generated file no line builds.
+Role files and rule files are generated from colocated `.list` files by `sh scripts/build-roles.sh`. Generation is what lets a role share a part and still be one file to read. Never edit `references/` by hand. `Taskfile.yml` names the commands: `task build` runs the script, and `task gate`, which CI and `/cycle` run, also fails when a generated file was out of date. A routine's `references/` gets only the rule files its roles read. The build refuses orphans too: a rule in no list, a part no role uses, and a generated file no line builds, which is what a rule file is once the routine's roles stop reading it.
 
 ## The rule library
 

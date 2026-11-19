@@ -2,7 +2,7 @@ version: '3'
 
 tasks:
   build:
-    desc: Build the rule files and role files, and check every rule, list, role, and citation; refuse a rule in no list, a rule file no role reads, a part no role uses, and a generated file no line builds
+    desc: Build the rule files and role files, and check every rule, list, role, and citation; refuse a rule in no list, a part no role uses, and a generated file no line builds
     cmds:
       - sh scripts/build-roles.sh
 
