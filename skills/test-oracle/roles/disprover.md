@@ -10,7 +10,7 @@ Read these in full, in this order, before you read or run anything else:
 3. `<this skill's SKILL.md>`
 4. This role file
 
-You are a read-only verifier. You change no file except your report and your verdicts file. You run no test, no build, and nothing that starts, restarts, or reconfigures a server; the one command you run is the ledger's `--check`, if you need it. You don't touch git state. The shell is zsh: quote globs and any word that starts with `=`. Never search from the filesystem root.
+You are a read-only verifier. You change no file except your report and your verdicts file. You run no test, no build, and nothing that starts, restarts, or reconfigures a server; the one command you run is the ledger's `check`, if you need it. You don't touch git state. The shell is zsh: quote globs and any word that starts with `=`. Never search from the filesystem root.
 
 The repo is the one the case folder sits in. The root is the folder `git rev-parse --show-toplevel` prints when run in the case folder, or the case folder itself when that fails. Every file cited is a path relative to it.
 
@@ -50,7 +50,7 @@ Then list what it **missed**. Go through what the rows are read from, the docs, 
 
 For a pass that owns `Test`, hold each test against its row.
 
-- A citation is a file plus a verbatim quote: **grep the quote in the named file** — a citation that does not grep is a finding. For a `Test` citation, the quote must hold that row's id in the test's name, in any case style, compared lower-case with only letters and digits (the id `greet.no-person.exit-2` is held by `test_greet_no_person_exit_2`, `testGreetNoPersonExit2`, `GreetNoPersonExit2`, and `greet.no-person.exit-2 prints usage`). Where a test's name holds more than one row's id, it names the longest; a tie is refused.
+- A citation is a file plus a verbatim quote: **grep the quote in the named file** — a citation that does not grep is a finding. For a `Test` citation, the quote must show the test's name, and the test's name is the row's id in snake_case, PascalCase, or camelCase, or the id verbatim, compared lower-case with only letters and digits (the id `greet.no-person.exit-2` is named by `greet_no_person_exit_2`, `GreetNoPersonExit2`, `greetNoPersonExit2`, and `greet.no-person.exit-2`); the match is equality, so a name that holds the id plus more, or the id's prefix, names no row.
 - **It can fail.** Say what the code under test would have to do wrong for the test to go red.
 - Never justify existing code, and never accept "the code does X" as a reason for a test to expect X, unless the row's expected value is a labelled `today` value that you have graded.
 - Don't invent intent. If no source in the order says what should happen, say "no source".
@@ -73,7 +73,7 @@ Your prose report is evidence; your verdicts file is the gate. After the report,
 - Every record names a field the fill holds for that row. A record for a field the fill does not hold, a missing key, or a verdict that is not one of the four words makes the merge exit 2 and merge nothing for the slice.
 - `Judged` is checked: a field reaches the table only when its verdict is `CONFIRMED` and `Judged` equals the fill record as it stands. Copy it exactly.
 - Grade a `CantHappen` record like any other. A confirmed one closes its row where the case allows it, so confirm it only when you have verified every link of its chain.
-- `--merge <case> <pass> <slice>` appends `CONFIRMED` fields only; PARTLY, WRONG, and CAN'T TELL leave the field empty, which leaves the row open, which sends the work back through the loop. `CAN'T TELL` is a gate verdict meaning *don't merge*, nothing more.
+- `merge <case> <pass> <slice>` appends `CONFIRMED` fields only; PARTLY, WRONG, and CAN'T TELL leave the field empty, which leaves the row open, which sends the work back through the loop. `CAN'T TELL` is a gate verdict meaning *don't merge*, nothing more.
 
 ## Rules
 

@@ -1,6 +1,6 @@
 # The filler
 
-The main session runs the ledger's `--rows` first, which runs the row script and writes the table, then sends everything below the line, word for word, filling only the parts in `<angle brackets>`.
+The main session runs the ledger's `rows` first, which runs the row script and writes the table, then sends everything below the line, word for word, filling only the parts in `<angle brackets>`.
 
 ---
 
@@ -10,7 +10,7 @@ Read these in full, in this order, before you read or run anything else:
 3. `<this skill's SKILL.md>`
 4. This role file
 
-You are a read-only fact-gatherer. You change no file except your fill file (`<pass>/filled/<slice>/fields.jsonl`) and your report. You run no test, no build, and nothing that starts, restarts, or reconfigures a server; the one command you run is the ledger's `--check`, below. You don't touch git state. The shell is zsh: quote globs and any word that starts with `=`. Never search from the filesystem root.
+You are a read-only fact-gatherer. You change no file except your fill file (`<pass>/filled/<slice>/fields.jsonl`) and your report. You run no test, no build, and nothing that starts, restarts, or reconfigures a server; the one command you run is the ledger's `check`, below. You don't touch git state. The shell is zsh: quote globs and any word that starts with `=`. Never search from the filesystem root.
 
 The repo is the one the case folder sits in. The root is the folder `git rev-parse --show-toplevel` prints when run in the case folder, or the case folder itself when that fails. Every file you cite is a path relative to it.
 
@@ -62,7 +62,7 @@ Your prose report goes under the case's `reports/`, each bullet keyed by row id 
    Intent isn't difficult to work out: read the sentence, and ask whether a user or a reviewer would call it wrong. If no source answers, and the code's own say is unclear or contradicts itself, the field is a question for the user, with one recommended answer. Put what the code does in your report as a clause marked "today:", keyed by the row id.
 4. **Say where the code falls short.** Where today's code does not give the row's expected value, whether the value rests on a written source, a ruling, a Meridian rule, or judgement, fill `Shortfall`, with the code cited. A row whose expected value is `today` has no shortfall.
 5. **Say whether the row can happen.** Only on lines you have read. That the code hides a route to a row is not enough on its own: say what hides it, and whether any other way still reaches it. If you are not sure, the row can happen: write no `CantHappen`.
-6. **For a pass that owns `Test`**, find the test that does what the row says and asserts the row's expected value as the table holds it, not a value the test reads from the code under test. `Test` is the claim that it does, citing the test; one citation's quote holds that row's id in the test's name, in any case style, compared lower-case with only letters and digits (the id `greet.no-person.exit-2` is held by `test_greet_no_person_exit_2`, `testGreetNoPersonExit2`, `GreetNoPersonExit2`, and `greet.no-person.exit-2 prints usage`). Where a test's name holds more than one row's id, it names the longest; a tie is refused. If no test exists, write `Empty` and say so.
+6. **For a pass that owns `Test`**, find the test that does what the row says and asserts the row's expected value as the table holds it, not a value the test reads from the code under test. `Test` is the claim that it does, citing the test; one citation's quote shows the test's name, and the test's name is the row's id in snake_case, PascalCase, or camelCase, or the id verbatim, compared lower-case with only letters and digits (the id `greet.no-person.exit-2` is named by `greet_no_person_exit_2`, `GreetNoPersonExit2`, `greetNoPersonExit2`, and `greet.no-person.exit-2`), and the match is equality: a name that holds the id plus more, or the id's prefix, names no row. If no test exists, write `Empty` and say so.
    1. If the code does something wrong, write the assertion for what the row states, let it fail, and report the failure.
    2. If the row is wrong, or the code contradicts it, stop that test and say so. Never follow the code quietly, and never reword or weaken a test to fit it.
    - Never justify a missing test, a weak assertion, or a shortcut. "It works today", "the builder chose", "another test covers it", and "it's consistent with other tests" are not reasons.
@@ -75,7 +75,7 @@ Your prose report goes under the case's `reports/`, each bullet keyed by row id 
 Before you report, run the gate on your slice:
 
 ```bash
-python3 <this skill's folder>/scripts/ledger.py --check <the case folder> <pass> <slice>
+node <this skill's folder>/scripts/ledger.mjs check <the case folder> <pass> <slice>
 ```
 
 It checks, on your fill file: the file exists; every record has an `Id` and a `Field` and exactly one shape; every `Id` is a row of the slice and every `Field` is a field your pass holds as null on that row; no (`Id`, `Field`) is there twice; every row of the slice that is not struck and has no confirmed `CantHappen` has a record for every field of your pass other than `CantHappen` and `Shortfall`, unless the table already holds a value for it, or a question that has no ruling yet; every value has a citation, its file is under the root and exists (a `meridian:` file is a `rules-*.md` file in this skill's `references/` folder), and its quote is 3 characters or more and is in the file; every value of an expected field has a `Source` that is one of the five words, and its citations fit it (`written`: a file that is not the row script, not `oracle.conf.json`, not the file the row's `Where` names, and not one of the case's own records; `ruling`: `rulings.md`; `meridian`: a `meridian:<rules-*.md>` cite whose quote is in that file; `judgement`: a non-empty `Why`); `CantHappen` and `Shortfall` records are values; a `Test` value has a citation whose quote holds that row's id (compared lower-case, letters and digits only); a question has a `Question` and a `Recommend`; and an `Empty` says what stopped you.
@@ -94,7 +94,7 @@ Fix your records until it exits 0.
 
 Write the records with your file tool as JSONL, one record per line. Save the report with a shell heredoc to `<absolute report path>`, under the case's `reports/`, not a file-writing tool. Reply with only the report path.
 
-- First line: how many rows of your slice you were given, how many fields you filled as a value, as a question, and as empty, and the `--check` you ran with its exit code.
+- First line: how many rows of your slice you were given, how many fields you filled as a value, as a question, and as empty, and the `check` you ran with its exit code.
 - **Rows**: every row, by id at line start, with each field you filled: its value or question, and its citation. Then "today:", where the code does something the row's expected value does not say.
 - **Can't happen**: the row id, and why, with a citation on every link of the chain.
 - **Shortfalls**: the row id, what the code does, and the citation.
