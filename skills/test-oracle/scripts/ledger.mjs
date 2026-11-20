@@ -6515,7 +6515,7 @@ var require_lib = __commonJS({
 var import_xmldom = __toESM(require_lib(), 1);
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { appendFileSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import * as path2 from "node:path";
 import { getSystemErrorMessage, inspect, isDeepStrictEqual } from "node:util";
 
@@ -29617,12 +29617,14 @@ var CANTHAPPEN = "CantHappen";
 var SHORTFALL = "Shortfall";
 var TEST = "Test";
 var EXPECTED = "Expected";
+var UNPLACED = "Unplaced";
 var FILL = "fill";
 var TEST_PASS = "test";
 var PASSES = [FILL, TEST_PASS];
 var CASE_FOLDER = "__oracle__";
 var CONF_FILE = "oracle.conf.json";
 var FROZEN_FILE = "frozen.json";
+var ORACLE_FILE = "oracle.jsonl";
 var NAME = /^[A-Za-z][A-Za-z0-9_-]*$/;
 var FOLDER_UNSAFE = /[/\\\x00]/;
 var RULING_LINE = /^- \S+ · (\S+) · ([A-Za-z0-9_-]+): /gm;
@@ -29632,8 +29634,6 @@ var SOURCE_WORDS = ["written", "ruling", "meridian", "today", "judgement"];
 var MERIDIAN_PREFIX = "meridian:";
 var REFERENCES = path2.resolve(import.meta.dirname, "..", "references");
 var MERIDIAN_FILE = /^rules-[A-Za-z0-9_.-]*\.md$/;
-var RECORD_FOLDERS = ["table", FILL, TEST_PASS, "reports"];
-var RECORD_FILES = ["rulings.md", FROZEN_FILE, CONF_FILE];
 var RecordError = class extends Error {
   problems;
   constructor(problems) {
@@ -29703,6 +29703,16 @@ var RowSchema = JsonObjectSchema.and(
     Struck: external_exports.strictObject({ Why: external_exports.string(), Date: external_exports.string() }).optional()
   }).catchall(HeldSchema)
 );
+var UnplacedSchema = JsonObjectSchema.and(
+  external_exports.object({
+    Id: TextSchema,
+    Slice: TextSchema,
+    [UNPLACED]: TextSchema,
+    Gone: external_exports.literal(true).optional(),
+    Struck: external_exports.strictObject({ Why: external_exports.string(), Date: external_exports.string() }).optional()
+  }).catchall(HeldSchema)
+);
+var isUnplacedLine = (record2) => isStr(record2[UNPLACED]) && !("Test" in record2) && !Object.values(record2).some((held) => held === null);
 var UTF8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 var messageOf = (error62) => error62 instanceof Error ? error62.message : String(error62);
 var systemMessage = (error62) => error62 instanceof Error && "errno" in error62 && typeof error62.errno === "number" ? getSystemErrorMessage(error62.errno) : messageOf(error62);
@@ -29793,8 +29803,8 @@ var Case = class {
   get label() {
     return `${path2.basename(path2.dirname(this.folder))}/${path2.basename(this.folder)}`;
   }
-  get tablePath() {
-    return path2.join(this.folder, "table", "rows.jsonl");
+  sliceTablePath(slice) {
+    return path2.join(this.folder, slice, ORACLE_FILE);
   }
   get rulingsPath() {
     return path2.join(this.folder, "rulings.md");
@@ -29919,39 +29929,73 @@ var checkPass = (name) => {
   return name;
 };
 var readTable = (theCase) => {
-  if (!isFile(theCase.tablePath)) {
-    throw new RecordError([`${theCase.tablePath} does not exist: run \`rows\` first.`]);
+  const slices = readdirSync(theCase.folder).filter((name) => isDir(path2.join(theCase.folder, name)) && isFile(path2.join(theCase.folder, name, ORACLE_FILE))).sort();
+  if (slices.length === 0) {
+    throw new RecordError([`${theCase.folder}: no slice folder holds ${ORACLE_FILE}: run \`rows\` first.`]);
   }
-  const records = readJsonl(theCase.tablePath);
   const seen = /* @__PURE__ */ new Set();
-  for (const record2 of records) {
-    const rowId = record2["Id"];
-    if (!isStr(rowId)) {
-      throw new RecordError([`${theCase.tablePath}: a row has no Id.`]);
-    }
-    if (seen.has(rowId)) {
-      throw new RecordError([`${theCase.tablePath}: the Id ${rowId} is there twice.`]);
-    }
-    if (!isStr(record2["Slice"])) {
-      throw new RecordError([`${theCase.tablePath}: the row ${rowId} has no Slice.`]);
-    }
-    seen.add(rowId);
-  }
   const rows = [];
-  for (const record2 of records) {
-    for (const field of [EXPECTED, CANTHAPPEN, SHORTFALL, TEST]) {
-      if (!(field in record2)) {
-        throw new RecordError([`${theCase.tablePath}: the row ${record2["Id"]} has no ${field}.`]);
+  const unplaced = [];
+  for (const slice of slices) {
+    const file2 = theCase.sliceTablePath(slice);
+    for (const record2 of readJsonl(file2)) {
+      const rowId = record2["Id"];
+      if (!isStr(rowId)) {
+        throw new RecordError([`${file2}: a line has no Id.`]);
+      }
+      if (seen.has(rowId)) {
+        throw new RecordError([`${file2}: the Id ${rowId} is there twice.`]);
+      }
+      seen.add(rowId);
+      if (!isStr(record2["Slice"])) {
+        throw new RecordError([`${file2}: the line ${rowId} has no Slice.`]);
+      }
+      if (record2["Slice"] !== slice) {
+        throw new RecordError([`${file2}: the line ${rowId} has the Slice ${inspect(record2["Slice"])}, but it sits in the slice ${slice}.`]);
+      }
+      if (isUnplacedLine(record2)) {
+        const line = UnplacedSchema.safeParse(record2);
+        if (!line.success) {
+          throw new RecordError([`${file2}: the line ${rowId} is a declared-unplaced line with a malformed ${line.error.issues[0].path.join(".")}.`]);
+        }
+        unplaced.push(line.data);
+      } else {
+        for (const field of [EXPECTED, CANTHAPPEN, SHORTFALL, TEST]) {
+          if (!(field in record2)) {
+            throw new RecordError([`${file2}: the row ${rowId} has no ${field}.`]);
+          }
+        }
+        const row = RowSchema.safeParse(record2);
+        if (!row.success) {
+          throw new RecordError([`${file2}: the row ${rowId} has a malformed ${row.error.issues[0].path.join(".")}.`]);
+        }
+        rows.push(row.data);
       }
     }
-    const row = RowSchema.safeParse(record2);
-    if (!row.success) {
-      throw new RecordError([`${theCase.tablePath}: the row ${record2["Id"]} has a malformed ${row.error.issues[0].path.join(".")}.`]);
-    }
-    rows.push(row.data);
   }
-  return rows;
+  return { rows, unplaced };
 };
+var writeTable = (theCase, rows, unplaced) => {
+  const bySlice = /* @__PURE__ */ new Map();
+  const bucketFor2 = (slice) => {
+    if (!isSliceName(slice)) {
+      throw new RecordError([`the Slice ${inspect(slice)} is not a folder name: it must be text with no slash or NUL, and not \`.\` or \`..\`.`]);
+    }
+    const bucket = bySlice.get(slice) ?? { rows: [], unplaced: [] };
+    bySlice.set(slice, bucket);
+    return bucket;
+  };
+  for (const row of rows) {
+    bucketFor2(row.Slice).rows.push(row);
+  }
+  for (const line of unplaced) {
+    bucketFor2(line.Slice).unplaced.push(line);
+  }
+  for (const [slice, bucket] of [...bySlice.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    writeJsonl(theCase.sliceTablePath(slice), [...bucket.rows, ...bucket.unplaced]);
+  }
+};
+var hasTable = (theCase) => readdirSync(theCase.folder).some((name) => isDir(path2.join(theCase.folder, name)) && isFile(path2.join(theCase.folder, name, ORACLE_FILE)));
 var sliceOf = (row) => row.Slice;
 var isValue = (fieldObject) => ValueSchema.safeParse(fieldObject).success;
 var isQuestion = (fieldObject) => QuestionSchema.safeParse(fieldObject).success;
@@ -29962,11 +30006,12 @@ var passFieldsOf = (row, passName) => passName === TEST_PASS ? [TEST] : fillFiel
 var expectedFieldsOf = (row) => fillFieldsOf(row).filter((field) => field !== CANTHAPPEN && field !== SHORTFALL);
 var hasConfirmedChain = (row) => isValue(row[CANTHAPPEN]);
 var expectedColour = (row) => isValue(row[SHORTFALL]) ? "red" : "green";
-var readRulings = (theCase) => {
-  if (!isFile(theCase.rulingsPath)) {
+var readRulings = (theCase, sliceName) => {
+  const file2 = path2.join(theCase.folder, sliceName, "rulings.md");
+  if (!isFile(file2)) {
     return /* @__PURE__ */ new Set();
   }
-  return new Set(Array.from(readText(theCase.rulingsPath).matchAll(RULING_LINE), ([, rowId, field]) => pairKey(rowId, field)));
+  return new Set(Array.from(readText(file2).matchAll(RULING_LINE), ([, rowId, field]) => pairKey(rowId, field)));
 };
 var normalise = (text) => text.trim().replace(/\s+/g, " ");
 var normaliseName = (text) => text.toLowerCase().replace(NOT_ALNUM, "");
@@ -30023,7 +30068,7 @@ var Sources = class {
   }
 };
 var barredForWritten = (theCase, row) => {
-  const barred = new Set(RECORD_FILES.map((name) => resolvePath(path2.join(theCase.folder, name))));
+  const barred = /* @__PURE__ */ new Set();
   barred.add(resolvePath(scriptFile(theCase)));
   const where = row === void 0 ? void 0 : row["Where"];
   if (typeof where === "string" && where.trim() !== "") {
@@ -30037,8 +30082,8 @@ var barredForWritten = (theCase, row) => {
   }
   return barred;
 };
-var inRecords = (theCase, file2) => RECORD_FOLDERS.some((name) => isRelativeTo(file2, resolvePath(path2.join(theCase.folder, name))));
-var inCaseRecords = (theCase, file2) => inRecords(theCase, file2) || file2 === resolvePath(theCase.rulingsPath) || file2 === resolvePath(theCase.frozenPath) || file2 === resolvePath(path2.join(theCase.folder, CONF_FILE));
+var inCaseRecords = (theCase, file2) => isRelativeTo(file2, theCase.folder);
+var isRulingFile = (theCase, file2) => inCaseRecords(theCase, file2) && path2.basename(file2) === "rulings.md";
 var cmdFreeze = (caseArg, words) => {
   const theCase = loadCase(caseArg, false);
   const pin = scriptPin(theCase);
@@ -30072,6 +30117,7 @@ var runRowScript = (theCase) => {
   }
   const problems = [];
   const rows = [];
+  const unplaced = [];
   const seen = /* @__PURE__ */ new Set();
   const byNormal = /* @__PURE__ */ new Map();
   for (const [index, line] of stdout.split("\n").entries()) {
@@ -30119,13 +30165,26 @@ var runRowScript = (theCase) => {
     for (const [key, held] of Object.entries(row)) {
       if (LEDGER_FIELDS.includes(key)) {
         problems.push(`${rowId}: the row script prints ${key}, which is the ledger's field.`);
-      } else if ((key === CANTHAPPEN || key === SHORTFALL) && held !== null) {
-        problems.push(`${rowId}: the row script prints ${key} with a value: it must print it as null, for the filler.`);
       } else if (hasMergedShape(held)) {
         problems.push(`${rowId}: the row script prints ${key} as an object holding Value or Question, which is the shape of a merged field.`);
       } else if (held === null && !ROW_KEYS.includes(key) && !NAME.test(key)) {
         problems.push(`${rowId}: ${inspect(key)} is printed as null, so it is a field to fill, and can't be a field name.`);
       }
+    }
+    if (isUnplacedLine(row)) {
+      for (const key of [EXPECTED, CANTHAPPEN, SHORTFALL]) {
+        if (key in row) {
+          problems.push(`${rowId}: a declared-unplaced line carries no row fields, and it prints ${key}.`);
+        }
+      }
+      if ("Slice" in row && !isSliceName(row["Slice"])) {
+        problems.push(`${rowId}: Slice ${inspect(row["Slice"])} is not a folder name: it must be text with no slash or NUL, and not \`.\` or \`..\`.`);
+      }
+      if (!("Slice" in row)) {
+        row["Slice"] = "all";
+      }
+      unplaced.push(row);
+      continue;
     }
     const printedNull = Object.entries(row).filter(([key, held]) => held === null && !ROW_KEYS.includes(key)).map(([key]) => key);
     if (printedNull.filter((key) => key !== TEST).length === 0) {
@@ -30140,6 +30199,8 @@ var runRowScript = (theCase) => {
     for (const field of [CANTHAPPEN, SHORTFALL]) {
       if (!(field in row)) {
         problems.push(`${rowId}: the row script prints no ${field}: every row carries ${EXPECTED}, ${CANTHAPPEN}, ${SHORTFALL}, and ${TEST}.`);
+      } else if (row[field] !== null) {
+        problems.push(`${rowId}: the row script prints ${field} with a value: it must print it as null, for the filler.`);
       }
     }
     if ("Slice" in row && !isSliceName(row["Slice"])) {
@@ -30153,7 +30214,7 @@ var runRowScript = (theCase) => {
   if (problems.length > 0) {
     throw new RecordError(problems);
   }
-  return rows.map((row) => RowSchema.parse(row));
+  return { rows: rows.map((row) => RowSchema.parse(row)), unplaced: unplaced.map((line) => UnplacedSchema.parse(line)) };
 };
 var cmdRows = (caseArg, draft) => {
   const theCase = loadCase(caseArg);
@@ -30162,11 +30223,11 @@ var cmdRows = (caseArg, draft) => {
     console.log(`nothing was written: ${mismatch}`);
     return 1;
   }
-  const printed = runRowScript(theCase);
+  const { rows: printedRows, unplaced: printedUnplaced } = runRowScript(theCase);
   const frozen = theCase.frozen;
   if (draft || frozen === null) {
-    for (const row of printed) {
-      console.log(JSON.stringify(row));
+    for (const line of [...printedRows, ...printedUnplaced]) {
+      console.log(JSON.stringify(line));
     }
     if (draft) {
       if (mismatch !== null) {
@@ -30178,12 +30239,12 @@ var cmdRows = (caseArg, draft) => {
     console.log(`nothing was written: the case has no ${FROZEN_FILE}; the user freezes the row script first, with \`freeze\`.`);
     return 1;
   }
-  const old = isFile(theCase.tablePath) ? readTable(theCase) : [];
-  const printedById = new Map(printed.map((row) => [row.Id, row]));
-  const oldIds = new Set(old.map((row) => row.Id));
+  const { rows: oldRows, unplaced: oldUnplaced } = hasTable(theCase) ? readTable(theCase) : { rows: [], unplaced: [] };
+  const printedById = new Map(printedRows.map((row) => [row.Id, row]));
+  const oldIds = new Set(oldRows.map((row) => row.Id));
   const rows = [];
   const problems = [];
-  for (const oldRow of old) {
+  for (const oldRow of oldRows) {
     const printedRow = printedById.get(oldRow.Id);
     if (printedRow !== void 0) {
       const row = { ...printedRow };
@@ -30206,12 +30267,29 @@ var cmdRows = (caseArg, draft) => {
   if (problems.length > 0) {
     throw new RecordError(problems);
   }
-  const fresh = printed.filter((row) => !oldIds.has(row.Id));
+  const fresh = printedRows.filter((row) => !oldIds.has(row.Id));
   rows.push(...fresh.map((row) => ({ ...row })));
+  const printedUnplacedById = new Map(printedUnplaced.map((line) => [line.Id, line]));
+  const oldUnplacedIds = new Set(oldUnplaced.map((line) => line.Id));
+  const mergedUnplaced = [];
+  for (const oldLine of oldUnplaced) {
+    const printedLine = printedUnplacedById.get(oldLine.Id);
+    if (printedLine !== void 0) {
+      const line = { ...printedLine };
+      if (oldLine.Struck !== void 0) {
+        line.Struck = oldLine.Struck;
+      }
+      mergedUnplaced.push(line);
+    } else {
+      mergedUnplaced.push({ ...oldLine, Gone: true });
+    }
+  }
+  const freshUnplaced = printedUnplaced.filter((line) => !oldUnplacedIds.has(line.Id));
+  mergedUnplaced.push(...freshUnplaced.map((line) => ({ ...line })));
   const byNormalId = /* @__PURE__ */ new Map();
-  for (const row of rows) {
-    const key = normaliseName(row.Id);
-    byNormalId.set(key, [...byNormalId.get(key) ?? [], row.Id]);
+  for (const line of [...rows, ...mergedUnplaced]) {
+    const key = normaliseName(line.Id);
+    byNormalId.set(key, [...byNormalId.get(key) ?? [], line.Id]);
   }
   const collisions = [...byNormalId.values()].filter((ids) => ids.length > 1);
   if (collisions.length > 0) {
@@ -30232,10 +30310,13 @@ var cmdRows = (caseArg, draft) => {
       }
     }
   }
-  writeJsonl(theCase.tablePath, rows);
+  writeTable(theCase, rows, mergedUnplaced);
   console.log(`${theCase.label}: row script frozen ${frozen.date}: ${frozen.words}`);
   const gone = rows.filter((row) => row.Gone).length;
-  console.log(`rows: ${rows.length}, new: ${fresh.length}, gone: ${gone}, fields emptied: ${emptied.length}`);
+  const unplacedGone = mergedUnplaced.filter((line) => line.Gone).length;
+  console.log(
+    `rows: ${rows.length}, new: ${fresh.length}, gone: ${gone}; unplaced: ${mergedUnplaced.length}, new: ${freshUnplaced.length}, gone: ${unplacedGone}; fields emptied: ${emptied.length}`
+  );
   for (const entry of emptied) {
     console.log(`  emptied ${entry}`);
   }
@@ -30256,17 +30337,17 @@ var shapesOf = (record2) => {
 };
 var parity = (theCase, passName, sliceName, table) => {
   checkPass(passName);
-  const fillPath = path2.join(theCase.folder, passName, "filled", sliceName, "fields.jsonl");
+  const fillPath = path2.join(theCase.folder, sliceName, `${passName}-fields.jsonl`);
   if (!isFile(fillPath)) {
     return [[`${fillPath} does not exist: the filler wrote nothing for this pass and slice.`], []];
   }
   const records = readJsonl(fillPath);
   const sliceRows = new Map(table.filter((row) => sliceOf(row) === sliceName).map((row) => [row.Id, row]));
   if (sliceRows.size === 0) {
-    throw new RecordError([`${theCase.tablePath}: no row has the slice ${inspect(sliceName)}.`]);
+    throw new RecordError([`${theCase.label}: no row has the slice ${inspect(sliceName)}.`]);
   }
   const sources = new Sources(theCase.root);
-  const rulings = readRulings(theCase);
+  const rulings = readRulings(theCase, sliceName);
   const problems = [];
   const seen = /* @__PURE__ */ new Set();
   for (const [index, record2] of records.entries()) {
@@ -30375,20 +30456,20 @@ var checkValue = (theCase, passName, record2, label, rowId, field, sources, row)
     } else if (!sources.text(file2).includes(quote)) {
       problems.push(`${label}: the quote ${inspect(cite.Quote.slice(0, 60))} is not in ${cite.File}.`);
     }
-    if (source !== "written" && inCaseRecords(theCase, file2) && file2 !== resolvePath(theCase.rulingsPath)) {
-      problems.push(`${label}: it cites ${cite.File}, one of the case's own records: a citation names evidence outside the case's records, and only a ruling cites rulings.md.`);
+    if (source !== "written" && inCaseRecords(theCase, file2) && !isRulingFile(theCase, file2)) {
+      problems.push(`${label}: it cites ${cite.File}, one of the case's own records: a citation names evidence outside the case's records, and only a ruling cites a rulings file.`);
     }
     if (sourceFits && source === "written") {
       if (cite.File.startsWith(MERIDIAN_PREFIX)) {
         problems.push(`${label}: Source written may cite only a file under root, not ${cite.File}.`);
-      } else if (file2 === resolvePath(theCase.rulingsPath)) {
-        problems.push(`${label}: Source written may not cite rulings.md: a ruling is Source ruling.`);
-      } else if (barred.has(file2) || inRecords(theCase, file2)) {
+      } else if (isRulingFile(theCase, file2)) {
+        problems.push(`${label}: Source written may not cite a rulings file: a ruling is Source ruling.`);
+      } else if (barred.has(file2) || inCaseRecords(theCase, file2)) {
         problems.push(`${label}: Source written may not cite ${cite.File}: it is the row script, the code the row's Where points into, or one of the case's own records.`);
       }
     }
-    if (sourceFits && source === "ruling" && file2 !== resolvePath(theCase.rulingsPath)) {
-      problems.push(`${label}: Source ruling may cite only rulings.md, not ${cite.File}.`);
+    if (sourceFits && source === "ruling" && !isRulingFile(theCase, file2)) {
+      problems.push(`${label}: Source ruling may cite only a rulings file \u2014 the case's top-level rulings.md, or its slice's \u2014 not ${cite.File}.`);
     }
   }
   const citesMeridian = cites.some((held) => {
@@ -30407,7 +30488,7 @@ var checkValue = (theCase, passName, record2, label, rowId, field, sources, row)
 var cmdCheck = (caseArg, passName, sliceName) => {
   const theCase = loadCase(caseArg);
   checkPass(passName);
-  const table = readTable(theCase);
+  const { rows: table } = readTable(theCase);
   const [problems, records] = parity(theCase, passName, sliceName, table);
   const where = `${theCase.label} ${passName} ${sliceName}`;
   if (problems.length > 0) {
@@ -30425,7 +30506,7 @@ var cmdCheck = (caseArg, passName, sliceName) => {
 var cmdMerge = (caseArg, passName, sliceName) => {
   const theCase = loadCase(caseArg);
   checkPass(passName);
-  const table = readTable(theCase);
+  const { rows: table, unplaced } = readTable(theCase);
   const [problems, records] = parity(theCase, passName, sliceName, table);
   const where = `${theCase.label} ${passName} ${sliceName}`;
   if (problems.length > 0) {
@@ -30434,7 +30515,7 @@ var cmdMerge = (caseArg, passName, sliceName) => {
     return 1;
   }
   const fills = records.map((record2) => FillRecordSchema.parse(record2));
-  const verdictPath = path2.join(theCase.folder, passName, "verdicts", `${sliceName}.jsonl`);
+  const verdictPath = path2.join(theCase.folder, sliceName, `${passName}-verdicts.jsonl`);
   if (!isFile(verdictPath)) {
     throw new RecordError([`${verdictPath} does not exist: no verdicts, nothing merges.`]);
   }
@@ -30501,7 +30582,7 @@ var cmdMerge = (caseArg, passName, sliceName) => {
       testsEmptied += 1;
     }
   }
-  writeJsonl(theCase.tablePath, table);
+  writeTable(theCase, table, unplaced);
   console.log(
     `${where}: ${merged} fields merged; ${stayEmpty} stay empty, which leaves those rows open.` + (testsEmptied > 0 ? ` ${testsEmptied} Tests emptied: their expected field changed, so the test pass re-grades them.` : "")
   );
@@ -30557,14 +30638,14 @@ var junitResults = (files, rowIds) => {
 };
 var cmdResults = (caseArg, files, sliceName) => {
   const theCase = loadCase(caseArg);
-  const table = readTable(theCase);
+  const { rows: table, unplaced } = readTable(theCase);
   const { colours: results, errored } = junitResults(
     files,
     table.map((row) => row.Id)
   );
   const scope = table.filter((row) => sliceName === void 0 || sliceOf(row) === sliceName);
   if (scope.length === 0) {
-    throw new RecordError([`${theCase.tablePath}: no row has the slice ${inspect(sliceName)}.`]);
+    throw new RecordError([`${theCase.label}: no row has the slice ${inspect(sliceName)}.`]);
   }
   for (const row of table) {
     const ran = results.get(row.Id);
@@ -30574,7 +30655,7 @@ var cmdResults = (caseArg, files, sliceName) => {
       delete row.Ran;
     }
   }
-  writeJsonl(theCase.tablePath, table);
+  writeTable(theCase, table, unplaced);
   const red = [];
   const notReady = [];
   let ready = 0;
@@ -30615,38 +30696,59 @@ var cmdResults = (caseArg, files, sliceName) => {
 };
 var cmdRule = (caseArg, rowId, field, words) => {
   const theCase = loadCase(caseArg);
-  const table = readTable(theCase);
-  const row = table.find((each) => each.Id === rowId);
+  const oneLine = words.replace(/\r\n|\r|\n/g, " ");
+  if (rowId === void 0 || field === void 0) {
+    let line2 = `- ${today()} \xB7 ${oneLine}
+`;
+    const existing2 = isFile(theCase.rulingsPath) ? readText(theCase.rulingsPath) : "";
+    if (existing2 !== "" && !existing2.endsWith("\n")) {
+      line2 = `
+${line2}`;
+    }
+    appendFileSync(theCase.rulingsPath, line2, "utf8");
+    console.log(`case-wide ruling recorded in ${theCase.rulingsPath}: the filler cites it where it applies.`);
+    return 0;
+  }
+  const { rows } = readTable(theCase);
+  const row = rows.find((each) => each.Id === rowId);
   if (row === void 0) {
     throw new RecordError([`${rowId} is not a row of the table; nothing is ruled.`]);
   }
   if (!fieldsOf(row).includes(field)) {
     throw new RecordError([`${field} is not a field to fill on ${rowId}; nothing is ruled.`]);
   }
-  const oneLine = words.replace(/\r\n|\r|\n/g, " ");
+  const file2 = path2.join(theCase.folder, sliceOf(row), "rulings.md");
   let line = `- ${today()} \xB7 ${rowId} \xB7 ${field}: ${oneLine}
 `;
-  const existing = isFile(theCase.rulingsPath) ? readText(theCase.rulingsPath) : "";
+  const existing = isFile(file2) ? readText(file2) : "";
   if (existing !== "" && !existing.endsWith("\n")) {
     line = `
 ${line}`;
   }
-  appendFileSync(theCase.rulingsPath, line, "utf8");
-  console.log(`${rowId}.${field}: ruled; the filler is sent again for its pass and slice, and cites this line of rulings.md.`);
+  appendFileSync(file2, line, "utf8");
+  console.log(`${rowId}.${field}: ruled in ${file2}; the filler is sent again for its pass and slice, and cites this line.`);
   return 0;
 };
 var cmdStrike = (caseArg, rowId, why) => {
   const theCase = loadCase(caseArg);
-  const table = readTable(theCase);
-  for (const row of table) {
+  const { rows, unplaced } = readTable(theCase);
+  for (const row of rows) {
     if (row.Id === rowId) {
       row.Struck = { Why: why, Date: today() };
-      writeJsonl(theCase.tablePath, table);
+      writeTable(theCase, rows, unplaced);
       console.log(`${rowId} is struck. ${why}`);
       return 0;
     }
   }
-  throw new RecordError([`${rowId} is not a row of the table; nothing is struck.`]);
+  for (const line of unplaced) {
+    if (line.Id === rowId) {
+      line.Struck = { Why: why, Date: today() };
+      writeTable(theCase, rows, unplaced);
+      console.log(`${rowId} is struck (a declared unplaced line). ${why}`);
+      return 0;
+    }
+  }
+  throw new RecordError([`${rowId} is not a row or a declared unplaced line of the table; nothing is struck.`]);
 };
 var openReason = (row, sources, rulings) => {
   if (row.Struck) {
@@ -30687,16 +30789,24 @@ var openReason = (row, sources, rulings) => {
 };
 var cmdOpen = (caseArg) => {
   const theCase = loadCase(caseArg);
-  const table = readTable(theCase);
+  const { rows: table, unplaced } = readTable(theCase);
   if (table.length === 0) {
     console.log("the table has no rows; the row script printed none.");
     return 1;
   }
   const sources = new Sources(theCase.root);
-  const rulings = readRulings(theCase);
+  const rulingsBySlice = /* @__PURE__ */ new Map();
+  const rulingsFor = (slice) => {
+    let rulings = rulingsBySlice.get(slice);
+    if (rulings === void 0) {
+      rulings = readRulings(theCase, slice);
+      rulingsBySlice.set(slice, rulings);
+    }
+    return rulings;
+  };
   const openRows = [];
   for (const row of table) {
-    const reason = openReason(row, sources, rulings);
+    const reason = openReason(row, sources, rulingsFor(sliceOf(row)));
     if (reason !== null) {
       openRows.push([row, reason]);
     }
@@ -30716,7 +30826,7 @@ var cmdOpen = (caseArg) => {
     }
     for (const field of fieldsOf(row)) {
       const held = row[field];
-      if (isQuestion(held) && !rulings.has(pairKey(row.Id, field))) {
+      if (isQuestion(held) && !rulingsFor(sliceOf(row)).has(pairKey(row.Id, field))) {
         asks.push(`  ${row.Id}: ${held.Question} (recommended: ${held.Recommend})`);
       }
     }
@@ -30724,6 +30834,19 @@ var cmdOpen = (caseArg) => {
   if (asks.length > 0) {
     console.log("rows for the user:");
     for (const line of asks) {
+      console.log(line);
+    }
+  }
+  const declaredUnplaced = [];
+  for (const line of unplaced) {
+    if (line.Struck || line.Gone) {
+      continue;
+    }
+    declaredUnplaced.push(`  ${line.Id}: ${line[UNPLACED]}`);
+  }
+  if (declaredUnplaced.length > 0) {
+    console.log("declared unplaced:");
+    for (const line of declaredUnplaced) {
       console.log(line);
     }
   }
@@ -30753,7 +30876,7 @@ var main = (argv) => {
   program2.command("freeze <case>").description("record the user's word that the row script is right, and pin the script's sha256, in frozen.json").requiredOption("--words <words>", "the user's words").action((caseArg, options) => {
     exit = cmdFreeze(caseArg, options.words);
   });
-  program2.command("rows <case>").description("run the row script (the command in oracle.conf.json, given the case folder's path) and merge its rows into table/rows.jsonl").option("--draft", "print the rows and write nothing").action((caseArg, options) => {
+  program2.command("rows <case>").description("run the row script (the command in oracle.conf.json, given the case folder's path) and merge its rows and unplaced lines into each slice's oracle.jsonl").option("--draft", "print the rows and write nothing").action((caseArg, options) => {
     exit = cmdRows(caseArg, options.draft === true);
   });
   program2.command("check <case> <pass> <slice>").description("the parity gate; <pass> is fill or test").action((caseArg, passName, sliceName) => {
@@ -30765,7 +30888,7 @@ var main = (argv) => {
   program2.command("results <case> <junit...>").description("write Ran from JUnit XML files and judge the rows").option("--slice <slice>", "judge only this slice").action((caseArg, files, options) => {
     exit = cmdResults(caseArg, files, options.slice);
   });
-  program2.command("rule <case> <id> <field>").description("record the user's ruling").requiredOption("--words <words>", "the user's words").action((caseArg, rowId, field, options) => {
+  program2.command("rule <case> [id] [field]").description("record the user's ruling: on a row (into its slice's rulings.md) or case-wide (into the top-level rulings.md)").requiredOption("--words <words>", "the user's words").action((caseArg, rowId, field, options) => {
     exit = cmdRule(caseArg, rowId, field, options.words);
   });
   program2.command("strike <case> <id>").description("record the user's strike").requiredOption("--why <why>", "the user's words").action((caseArg, rowId, options) => {

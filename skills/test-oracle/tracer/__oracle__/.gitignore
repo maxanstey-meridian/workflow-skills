@@ -1,5 +1,8 @@
-fill/
-test/
-reports/
-unplaced.jsonl
-results.xml
+*
+!.gitignore
+!oracle.conf.json
+!frozen.json
+!rulings.md
+!rows.py
+!*/oracle.jsonl
+!*/rulings.md

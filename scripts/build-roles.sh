@@ -11,12 +11,14 @@
 # frontend-laws.md, defaults.md, backend-defaults.md, frontend-defaults.md, and preferences.md. The three Laws files
 # are in the lists; the four others are in none.
 # It refuses (exit 1, the files still written) a rule that is in no list or in more than one (the four unlisted index
-# files: in any), a rule file that breaks the rule format in CONTRIBUTING.md (core/rule-strength.md and the index
-# files are exempt), a generated file over the byte budget, a missing part or rule, a role that reads a rule file no
-# list builds, a cited <path>#<slug> whose file has
-# no heading with that slug, a citation in a routine, a part, the README, INSTALL.md, CONTRIBUTING.md, or AGENTS.md that names
-# no rule file, and a generated file no line builds. A routine gets only the rule files its roles read, so a rule file
-# in its references/ that no role reads is a generated file no line builds.
+# files: in any), a rule file, or a role part, that breaks the rule format (core/write-every-rule-in-the-five-part-format.md;
+# core/rule-strength.md, the index files, and the parts named head are exempt; a part under a role folder, such as
+# test-oracle's filler/<rule>.md, is a rule and is checked, a flat part is a prompt file and is not), a generated file over
+# the byte budget, a missing part or rule, a role that reads a rule file no list builds, a cited <path>#<slug> whose file has
+# no heading with that slug, a citation in a routine, a part, the README, INSTALL.md, CONTRIBUTING.md, or AGENTS.md that
+# names no rule file, a part, at any depth under a routine's roles/, that no role is built from, and a generated file no line
+# builds. A routine gets only the rule files its roles read, so a rule file in its references/ that no role reads is a
+# generated file no line builds.
 # Run it after editing a rule, a rule list, a part, or a roles.list: sh scripts/build-roles.sh
 
 set -eu
@@ -132,9 +134,10 @@ write_index core/backend-defaults.md "## Backend Defaults" Default "backend back
 write_index core/frontend-defaults.md "## Frontend Defaults" Default "frontend"
 write_index core/preferences.md "## Preferences" Preference "core invariants tests backend backend-tooling frontend"
 
-# Reports the first field of the rule file $1 that breaks the rule format in CONTRIBUTING.md, or nothing.
-check_format() { # <rule path>
-  report=skills/meridian/references/rules/$1
+# Reports the first field of the file $2 that breaks the rule format (core/write-every-rule-in-the-five-part-format.md),
+# reported against $1, or nothing.
+check_format() { # <report path> <file>
+  report=$1
   msg=$(perl -e '
     sub bad { print "$_[0]\n"; exit 0 }
     open(my $fh, "<", $ARGV[0]) or bad("cannot be read");
@@ -169,13 +172,13 @@ check_format() { # <rule path>
     bad("needs exactly one line starting `Good:` outside code blocks, and has $good") unless $good == 1;
     bad("has `Good:` before `Bad:`") unless $first eq "Bad";
     bad("line $head is a heading; only line 1 is one") if $head;
-  ' "$rules/$1")
+  ' "$2")
   [ -z "$msg" ] || { fail "$report: $msg"; return; }
-  base=$(basename "$1" .md)
+  base=$(basename "$2" .md)
   case $base in
     *--* | *[!a-z0-9-]*) fail "$report: the file name must be lowercase letters, digits, and single hyphens"; return ;;
   esac
-  slug=$(sed -n 1p "$rules/$1" | slugs)
+  slug=$(sed -n 1p "$2" | slugs)
   case $slug in *--*) fail "$report: the title's slug $slug has a double hyphen; reword the title"; return ;; esac
   [ "$base" = "$slug" ] || fail "$report: the file name must be the slug of the title, $slug.md"
 }
@@ -195,7 +198,7 @@ for file in "$rules"/*/*.md; do
     fi
   fi
   case "$exempt" in *" $rule "*) continue ;; esac
-  check_format "$rule"
+  check_format "skills/meridian/references/rules/$rule" "$rules/$rule"
 done
 
 # Writes stdin to the generated file $1 and closes it with an end line a reader can confirm it reached.
@@ -290,11 +293,17 @@ for list in "$repo"/skills/*/roles/roles.list; do
       *) fail "skills/$routine/roles/roles.list: unknown line kind '$kind'" ;;
     esac
   done < "$list"
-  # Every part is used: a file in roles/ that no role is built from is dead.
-  for part in "$repo/skills/$routine"/roles/*.md; do
-    [ -e "$part" ] || continue
-    base=$(basename "$part" .md)
+  # Every part is used, at any depth under roles/: a .md file no role is built from is dead. A part under a role folder
+  # is a rule and follows the rule format, unless it is named head; a flat part is a prompt file and is not checked.
+  parts=$(find "$repo/skills/$routine/roles" -name '*.md' -type f | sort)
+  for part in $parts; do
+    base=${part#"$repo/skills/$routine/roles/"}
+    base=${base%.md}
     awk '$1 == "role" { print "," $4 "," }' "$list" | grep -Fq ",$base," || fail "skills/$routine/roles/$base.md: no line in roles.list uses it"
+    case $base in
+      head | */head) continue ;;
+      */*) check_format "skills/$routine/roles/$base.md" "$part" ;;
+    esac
   done
 done
 
@@ -318,7 +327,7 @@ for file in "$repo"/skills/*/roles/roles.list; do
   done
 done
 
-for file in "$repo"/README.md "$repo"/INSTALL.md "$repo"/CONTRIBUTING.md "$repo"/AGENTS.md "$repo"/skills/*/SKILL.md "$repo"/skills/*/roles/*.md; do
+for file in "$repo"/README.md "$repo"/INSTALL.md "$repo"/CONTRIBUTING.md "$repo"/AGENTS.md "$repo"/skills/*/SKILL.md "$repo"/skills/*/roles/*.md "$repo"/skills/*/roles/*/*.md; do
   [ -e "$file" ] || continue
   check_citations "$file" "${file#"$repo"/}"
 done

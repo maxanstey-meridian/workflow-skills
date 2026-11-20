@@ -32,7 +32,7 @@ Every session and every subagent that touches this work reads these, in this ord
 3. This file, all of it.
 4. The role file for its own step, in `<skill>/references/`.
 
-A role file that is sent without these lines at its top is wrong. Send it again.
+A role file that is sent without these lines at its top is wrong. Send it again. Where the case has a named kind, the kind reference is one of these lines: a dispatch that sends the role file without it is a visible fault, and the role file is sent again.
 
 ## Reward hacking
 
@@ -74,17 +74,17 @@ The filler finds each row's expected value from the first source in this table t
 | Source | What it is | What it cites |
 |---|---|---|
 | `written` | a doc, spec, or contract under `<root>` | that file and a quote |
-| `ruling` | the user's answer, recorded with `rule` | its line in `rulings.md` |
+| `ruling` | the user's answer, recorded with `rule` | its line in a rulings file: the top-level `rulings.md`, or the row's slice's |
 | `meridian` | a house rule from Meridian | `meridian:<rules-file>` (a `rules-*.md` file in `<skill>/references/`) and a quote |
 | `judgement` | obviously wrong whatever the code says (a toast that insults the user) | the code and a quote, plus `Why`: one sentence |
 | `today` | what the app's code says or does as it stands | the code and a quote |
 
-`written` may cite any file under `<root>` except the code a row's `Where` points into, the row script, and the case's own records (`table/`, `fill/`, `test/`, `reports/`, `rulings.md`, `frozen.json`, `oracle.conf.json`): the code under test is never its own written source. On top of the order:
+`written` may cite any file under `<root>` except the code a row's `Where` points into, the row script, and the case's own records — every file under the case folder: the slice folders, `reports/`, and the top-level files. The code under test is never its own written source. On top of the order:
 
 - **A Meridian rule beats today's code.** Where the code breaks one, that is a bug written into the code, not intent. Expected comes from the rule (`meridian`), `Shortfall` cites the code, and the test is expected red.
 - **Judgement beats today's code where it is plainly wrong.** The disprover must agree, like any other value.
 - **`today` is allowed, and always labelled.** `open` lists every row whose expected value rests on today's code, under "expected from today's code:", so nobody takes it for intent.
-- **No source, and the code's own say is unclear or contradicts itself:** the field is a question for the user, one question with one recommended answer. Where two written sources disagree, that is a question too. The answer goes into the case's `rulings.md` with `rule`, in the user's words and with the date, and the filler's next record for that field cites that line.
+- **No source, and the code's own say is unclear or contradicts itself:** the field is a question for the user, one question with one recommended answer. Where two written sources disagree, that is a question too. The answer goes into a rulings file with `rule` — the row's slice's `rulings.md`, the top-level `rulings.md` when the ruling is case-wide — in the user's words and with the date, and the filler's next record for that field cites that line.
 
 Fetch the source and quote it. Never answer from memory. A web page is saved to a file under `<root>` and cited there.
 
@@ -137,26 +137,30 @@ Fetch the source and quote it. Never answer from memory. A web page is saved to 
 
 One set per case, under `<the case's folder>/`. The records **are** the artefact: JSONL only, no markdown document, no generated view. The word "table" survives as the name of the record set.
 
-A case is a folder named exactly `__oracle__`, placed next to what it pins down (beside a page, say). The ledger takes the folder's path and refuses, with exit 2 and nothing written, one whose final folder name is anything else (`__oracles__`, `oracle`), and one whose `rows` command names no existing file when resolved against the case folder — a case must reach its row script. The row script is not in the folder unless the case wants it there, so a script can be shared between cases. The folder has this layout:
+A case is a folder named exactly `__oracle__`, placed next to what it pins down (beside a page, say). The ledger takes the folder's path and refuses, with exit 2 and nothing written, one whose final folder name is anything else (`__oracles__`, `oracle`), and one whose `rows` command names no existing file when resolved against the case folder — a case must reach its row script. The row script is not in the folder unless the case wants it there, so a script can be shared between cases. The tests a case pins down live in the repo, beside the thing the case pins down: the case holds the table and its records, never the tests. The folder has this layout:
 
 ```
 <the thing the case pins down>         a page, a CLI, a module: the case sits beside it
 __oracle__/                            the case folder: named exactly this
   oracle.conf.json                     {"rows": [<the row script's command>]}, written with the user. Committed
   frozen.json                          written only by freeze: {"date", "words", "command", "script": {"file", "sha256"}}. Committed
-  rulings.md                           written only by rule: the user's rulings. Committed
-  table/rows.jsonl                     written only by the ledger. Committed
-  fill/filled/<slice>/fields.jsonl     the filler's. Working file, ignored
-  fill/verdicts/<slice>.jsonl          the disprover's. Working file, ignored
-  test/filled/<slice>/fields.jsonl     the filler's, for Test. Working file, ignored
-  test/verdicts/<slice>.jsonl          the disprover's, for Test. Working file, ignored
+  rulings.md                           written only by rule: the case-wide rulings, one line each. Committed
+  <slice>/                             one folder per slice the row script names: the slice's complete record
+    oracle.jsonl                       written only by the ledger: the slice's rows and its declared-unplaced lines. Committed
+    rulings.md                         written only by rule: the slice's rulings, one line each. Committed
+    fill-fields.jsonl                  the filler's, for the fill pass. Working file, ignored
+    fill-verdicts.jsonl                the disprover's, for the fill pass. Working file, ignored
+    test-fields.jsonl                  the filler's, for Test. Working file, ignored
+    test-verdicts.jsonl                the disprover's, for Test. Working file, ignored
   reports/                             every agent's prose report. Working file, ignored
-  unplaced.jsonl, results.xml          what a row script or a test run leaves. Working files, ignored
+  results.xml                          a test run leaves. Working file, ignored
 ```
 
-The oracle is `oracle.conf.json`, `frozen.json`, `rulings.md`, and `table/`: it is committed. The working files are ignored, in a `.gitignore` inside the `__oracle__` folder that names `fill/`, `test/` (the pass folder, not test sources), `reports/`, `unplaced.jsonl`, and `results.xml`.
+A slice is a name the row script gives its rows (`Slice`, a folder name; a row with none gets `all`). A slice folder is the slice's complete record: its rows and its unplaced lines, its rulings, and the two passes' working files for it. The slices are the case's only folders under it, apart from `reports/`.
 
-**`oracle.conf.json` holds exactly one key, `rows`**: a non-empty list of strings, the row script's command. Any other key, a missing file, text that is not JSON, or a value that is not an object is exit 2 with a named message. The ledger runs the command in the case folder and appends the case folder's absolute path as its last argument, so `["uv", "run", "rows.py"]` runs as `uv run rows.py <absolute case folder>`. Paths in the command are relative to the case folder, so one script can serve many cases: `["uv", "run", "../../../.oracle/page-rows.py"]`. The script uses the case folder's parent to know what it is reading.
+The oracle is committed: `oracle.conf.json`, `frozen.json`, the top-level `rulings.md`, and every slice folder's `oracle.jsonl` and `rulings.md`. The working files are ignored, in a `.gitignore` inside the `__oracle__` folder that ignores everything and un-ignores exactly those: `*`, then a `!` line for each of `.gitignore`, `oracle.conf.json`, `frozen.json`, `rulings.md`, the row script when it sits in the folder, `*/oracle.jsonl`, and `*/rulings.md`.
+
+**`oracle.conf.json` holds exactly one key, `rows`**: a non-empty list of strings, the row script's command. Any other key, a missing file, text that is not JSON, or a value that is not an object is exit 2 with a named message. The ledger runs the command in the case folder and appends the case folder's absolute path as its last argument, so `["uv", "run", "rows.py"]` runs as `uv run rows.py <absolute case folder>`. Paths in the command are relative to the case folder, so one script can serve many cases: `["uv", "run", "../../../.oracle/page-rows.py"]`. The script finds its source in the repo, not beside the case: it runs `git rev-parse --show-toplevel` in the case folder and reads its sources relative to that root, so a case at any depth in the tree reads the same sources.
 
 **The row script's file** is the last element of the command that names an existing file when resolved against the case folder, scanning left to right — a runner or interpreter sits at the front of the command, the script at the end: `x.py` for `["uv", "run", "x.py"]`, and `rows.py` for `["python3", "rows.py"]` and `["/usr/bin/python3", "rows.py"]`. `freeze` pins that file in `frozen.json`, as its path relative to the case folder and the sha256 of its bytes, and pins the rows command itself.
 
@@ -169,6 +173,8 @@ Nothing is written by hand but `oracle.conf.json` and the row script. The row sc
 
 `rows` refuses a row that prints no field to fill, a row that does not print `Test` as null, a row that prints `Gone`, `Ran`, or `Struck`, a `CantHappen` or `Shortfall` that is not null, and an object that has the shape of a merged field, with exit 2 and nothing written.
 
+**A declared-unplaced line** is the script's say on what it found in its source and could not turn into a row: one JSON line with an `Id` (made from the line's content, unique across the case like a row's), a `Slice`, and an `Unplaced` field holding the reason, and nothing to fill — no null value, no `Test`, and no `Expected`, `CantHappen`, or `Shortfall`. A line is unplaced by that shape, not by a type word. The row script prints its unplaced lines on stdout with the rows, and the ledger stores each in the slice folder it names. A line that carries a null, a `Test`, or a row field is a row, and is held to the rows' bars. A declared-unplaced line is never open and never changes `open`'s exit code: `open` lists the live ones, with their reasons, under "declared unplaced:", and the user retires one with `strike`, as a row. A line the row script stops printing stays, marked `Gone`, as the rows do.
+
 **Citations are relative to `<root>`.** `<root>` is the folder `git rev-parse --show-toplevel` prints when run in the case folder; when that fails, the case folder itself.
 
 **Three field names have a meaning to the ledger; every other field is the script's.**
@@ -179,28 +185,28 @@ Nothing is written by hand but `oracle.conf.json` and the row script. The row sc
 
 The ledger alone writes `Gone`, `Ran`, and `Struck`, and gives a row with no `Slice` the slice `all`.
 
-**The artefacts, by owner.** Agents write only their own folder; the row script only prints rows, the ledger is the sole writer of `table/`, and every merge into it is a deterministic command (`rows` writes the rows the script printed). `filled/` and `verdicts/` sit under a pass's folder, `fill/` or `test/`:
+**The artefacts, by owner.** Agents write only their own files; the row script only prints, the ledger is the sole writer of the `oracle.jsonl` files, and every merge into them is a deterministic command (`rows` writes the lines the script printed). Each pass's working files sit in the slice's folder, named after the pass:
 
 | Path under `<the case's folder>/` | Written by | What it holds |
 |---|---|---|
 | `oracle.conf.json` | the user and the main session, by hand | the row script's command, as the one key `rows` |
-| the row script (in the case folder, or shared) | the user and the main session, by hand | it prints every row, each with every field to fill as null |
+| the row script (in the case folder, or shared) | the user and the main session, by hand | it prints every row, each with every field to fill as null, and its declared-unplaced lines |
 | `frozen.json` | the ledger, by `freeze` only | the user's words that the row script is right, the date, the rows command, and the script's file and sha256 |
-| `table/rows.jsonl` | the ledger only | one record per row: the row script's fields, then every merged field (null until merged), `Ran`, and `Gone` or `Struck` where they hold |
-| `<pass>/filled/<slice>/fields.jsonl` | the filler (the filler's role file) | one record per (row id, field) for the slice's rows, in one of three shapes |
-| `<pass>/verdicts/<slice>.jsonl` | the disprover (the disprover's role file) | one record per (id, field): `Verdict` is one of CONFIRMED, PARTLY, WRONG, CAN'T TELL |
+| `<slice>/oracle.jsonl` | the ledger only | one line per row and per declared-unplaced line of the slice: the row script's fields, then every merged field (null until merged), `Ran`, and `Gone` or `Struck` where they hold |
+| `<slice>/<pass>-fields.jsonl` | the filler (the filler's role file) | one record per (row id, field) for the slice's rows, in one of three shapes |
+| `<slice>/<pass>-verdicts.jsonl` | the disprover (the disprover's role file) | one record per (id, field): `Verdict` is one of CONFIRMED, PARTLY, WRONG, CAN'T TELL |
 | `reports/*.md` | every agent | prose evidence; each bullet keyed by row id at line start, so `grep -rn <id> reports/` is the join |
-| `rulings.md` | `rule` only | the user's rulings, one line each |
+| `rulings.md`, and `<slice>/rulings.md` | `rule` only | the user's rulings, one line each: the top-level holds case-wide lines, `- <date> · <the words>`; a slice's holds its rows' rulings, `- <date> · <id> · <field>: <the words>` |
 
 **The row record, by owner-field.**
 
 - **Script-owned, rewritten on every run:** `Id`, unique and made from the row's content, never from its position; `Slice`, where the script gives one; and every other field the row script prints with a value.
-- **Filler-owned, merged by `merge <case> fill <slice>`:** the fields the script printed as null, other than `Test`. Each merges as the fill record without `Id` and `Field`, and cites its source in `Cites`: a file under `<root>` and a verbatim quote. A field no source answers is a question for the user, with one recommended answer. A value of an expected field carries `Source` (see "Where intent comes from"), and its citations fit it: `written` cites a file that is not the code the row's `Where` points into, not the row script, not `oracle.conf.json`, and not one of the case's own records; `ruling` cites `rulings.md`; `meridian` cites at least one `meridian:<rules-*.md>` file with a quote that is in it; `today` and `judgement` cite the code, and `judgement` adds a non-empty `Why`. `CantHappen` is every link of the chain, cited. No agent adds any record, and none removes one.
+- **Filler-owned, merged by `merge <case> fill <slice>`:** the fields the script printed as null, other than `Test`. Each merges as the fill record without `Id` and `Field`, and cites its source in `Cites`: a file under `<root>` and a verbatim quote. A field no source answers is a question for the user, with one recommended answer. A value of an expected field carries `Source` (see "Where intent comes from"), and its citations fit it: `written` cites a file that is not the code the row's `Where` points into, not the row script, not `oracle.conf.json`, and not one of the case's own records; `ruling` cites the rulings file the line is in, top-level or the row's slice's; `meridian` cites at least one `meridian:<rules-*.md>` file with a quote that is in it; `today` and `judgement` cite the code, and `judgement` adds a non-empty `Why`. `CantHappen` is every link of the chain, cited. No agent adds any record, and none removes one.
 - **Pass-owned, merged by `merge <case> test <slice>`:** the `test` pass appends `Test` the same way, so a row with no test is visible to `open`.
 - **Ledger-owned, from the test results:** `Ran`, one of `green`, `red`, or `not-run`, written by `results` on every row from the JUnit files alone. A row closes on a `Ran` equal to the colour it expects; every other value leaves it open.
-- **User-owned:** `Struck` with the user's words and the date, via `strike <case> <id> --why "…"` — the user's words travel as a command argument; nobody else strikes. Rulings travel the same way, via `rule`, into `rulings.md`, and so does the freeze, via `freeze <case> --words "…"`, into `frozen.json`.
+- **User-owned:** `Struck` with the user's words and the date, via `strike <case> <id> --why "…"` — the user's words travel as a command argument; nobody else strikes, and a strike reaches a row or a declared-unplaced line. Rulings travel the same way, via `rule`, into the row's slice's `rulings.md`, or into the top-level `rulings.md` when the ruling is case-wide, and so does the freeze, via `freeze <case> --words "…"`, into `frozen.json`.
 
-**Citations.** An agent's citation is a file plus a verbatim quote — a grep-able anchor, never a line number: line numbers rot and quotes grep, so verification is one grep in the named file, and the ledger does that grep, with whitespace runs compared as one space. Script fields (`<the script's own field>`) keep `file:line`, because those lines do not rot. There is no second tier of claim: a claim carries its citation or it is refused. No citation of any source may name one of the case's own records — `table/`, `fill/`, `test/`, `reports/`, `rulings.md`, `frozen.json`, or `oracle.conf.json` — the one exception being a `ruling`, which cites `rulings.md`: a value that cites the file it is written in quotes itself, and the grep is sure to pass. `CantHappen` requires every link of its chain cited; one missing link makes the row able to happen, full stop. "Unable to prove" is not a field value: the field stays empty and the row stays open. `CAN'T TELL` survives only as a disprover's gate verdict meaning *don't merge*.
+**Citations.** An agent's citation is a file plus a verbatim quote — a grep-able anchor, never a line number: line numbers rot and quotes grep, so verification is one grep in the named file, and the ledger does that grep, with whitespace runs compared as one space. Script fields (`<the script's own field>`) keep `file:line`, because those lines do not rot. There is no second tier of claim: a claim carries its citation or it is refused. No citation of any source may name a file under the case folder — the slice folders, `reports/`, and the top-level files — the one exception being a `ruling`, which cites a rulings file: the top-level `rulings.md`, or the row's slice's `rulings.md`. A value that cites the file it is written in quotes itself, and the grep is sure to pass. `CantHappen` requires every link of its chain cited; one missing link makes the row able to happen, full stop. "Unable to prove" is not a field value: the field stays empty and the row stays open. `CAN'T TELL` survives only as a disprover's gate verdict meaning *don't merge*.
 
 **Verdict gating is the whole trust model.** `merge <case> <pass> <slice>` appends `CONFIRMED` fields only; PARTLY, WRONG, and CAN'T TELL leave the field empty, which leaves the row open, which sends the work back through the loop. Laziness has a shape: an open row.
 
@@ -214,7 +220,7 @@ The ledger alone writes `Gone`, `Ran`, and `Struck`, and gives a row with no `Sl
 
 Each command is run as `node <skill>/scripts/ledger.mjs` with its subcommand and arguments. Exit codes: 0 fine; 1 a gate is red; 2 an input can't be read or is malformed, and then nothing is written. What a command refuses, and why, is the implementation's to say: it names each problem, and its schemas and error messages are the spec for what it accepts and refuses.
 
-**A fill record** is one line of `<pass>/filled/<slice>/fields.jsonl`: `Id`, `Field`, and exactly one of three shapes. A value has at least one citation, a file and a verbatim quote of 3 characters or more; the file is under `<root>`, or is `meridian:<rules-file>` for a Meridian rule. A value of an expected field also has `Source`, and `Why` when `Source` is `judgement`. A question is for the user, with one recommended answer. Empty says what stopped the filler.
+**A fill record** is one line of `<slice>/<pass>-fields.jsonl`: `Id`, `Field`, and exactly one of three shapes. A value has at least one citation, a file and a verbatim quote of 3 characters or more; the file is under `<root>`, or is `meridian:<rules-file>` for a Meridian rule. A value of an expected field also has `Source`, and `Why` when `Source` is `judgement`. A question is for the user, with one recommended answer. Empty says what stopped the filler.
 
 ```jsonl
 {"Id": "<row id>", "Field": "<field>", "Value": "<text>", "Source": "written", "Cites": [{"File": "<path relative to the root>", "Quote": "<verbatim>"}]}
@@ -224,22 +230,22 @@ Each command is run as `node <skill>/scripts/ledger.mjs` with its subcommand and
 {"Id": "<row id>", "Field": "<field>", "Empty": "<what stopped the filler>"}
 ```
 
-`Source` is `written`, `ruling`, `meridian`, `today`, or `judgement`; the first line above is the `written` shape, and `ruling` and `today` take the same shape with their own word and citations. There is no other kind of source: a web page is saved to a file and cited there, the user's ruling is cited from the case's `rulings.md`, and a Meridian rule is cited from its `rules-*.md` file in `<skill>/references/`.
+`Source` is `written`, `ruling`, `meridian`, `today`, or `judgement`; the first line above is the `written` shape, and `ruling` and `today` take the same shape with their own word and citations. There is no other kind of source: a web page is saved to a file and cited there, the user's ruling is cited from the rulings file its line is in, the top-level `rulings.md` or the row's slice's, and a Meridian rule is cited from its `rules-*.md` file in `<skill>/references/`.
 
-**A verdict record** is one line of `<pass>/verdicts/<slice>.jsonl`: `Id`, `Field`, `Verdict` (one of `CONFIRMED`, `PARTLY`, `WRONG`, `CAN'T TELL`), `Evidence`, and `Judged` (the fill record it judged, without `Id` and `Field`).
+**A verdict record** is one line of `<slice>/<pass>-verdicts.jsonl`: `Id`, `Field`, `Verdict` (one of `CONFIRMED`, `PARTLY`, `WRONG`, `CAN'T TELL`), `Evidence`, and `Judged` (the fill record it judged, without `Id` and `Field`).
 
 **Tests name their rows.** A test names the row whose id equals the test's name, compared lower-case with only letters and digits — equality, not containment. The test's name is the row's id in snake_case, PascalCase, or camelCase, or the id verbatim as the test's string, so the id `greet.no-person.exit-2` is named by `greet_no_person_exit_2`, `GreetNoPersonExit2`, `greetNoPersonExit2`, and `greet.no-person.exit-2`, and by nothing else. Two ids that are equal once compared so are refused by `rows` anywhere in the table, live or gone, and a test whose name equals two rows' ids is refused by `results`, naming the test and the tied ids. A failed assertion is `red`; an errored test — one that died before its assertion — gives no result, and neither does a skipped one: a row that expects red closes only on a failed assertion, not on a crash. `results` reads the JUnit XML files of one whole run. The ledger does not run tests: a case's Proof is `results`, never the test runner's own exit code, because a runner exits 1 when a red-on-purpose test fails.
 
 The eight commands — what each does, what it writes, and when it exits:
 
 - `freeze <case> --words "<the user's words>"` writes `<case>/frozen.json` — `{"date": "<today>", "words": "<the user's words>", "command": "<the rows list, verbatim>", "script": {"file": "<the row script's file, relative to the case folder>", "sha256": "<hex of its bytes>"}}` — and it is the only writer of that file. It exits 2 and writes nothing when no element of the rows command names an existing file, or the words are empty.
-- `rows <case> [--draft]` runs `<the row script>` and merges what it prints into `table/rows.jsonl`; a re-run is a key-preserving merge, as "The records" says. It exits 1 and writes nothing when the rows command, or the script's file, no longer matches the pin in `frozen.json`, naming the change; it exits 2 and writes nothing when two ids of the table, live or gone, are equal once compared lower-case with only letters and digits — a test name could not tell them apart, and the gone row is struck first. With `--draft`, or with no `frozen.json`, it prints the rows and writes nothing (exit 0 with `--draft`, exit 1 without it). It prints the freeze, and counts: rows, new, gone, and fields emptied.
-- `check <case> <pass> <slice>` is the parity gate on a fill; `<pass>` is `fill` or `test`. It writes nothing, and exits 1, naming each problem by `Id` and `Field`, until every record and every quote holds; the gate's list is in the filler's role file, "The parity gate".
-- `merge <case> <pass> <slice>` runs the parity gate first, and exits 1 if it is red. It writes `table/rows.jsonl`: a field becomes its value when the verdict is `CONFIRMED` and `Judged` equals the fill record without `Id` and `Field`, and is set back to null otherwise; an `Empty` record changes nothing. In the `fill` pass, a change to an expected field's value sets the row's `Test` back to null: the claim was graded against the old expectation, and the test pass re-grades it. It exits 2 and writes nothing when the verdicts file is missing, or its records are malformed, or name an (`Id`, `Field`) the fill does not hold. It prints how many fields merged, how many stay empty, and how many Tests it emptied.
+- `rows <case> [--draft]` runs `<the row script>` and merges what it prints into each slice's `oracle.jsonl`, rows and declared-unplaced lines alike; a re-run is a key-preserving merge, as "The records" says. It exits 1 and writes nothing when the rows command, or the script's file, no longer matches the pin in `frozen.json`, naming the change; it exits 2 and writes nothing when two ids of the table, live or gone, rows and unplaced lines alike, are equal once compared lower-case with only letters and digits — a test name could not tell them apart, and the gone row is struck first. With `--draft`, or with no `frozen.json`, it prints the lines and writes nothing (exit 0 with `--draft`, exit 1 without it). It prints the freeze, and counts: rows, new, gone, unplaced, new, gone, and fields emptied.
+- `check <case> <pass> <slice>` is the parity gate on a fill; `<pass>` is `fill` or `test`. It writes nothing, and exits 1, naming each problem by `Id` and `Field`, until every record and every quote holds; the gate's list is in the filler's role file, "Run the parity gate before you report".
+- `merge <case> <pass> <slice>` runs the parity gate first, and exits 1 if it is red. It writes the slice's `oracle.jsonl`: a field becomes its value when the verdict is `CONFIRMED` and `Judged` equals the fill record without `Id` and `Field`, and is set back to null otherwise; an `Empty` record changes nothing. In the `fill` pass, a change to an expected field's value sets the row's `Test` back to null: the claim was graded against the old expectation, and the test pass re-grades it. It exits 2 and writes nothing when the verdicts file is missing, or its records are malformed, or name an (`Id`, `Field`) the fill does not hold. It prints how many fields merged, how many stay empty, and how many Tests it emptied.
 - `results <case> <file>… [--slice <slice>]` reads the JUnit XML files of one whole run, writes `Ran` on every row from these files alone, and a test that names no row is no error. A failed assertion is `red`; an errored test is `not-run` with its own saying, because it died before its assertion and gives no result. It exits 2 and writes nothing when a test's name equals two rows' ids. It then judges the rows in scope (the slice, or every row) that are ready for a test — not struck, not `Gone`, with no confirmed `CantHappen`, and holding a value in every `fill` field other than `CantHappen` and `Shortfall` — and exits 1, naming each ready row that has no run result, was skipped, errored before its assertion, or ran a colour the table does not expect; the rows not ready are printed, with the field that is missing or is a question, and they do not change the exit code.
-- `rule <case> <id> <field> --words "<the user's words>"` appends one line to `rulings.md`, `- <date> · <id> · <field>: <the user's words>`, and changes nothing in the table. It exits 2 when the id is not a row, or the field is not a field to fill on it. A question with a ruling stops being a question for the user: `open` lists its row as unfilled, and the filler is sent again for that pass and slice.
-- `strike <case> <id> --why "<the user's words>"` sets `Struck` to the user's words and the date in `table/rows.jsonl`. It exits 2 without writing when the id is not a row.
-- `open <case>` writes nothing. It prints every open row by id with its reason, the rows for the user (a question with no ruling), and the expected values that rest on today's code, as "Saying where a case stands" says; a table with no rows is not done. It exits 1 when any row is open, else 0.
+- `rule <case> [id] [field] --words "<the user's words>"` appends one line: for a row, to the row's slice's `rulings.md`, `- <date> · <id> · <field>: <the user's words>`; case-wide, without id and field, to the top-level `rulings.md`, `- <date> · <the user's words>`. It changes nothing in the table. It exits 2 when the id is not a row, or the field is not a field to fill on it. A slice's `rulings.md` holds only its rows' rulings, and the top-level holds only case-wide lines; a value cites the line it rests on, in whichever tier it sits, and where a slice line and a case-wide line pull apart, the disagreement is a question for the user. A question with a ruling stops being a question for the user: `open` lists its row as unfilled, and the filler is sent again for that pass and slice.
+- `strike <case> <id> --why "<the user's words>"` sets `Struck` to the user's words and the date in the `oracle.jsonl` the id sits in — a row's slice, or the slice of a declared-unplaced line. It exits 2 without writing when the id is neither.
+- `open <case>` writes nothing. It prints every open row by id with its reason, the rows for the user (a question with no ruling), the live declared-unplaced lines with their reasons, and the expected values that rest on today's code, as "Saying where a case stands" says; a table with no rows is not done. It exits 1 when any row is open, else 0; the unplaced lines never change the exit code.
 
 ## The loop
 
@@ -257,7 +263,7 @@ Done when: the user has said it is what they meant.
 
 ### 2. The row script
 
-Write the row script with the user: in the case folder, or shared with other cases, in which case a path in its command reaches it. Put its command in `<case>/oracle.conf.json`, as `{"rows": [...]}`. The script takes the case folder's path as its last argument and uses the case folder's parent to know what it is reading. It reads its source with a real reader for that format (rule 4). It prints every row with every field to fill as null, `Test` included. Show its rows with `node <skill>/scripts/ledger.mjs rows <case> --draft`, and fix the script until they are the rows the user wants and the fields they want filled. Only when the user says it looks right, run `node <skill>/scripts/ledger.mjs freeze <case> --words "<the user's words>"`. A miss found later goes to the user; nobody quietly repairs the script. When the user says so, send `<the disprover's role file>` at the row script: it reads the row script and what the rows are read from, lists what the script misses, misreads, or numbers by position, and writes a report and no verdicts file.
+Write the row script with the user: in the case folder, or shared with other cases, in which case a path in its command reaches it. Put its command in `<case>/oracle.conf.json`, as `{"rows": [...]}`. The script takes the case folder's path as its last argument, finds the repo root with `git rev-parse --show-toplevel` run in the case folder, and reads its sources relative to that root. It reads its source with a real reader for that format (rule 4). It prints every row with every field to fill as null, `Test` included. Show its rows with `node <skill>/scripts/ledger.mjs rows <case> --draft`, and fix the script until they are the rows the user wants and the fields they want filled. Only when the user says it looks right, run `node <skill>/scripts/ledger.mjs freeze <case> --words "<the user's words>"`. A miss found later goes to the user; nobody quietly repairs the script. When the user says so, send `<the disprover's role file>` at the row script: it reads the row script and what the rows are read from, lists what the script misses, misreads, or numbers by position, and writes a report and no verdicts file.
 
 Done when: `<case>/frozen.json` holds the user's words, the date, and the row script's pin.
 
@@ -277,16 +283,16 @@ Done when: the command exits 0 and has printed the counts.
 
 Run the `fill` pass now. The `test` pass comes in step 7, after the tests have run. For a pass and each slice of the table, run the loop once:
 
-1. Send `<the filler's role file>`, one per slice: it fills the pass's fields for every row of the slice, in `<pass>/filled/<slice>/fields.jsonl`. For `fill`, those are the fields each row printed as null, other than `Test`. It decides no row. What the records are missing — a thing the row script should have written as a row — is the report's Missed list: findings for the user.
-2. The parity gate is a command: `node <skill>/scripts/ledger.mjs check <case> <pass> <slice>`. It exits 1 until every record and every quote holds, as the filler's role file lists in "The parity gate".
-3. Then `<the disprover's role file>` on each report. It tries to disprove every value and question record of the fill, and what was missed. The disprover verifies every citation by grepping the quote in the named file, writes its prose evidence into `reports/`, **and** writes `verdicts/<slice>.jsonl` — one record per (id, field).
+1. Send `<the filler's role file>`, one per slice: it fills the pass's fields for every row of the slice, in `<slice>/<pass>-fields.jsonl`. For `fill`, those are the fields each row printed as null, other than `Test`. It decides no row. What the records are missing — a thing the row script should have written as a row — is the report's Missed list: findings for the user.
+2. The parity gate is a command: `node <skill>/scripts/ledger.mjs check <case> <pass> <slice>`. It exits 1 until every record and every quote holds, as the filler's role file lists in "Run the parity gate before you report".
+3. Then `<the disprover's role file>` on each report. It tries to disprove every value and question record of the fill, and what was missed. The disprover verifies every citation by grepping the quote in the named file, writes its prose evidence into `reports/`, **and** writes `<slice>/<pass>-verdicts.jsonl` — one record per (id, field).
 4. The merge is a command: `node <skill>/scripts/ledger.mjs merge <case> <pass> <slice>` appends `CONFIRMED` fields only.
 
 Done when: `check` exits 0 and `merge` has run for every slice of the pass, and every Missed finding is named to the user.
 
 ### 5. Present
 
-Run `node <skill>/scripts/ledger.mjs open <case>` and relay its output. Put each question for the user to them with its one recommended answer. Record their answer with `node <skill>/scripts/ledger.mjs rule <case> <id> <field> --words "<the user's words>"`. The user strikes a row, nobody else: `strike <case> <id> --why "…"`; their words travel as the argument, and `Struck` closes the row. After a `rule`, run step 4 again for that row's pass and slice.
+Run `node <skill>/scripts/ledger.mjs open <case>` and relay its output. Put each question for the user to them with its one recommended answer, and each declared-unplaced line with its reason. Record an answer with `node <skill>/scripts/ledger.mjs rule <case> <id> <field> --words "<the user's words>"`, and a case-wide ruling without id and field: `rule <case> --words "<the user's words>"`. The user strikes a row or a declared-unplaced line, nobody else: `strike <case> <id> --why "…"`; their words travel as the argument, and `Struck` retires it. After a `rule` on a row, run step 4 again for that row's pass and slice.
 
 `open <case>` names every open row, by id, with its reason, and sends the work back: to step 4 if a field is unfilled, or a question has been ruled; to steps 3 and 4 if a field is stale, because `rows` sets it back to null; to the user if a row is gone from the row script or is a question for the user, or if the table has no rows (the row script printed none, which is a finding for the user); to step 6 if the case has no spec yet and a row has no confirmed test; to step 7 if the tests are built and a row has no run result, or ran a colour the table does not expect. Then run step 7 again.
 
@@ -297,14 +303,16 @@ Done when: every row `open` named has been answered, struck, or sent back, and t
 When the `fill` pass is merged (a row that is still a question for the user does not hold the step back), read `<skill>/pre-spec.md` in full, and send the user this line, with the absolute paths filled in, ready to paste into this session or a fresh one:
 
 ```
-/spec Build the tests for the test-oracle case at <the case folder's absolute path>. Its table, <the case folder's absolute path>/table/rows.jsonl, is the oracle. Follow <the absolute path of pre-spec.md> in full.
+/spec Build the tests for the test-oracle case at <the case folder's absolute path>. Its tables, one <the case folder's absolute path>/<slice>/oracle.jsonl per slice, are the oracle. Its kind is <kind>; read <the kind file's absolute path> in full. Follow <the absolute path of pre-spec.md> in full.
 ```
 
-`/spec` takes no arguments: the words after it are the agreed work in the conversation, and the two paths are the documents the work names, which its gather step reads. `/spec` and `/go` run in the user's own session, unchanged.
+Where the user named a kind in step 1, the line carries the kind's sentence: "Its kind is `<kind>`; read `<the kind file's absolute path>` in full." With no kind named, the line is unchanged.
+
+`/spec` takes no arguments: the words after it are the agreed work in the conversation, and the paths are the documents the work names, which its gather step reads. `/spec` and `/go` run in the user's own session, unchanged.
 
 Before anything is built, `/spec`'s cold reader reads the spec cold against the table and the written sources, row for row. Whoever writes the spec checks what it relies on against the code, then sends corrections back into the spec. A correction never removes a row, and never changes what a test expects to match the code. The check is done when every finding is fixed in the spec, or is a question for the user, or is named to the user as not taken with the reason; and the user has answered the questions.
 
-Done when: you have read `pre-spec.md` in full and sent that line with both absolute paths.
+Done when: you have read `pre-spec.md` in full and sent that line with the absolute paths filled in.
 
 ### 7. After /go and /cycle
 
@@ -318,4 +326,4 @@ The case is finished when `open <case>` exits 0. Only then is another case start
 
 ## Saying where a case stands
 
-`open <case>` is the statement. Its output is every open row, by id, each with its reason — gone, stale, unfilled, no confirmed test, no run result, ran the wrong colour — plus the rows it lists for the user (a question with no ruling) and the fields it lists as expected from today's code. No total or summary in the main session's own words in place of the list. Its exit 0 is the only statement in the system that a case is finished; exit 1 names what is left.
+`open <case>` is the statement. Its output is every open row, by id, each with its reason — gone, stale, unfilled, no confirmed test, no run result, ran the wrong colour — plus the rows it lists for the user (a question with no ruling), the live declared-unplaced lines with their reasons, and the fields it lists as expected from today's code. No total or summary in the main session's own words in place of the list. Its exit 0 is the only statement in the system that a case is finished; exit 1 names what is left.

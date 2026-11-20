@@ -1,10 +1,15 @@
 # The roles of this routine, built by scripts/build-roles.sh into ../references/. Two kinds of line:
 #   role <name> <reads> <part>[,<part>...]
-#     builds references/<name>.md: a Rules block, then the parts (files in this folder, without .md), in order.
+#     builds references/<name>.md: a Rules block, then the parts (files under this folder, without .md), in order.
 #     <reads> names the rule files the block tells the role to read, always and in full: comma-separated
 #     names of skills/meridian/references/rules-<name>.list.
 #   rule <file> <rule path>
 #     copies one meridian rule to references/<file>, for an orchestrator that needs that rule alone.
+#
+# A part is a rule: one file per rule, in a folder per role (<role>/<rule>.md), the file named by the rule's
+# title slug, in the format of core/write-every-rule-in-the-five-part-format.md; the part named head (the title,
+# the read list, the preamble, and the case's parameters) is the one part that is not a rule, and the build
+# leaves it unformat-checked.
 
-role filler    core,tests  filler
-role disprover core,tests  disprover
+role filler core,tests filler/head,filler/decide-no-row-and-no-field,filler/fill-your-passs-null-fields,filler/cite-a-file-with-a-quote-that-greps,filler/write-a-question-only-where-no-source-answers,filler/write-empty-only-when-you-cannot-fill,filler/take-the-source-from-the-five-words,filler/cite-every-link-of-a-canthappen-chain,filler/fill-shortfall-where-the-code-falls-short,filler/read-your-rows-the-row-script-and-the-kind,filler/take-the-expected-value-from-the-first-source-that-answers,filler/say-whether-the-row-can-happen,filler/claim-test-only-for-a-test-that-does-what-the-row-says,filler/justify-no-missing-test-weak-assertion-or-shortcut,filler/treat-the-code-as-evidence-not-intent,filler/say-the-disagreement-both-cited-unsoftened,filler/list-the-scripts-missed-rows-add-none,filler/run-the-parity-gate-before-you-report,filler/justify-no-existing-code,filler/drop-no-row-and-merge-none,filler/invent-no-intent,filler/report-facts-with-citations,filler/say-what-you-did-not-read,filler/write-the-fill-file-with-your-file-tool-the-report-by-heredoc,filler/report-every-section-keyed-by-row-id,filler/keep-a-value-to-the-outcome-it-expects
+role disprover core,tests disprover/head,disprover/disprove-every-claim-one-by-one,disprover/verify-every-citation-by-grepping-it,disprover/give-one-verdict-for-every-claim,disprover/try-to-find-a-way-the-row-can-happen,disprover/grep-the-quote-in-a-cited-rule,disprover/search-for-a-source-before-agreeing-there-is-none,disprover/read-the-test-and-say-what-makes-it-red,disprover/grade-the-source-of-an-expected-value,disprover/open-the-source-of-every-filled-field,disprover/list-everything-the-report-missed,disprover/check-a-test-citations-name-against-the-row,disprover/say-what-would-make-the-test-red,disprover/accept-no-code-does-x-reason,disprover/invent-no-intent,disprover/report-facts-with-grepped-citations,disprover/say-what-you-did-not-read,disprover/list-what-a-row-script-misses-and-misreads,disprover/write-a-verdict-for-every-value-and-question,disprover/grade-only-ids-the-fill-writes,disprover/name-a-field-the-fill-holds-for-that-row,disprover/copy-judged-exactly-as-it-stands,disprover/confirm-a-canthappen-only-with-every-link-verified,disprover/let-the-gate-keep-the-row-open,disprover/justify-no-existing-code-missing-row-or-weak-test,disprover/confirm-nothing-you-havent-read,disprover/name-the-grep-behind-every-verdict,disprover/say-what-you-left-unchecked,disprover/save-the-report-by-heredoc-keyed-by-row-id

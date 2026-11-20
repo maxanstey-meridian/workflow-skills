@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { appendFileSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
 import { getSystemErrorMessage, inspect, isDeepStrictEqual } from "node:util";
 
@@ -21,6 +21,8 @@ const SHORTFALL = "Shortfall";
 const TEST = "Test";
 // With the three above, the fields every row carries.
 const EXPECTED = "Expected";
+
+const UNPLACED = "Unplaced";
 // The two passes. `test` owns the field Test; `fill` owns every other field the script printed as null.
 const FILL = "fill";
 const TEST_PASS = "test";
@@ -30,6 +32,7 @@ const CASE_FOLDER = "__oracle__";
 // Its one config file: {"rows": [<the row script's command, run in the case folder>]}.
 const CONF_FILE = "oracle.conf.json";
 const FROZEN_FILE = "frozen.json";
+const ORACLE_FILE = "oracle.jsonl";
 const NAME = /^[A-Za-z][A-Za-z0-9_-]*$/;
 const FOLDER_UNSAFE = /[/\\\x00]/;
 const RULING_LINE = /^- \S+ · (\S+) · ([A-Za-z0-9_-]+): /gm;
@@ -41,9 +44,6 @@ const SOURCE_WORDS = ["written", "ruling", "meridian", "today", "judgement"] as 
 const MERIDIAN_PREFIX = "meridian:";
 const REFERENCES = path.resolve(import.meta.dirname, "..", "references");
 const MERIDIAN_FILE = /^rules-[A-Za-z0-9_.-]*\.md$/;
-// Under the case folder, what a `written` source may never cite: the records are agents' and the ledger's own words.
-const RECORD_FOLDERS = ["table", FILL, TEST_PASS, "reports"];
-const RECORD_FILES = ["rulings.md", FROZEN_FILE, CONF_FILE];
 
 // An input can't be read or is malformed: exit 2, and nothing is written.
 class RecordError extends Error {
@@ -156,6 +156,26 @@ const RowSchema = JsonObjectSchema.and(
 );
 type Row = z.infer<typeof RowSchema>;
 type Colour = NonNullable<Row["Ran"]>;
+
+// A declared-unplaced line: something the row script found in its source but could not turn into a row.
+// It carries no field to fill — no null value, no Test — and its Unplaced field holds the reason.
+const UnplacedSchema = JsonObjectSchema.and(
+  z
+    .object({
+      Id: TextSchema,
+      Slice: TextSchema,
+      [UNPLACED]: TextSchema,
+      Gone: z.literal(true).optional(),
+      Struck: z.strictObject({ Why: z.string(), Date: z.string() }).optional(),
+    })
+    .catchall(HeldSchema),
+);
+type Unplaced = z.infer<typeof UnplacedSchema>;
+
+// A line is declared unplaced when it carries no field to fill (no null value, no Test) and a non-empty
+// Unplaced reason; every other line is a row.
+const isUnplacedLine = (record: JsonObject): boolean =>
+  isStr(record[UNPLACED]) && !("Test" in record) && !Object.values(record).some((held) => held === null);
 
 // ---------------------------------------------------------------- the records
 
@@ -271,8 +291,8 @@ class Case {
     return `${path.basename(path.dirname(this.folder))}/${path.basename(this.folder)}`;
   }
 
-  get tablePath(): string {
-    return path.join(this.folder, "table", "rows.jsonl");
+  sliceTablePath(slice: string): string {
+    return path.join(this.folder, slice, ORACLE_FILE);
   }
 
   get rulingsPath(): string {
@@ -425,40 +445,83 @@ const checkPass = (name: string): string => {
 
 // ---------------------------------------------------------------- the table
 
-const readTable = (theCase: Case): Row[] => {
-  if (!isFile(theCase.tablePath)) {
-    throw new RecordError([`${theCase.tablePath} does not exist: run \`rows\` first.`]);
+// The case's tables: one oracle.jsonl per slice folder, each holding rows and declared-unplaced lines.
+// A line's Slice must name the folder it sits in, and an Id is unique across every slice, live or gone.
+const readTable = (theCase: Case): { rows: Row[]; unplaced: Unplaced[] } => {
+  const slices = readdirSync(theCase.folder)
+    .filter((name) => isDir(path.join(theCase.folder, name)) && isFile(path.join(theCase.folder, name, ORACLE_FILE)))
+    .sort();
+  if (slices.length === 0) {
+    throw new RecordError([`${theCase.folder}: no slice folder holds ${ORACLE_FILE}: run \`rows\` first.`]);
   }
-  const records = readJsonl(theCase.tablePath);
   const seen = new Set<string>();
-  for (const record of records) {
-    const rowId = record["Id"];
-    if (!isStr(rowId)) {
-      throw new RecordError([`${theCase.tablePath}: a row has no Id.`]);
-    }
-    if (seen.has(rowId)) {
-      throw new RecordError([`${theCase.tablePath}: the Id ${rowId} is there twice.`]);
-    }
-    if (!isStr(record["Slice"])) {
-      throw new RecordError([`${theCase.tablePath}: the row ${rowId} has no Slice.`]);
-    }
-    seen.add(rowId);
-  }
   const rows: Row[] = [];
-  for (const record of records) {
-    for (const field of [EXPECTED, CANTHAPPEN, SHORTFALL, TEST]) {
-      if (!(field in record)) {
-        throw new RecordError([`${theCase.tablePath}: the row ${record["Id"]} has no ${field}.`]);
+  const unplaced: Unplaced[] = [];
+  for (const slice of slices) {
+    const file = theCase.sliceTablePath(slice);
+    for (const record of readJsonl(file)) {
+      const rowId = record["Id"];
+      if (!isStr(rowId)) {
+        throw new RecordError([`${file}: a line has no Id.`]);
+      }
+      if (seen.has(rowId)) {
+        throw new RecordError([`${file}: the Id ${rowId} is there twice.`]);
+      }
+      seen.add(rowId);
+      if (!isStr(record["Slice"])) {
+        throw new RecordError([`${file}: the line ${rowId} has no Slice.`]);
+      }
+      if (record["Slice"] !== slice) {
+        throw new RecordError([`${file}: the line ${rowId} has the Slice ${inspect(record["Slice"])}, but it sits in the slice ${slice}.`]);
+      }
+      if (isUnplacedLine(record)) {
+        const line = UnplacedSchema.safeParse(record);
+        if (!line.success) {
+          throw new RecordError([`${file}: the line ${rowId} is a declared-unplaced line with a malformed ${line.error.issues[0].path.join(".")}.`]);
+        }
+        unplaced.push(line.data);
+      } else {
+        for (const field of [EXPECTED, CANTHAPPEN, SHORTFALL, TEST]) {
+          if (!(field in record)) {
+            throw new RecordError([`${file}: the row ${rowId} has no ${field}.`]);
+          }
+        }
+        const row = RowSchema.safeParse(record);
+        if (!row.success) {
+          throw new RecordError([`${file}: the row ${rowId} has a malformed ${row.error.issues[0].path.join(".")}.`]);
+        }
+        rows.push(row.data);
       }
     }
-    const row = RowSchema.safeParse(record);
-    if (!row.success) {
-      throw new RecordError([`${theCase.tablePath}: the row ${record["Id"]} has a malformed ${row.error.issues[0].path.join(".")}.`]);
-    }
-    rows.push(row.data);
   }
-  return rows;
+  return { rows, unplaced };
 };
+
+// Writes the rows and unplaced lines to their slice folders, grouped by Slice.
+const writeTable = (theCase: Case, rows: Row[], unplaced: Unplaced[]): void => {
+  const bySlice = new Map<string, { rows: Row[]; unplaced: Unplaced[] }>();
+  const bucketFor = (slice: string): { rows: Row[]; unplaced: Unplaced[] } => {
+    if (!isSliceName(slice)) {
+      throw new RecordError([`the Slice ${inspect(slice)} is not a folder name: it must be text with no slash or NUL, and not \`.\` or \`..\`.`]);
+    }
+    const bucket = bySlice.get(slice) ?? { rows: [], unplaced: [] };
+    bySlice.set(slice, bucket);
+    return bucket;
+  };
+  for (const row of rows) {
+    bucketFor(row.Slice).rows.push(row);
+  }
+  for (const line of unplaced) {
+    bucketFor(line.Slice).unplaced.push(line);
+  }
+  for (const [slice, bucket] of [...bySlice.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    writeJsonl(theCase.sliceTablePath(slice), [...bucket.rows, ...bucket.unplaced]);
+  }
+};
+
+// Whether the case holds any table at all: a slice folder with an oracle.jsonl in it.
+const hasTable = (theCase: Case): boolean =>
+  readdirSync(theCase.folder).some((name) => isDir(path.join(theCase.folder, name)) && isFile(path.join(theCase.folder, name, ORACLE_FILE)));
 
 const sliceOf = (row: Row): string => row.Slice;
 
@@ -485,11 +548,14 @@ const hasConfirmedChain = (row: Row): boolean => isValue(row[CANTHAPPEN]);
 
 const expectedColour = (row: Row): Colour => (isValue(row[SHORTFALL]) ? "red" : "green");
 
-const readRulings = (theCase: Case): Set<string> => {
-  if (!isFile(theCase.rulingsPath)) {
+// The (id, field) pairs ruled in the slice's rulings file. The top-level rulings.md holds case-wide
+// lines, which carry no pair: they are citation material for the filler, never input to the gate.
+const readRulings = (theCase: Case, sliceName: string): Set<string> => {
+  const file = path.join(theCase.folder, sliceName, "rulings.md");
+  if (!isFile(file)) {
     return new Set();
   }
-  return new Set(Array.from(readText(theCase.rulingsPath).matchAll(RULING_LINE), ([, rowId, field]) => pairKey(rowId, field)));
+  return new Set(Array.from(readText(file).matchAll(RULING_LINE), ([, rowId, field]) => pairKey(rowId, field)));
 };
 
 // ---------------------------------------------------------------- citations
@@ -557,9 +623,10 @@ class Sources {
   }
 }
 
-// The files a `written` source may not cite for a row: the row script, the file its `Where` points into, and the records.
+// The files a `written` source may not cite for a row: the row script and the file its `Where` points into.
+// The case's own records are barred separately, as everything under the case folder.
 const barredForWritten = (theCase: Case, row: Row | undefined): Set<string> => {
-  const barred = new Set(RECORD_FILES.map((name) => resolvePath(path.join(theCase.folder, name))));
+  const barred = new Set<string>();
   barred.add(resolvePath(scriptFile(theCase)));
   const where = row === undefined ? undefined : row["Where"];
   if (typeof where === "string" && where.trim() !== "") {
@@ -575,15 +642,12 @@ const barredForWritten = (theCase: Case, row: Row | undefined): Set<string> => {
   return barred;
 };
 
-const inRecords = (theCase: Case, file: string): boolean =>
-  RECORD_FOLDERS.some((name) => isRelativeTo(file, resolvePath(path.join(theCase.folder, name))));
+// One of the case's own records: any file under the case folder. The slice folders are named by the
+// row script, so they can't be enumerated; everything under the case is a record.
+const inCaseRecords = (theCase: Case, file: string): boolean => isRelativeTo(file, theCase.folder);
 
-// One of the case's own records: a record folder under the case, or a record file at the case's root.
-const inCaseRecords = (theCase: Case, file: string): boolean =>
-  inRecords(theCase, file) ||
-  file === resolvePath(theCase.rulingsPath) ||
-  file === resolvePath(theCase.frozenPath) ||
-  file === resolvePath(path.join(theCase.folder, CONF_FILE));
+// A rulings file: the case's top-level rulings.md, or one of the slice folders' rulings.md.
+const isRulingFile = (theCase: Case, file: string): boolean => inCaseRecords(theCase, file) && path.basename(file) === "rulings.md";
 
 // ---------------------------------------------------------------- --freeze
 
@@ -602,7 +666,7 @@ const cmdFreeze = (caseArg: string, words: string): number => {
 
 // ---------------------------------------------------------------- --rows
 
-const runRowScript = (theCase: Case): Row[] => {
+const runRowScript = (theCase: Case): { rows: Row[]; unplaced: Unplaced[] } => {
   const command = [...theCase.rowsCommand, theCase.folder];
   const run = spawnSync(command[0], command.slice(1), { cwd: theCase.folder, stdio: ["inherit", "pipe", "pipe"], maxBuffer: Infinity });
   if (run.error !== undefined) {
@@ -622,6 +686,7 @@ const runRowScript = (theCase: Case): Row[] => {
   }
   const problems: string[] = [];
   const rows: JsonObject[] = [];
+  const unplaced: JsonObject[] = [];
   const seen = new Set<string>();
   const byNormal = new Map<string, string>();
   for (const [index, line] of stdout.split("\n").entries()) {
@@ -669,13 +734,27 @@ const runRowScript = (theCase: Case): Row[] => {
     for (const [key, held] of Object.entries(row)) {
       if (LEDGER_FIELDS.includes(key)) {
         problems.push(`${rowId}: the row script prints ${key}, which is the ledger's field.`);
-      } else if ((key === CANTHAPPEN || key === SHORTFALL) && held !== null) {
-        problems.push(`${rowId}: the row script prints ${key} with a value: it must print it as null, for the filler.`);
       } else if (hasMergedShape(held)) {
         problems.push(`${rowId}: the row script prints ${key} as an object holding Value or Question, which is the shape of a merged field.`);
       } else if (held === null && !ROW_KEYS.includes(key) && !NAME.test(key)) {
         problems.push(`${rowId}: ${inspect(key)} is printed as null, so it is a field to fill, and can't be a field name.`);
       }
+    }
+    if (isUnplacedLine(row)) {
+      // A declared-unplaced line: no fields to fill, no Test, and the Unplaced reason.
+      for (const key of [EXPECTED, CANTHAPPEN, SHORTFALL]) {
+        if (key in row) {
+          problems.push(`${rowId}: a declared-unplaced line carries no row fields, and it prints ${key}.`);
+        }
+      }
+      if ("Slice" in row && !isSliceName(row["Slice"])) {
+        problems.push(`${rowId}: Slice ${inspect(row["Slice"])} is not a folder name: it must be text with no slash or NUL, and not \`.\` or \`..\`.`);
+      }
+      if (!("Slice" in row)) {
+        row["Slice"] = "all";
+      }
+      unplaced.push(row);
+      continue;
     }
     const printedNull = Object.entries(row)
       .filter(([key, held]) => held === null && !ROW_KEYS.includes(key))
@@ -693,6 +772,8 @@ const runRowScript = (theCase: Case): Row[] => {
     for (const field of [CANTHAPPEN, SHORTFALL]) {
       if (!(field in row)) {
         problems.push(`${rowId}: the row script prints no ${field}: every row carries ${EXPECTED}, ${CANTHAPPEN}, ${SHORTFALL}, and ${TEST}.`);
+      } else if (row[field] !== null) {
+        problems.push(`${rowId}: the row script prints ${field} with a value: it must print it as null, for the filler.`);
       }
     }
     if ("Slice" in row && !isSliceName(row["Slice"])) {
@@ -706,7 +787,7 @@ const runRowScript = (theCase: Case): Row[] => {
   if (problems.length > 0) {
     throw new RecordError(problems);
   }
-  return rows.map((row) => RowSchema.parse(row));
+  return { rows: rows.map((row) => RowSchema.parse(row)), unplaced: unplaced.map((line) => UnplacedSchema.parse(line)) };
 };
 
 const cmdRows = (caseArg: string, draft: boolean): number => {
@@ -716,11 +797,11 @@ const cmdRows = (caseArg: string, draft: boolean): number => {
     console.log(`nothing was written: ${mismatch}`);
     return 1;
   }
-  const printed = runRowScript(theCase);
+  const { rows: printedRows, unplaced: printedUnplaced } = runRowScript(theCase);
   const frozen = theCase.frozen;
   if (draft || frozen === null) {
-    for (const row of printed) {
-      console.log(JSON.stringify(row));
+    for (const line of [...printedRows, ...printedUnplaced]) {
+      console.log(JSON.stringify(line));
     }
     if (draft) {
       if (mismatch !== null) {
@@ -733,12 +814,12 @@ const cmdRows = (caseArg: string, draft: boolean): number => {
     return 1;
   }
 
-  const old = isFile(theCase.tablePath) ? readTable(theCase) : [];
-  const printedById = new Map(printed.map((row) => [row.Id, row]));
-  const oldIds = new Set(old.map((row) => row.Id));
+  const { rows: oldRows, unplaced: oldUnplaced } = hasTable(theCase) ? readTable(theCase) : { rows: [], unplaced: [] };
+  const printedById = new Map(printedRows.map((row) => [row.Id, row]));
+  const oldIds = new Set(oldRows.map((row) => row.Id));
   const rows: Row[] = [];
   const problems: string[] = [];
-  for (const oldRow of old) {
+  for (const oldRow of oldRows) {
     const printedRow = printedById.get(oldRow.Id);
     if (printedRow !== undefined) {
       const row = { ...printedRow };
@@ -761,16 +842,36 @@ const cmdRows = (caseArg: string, draft: boolean): number => {
   if (problems.length > 0) {
     throw new RecordError(problems);
   }
-  const fresh = printed.filter((row) => !oldIds.has(row.Id));
+  const fresh = printedRows.filter((row) => !oldIds.has(row.Id));
   rows.push(...fresh.map((row) => ({ ...row })));
+
+  // Unplaced lines merge the same way: a reprinted line replaces the stored one, a struck line keeps
+  // its strike, and a line the script no longer prints goes Gone.
+  const printedUnplacedById = new Map(printedUnplaced.map((line) => [line.Id, line]));
+  const oldUnplacedIds = new Set(oldUnplaced.map((line) => line.Id));
+  const mergedUnplaced: Unplaced[] = [];
+  for (const oldLine of oldUnplaced) {
+    const printedLine = printedUnplacedById.get(oldLine.Id);
+    if (printedLine !== undefined) {
+      const line: Unplaced = { ...printedLine };
+      if (oldLine.Struck !== undefined) {
+        line.Struck = oldLine.Struck;
+      }
+      mergedUnplaced.push(line);
+    } else {
+      mergedUnplaced.push({ ...oldLine, Gone: true });
+    }
+  }
+  const freshUnplaced = printedUnplaced.filter((line) => !oldUnplacedIds.has(line.Id));
+  mergedUnplaced.push(...freshUnplaced.map((line) => ({ ...line })));
 
   // Across the whole table, live or gone: the per-run check above sees one run's ids only, but a test
   // name reads the whole table. Two ids it could not tell apart is a table no test can close, so the
   // gone row is struck before a row with the same normalised name enters.
   const byNormalId = new Map<string, string[]>();
-  for (const row of rows) {
-    const key = normaliseName(row.Id);
-    byNormalId.set(key, [...(byNormalId.get(key) ?? []), row.Id]);
+  for (const line of [...rows, ...mergedUnplaced]) {
+    const key = normaliseName(line.Id);
+    byNormalId.set(key, [...(byNormalId.get(key) ?? []), line.Id]);
   }
   const collisions = [...byNormalId.values()].filter((ids) => ids.length > 1);
   if (collisions.length > 0) {
@@ -793,11 +894,14 @@ const cmdRows = (caseArg: string, draft: boolean): number => {
       }
     }
   }
-  writeJsonl(theCase.tablePath, rows);
+  writeTable(theCase, rows, mergedUnplaced);
 
   console.log(`${theCase.label}: row script frozen ${frozen.date}: ${frozen.words}`);
   const gone = rows.filter((row) => row.Gone).length;
-  console.log(`rows: ${rows.length}, new: ${fresh.length}, gone: ${gone}, fields emptied: ${emptied.length}`);
+  const unplacedGone = mergedUnplaced.filter((line) => line.Gone).length;
+  console.log(
+    `rows: ${rows.length}, new: ${fresh.length}, gone: ${gone}; unplaced: ${mergedUnplaced.length}, new: ${freshUnplaced.length}, gone: ${unplacedGone}; fields emptied: ${emptied.length}`,
+  );
   for (const entry of emptied) {
     console.log(`  emptied ${entry}`);
   }
@@ -823,17 +927,17 @@ const shapesOf = (record: JsonObject): Shape[] => {
 // The parity gate: every problem of one pass's fill for one slice, and the fill records.
 const parity = (theCase: Case, passName: string, sliceName: string, table: Row[]): [string[], JsonObject[]] => {
   checkPass(passName);
-  const fillPath = path.join(theCase.folder, passName, "filled", sliceName, "fields.jsonl");
+  const fillPath = path.join(theCase.folder, sliceName, `${passName}-fields.jsonl`);
   if (!isFile(fillPath)) {
     return [[`${fillPath} does not exist: the filler wrote nothing for this pass and slice.`], []];
   }
   const records = readJsonl(fillPath);
   const sliceRows = new Map(table.filter((row) => sliceOf(row) === sliceName).map((row) => [row.Id, row]));
   if (sliceRows.size === 0) {
-    throw new RecordError([`${theCase.tablePath}: no row has the slice ${inspect(sliceName)}.`]);
+    throw new RecordError([`${theCase.label}: no row has the slice ${inspect(sliceName)}.`]);
   }
   const sources = new Sources(theCase.root);
-  const rulings = readRulings(theCase);
+  const rulings = readRulings(theCase, sliceName);
   const problems: string[] = [];
   const seen = new Set<string>();
 
@@ -959,22 +1063,22 @@ const checkValue = (
       problems.push(`${label}: the quote ${inspect(cite.Quote.slice(0, 60))} is not in ${cite.File}.`);
     }
     // A citation names evidence outside the case's records, for every source: a value that cites its own
-    // fill file quotes itself, and the grep is sure to pass. The one exception is a ruling, which cites rulings.md.
-    // `written` is covered by its own bar above, which names the row script and the row's Where as well.
-    if (source !== "written" && inCaseRecords(theCase, file) && file !== resolvePath(theCase.rulingsPath)) {
-      problems.push(`${label}: it cites ${cite.File}, one of the case's own records: a citation names evidence outside the case's records, and only a ruling cites rulings.md.`);
+    // fill file quotes itself, and the grep is sure to pass. The one exception is a ruling, which cites a
+    // rulings file. `written` is covered by its own bar above, which names the row script and the row's Where.
+    if (source !== "written" && inCaseRecords(theCase, file) && !isRulingFile(theCase, file)) {
+      problems.push(`${label}: it cites ${cite.File}, one of the case's own records: a citation names evidence outside the case's records, and only a ruling cites a rulings file.`);
     }
     if (sourceFits && source === "written") {
       if (cite.File.startsWith(MERIDIAN_PREFIX)) {
         problems.push(`${label}: Source written may cite only a file under root, not ${cite.File}.`);
-      } else if (file === resolvePath(theCase.rulingsPath)) {
-        problems.push(`${label}: Source written may not cite rulings.md: a ruling is Source ruling.`);
-      } else if (barred.has(file) || inRecords(theCase, file)) {
+      } else if (isRulingFile(theCase, file)) {
+        problems.push(`${label}: Source written may not cite a rulings file: a ruling is Source ruling.`);
+      } else if (barred.has(file) || inCaseRecords(theCase, file)) {
         problems.push(`${label}: Source written may not cite ${cite.File}: it is the row script, the code the row's Where points into, or one of the case's own records.`);
       }
     }
-    if (sourceFits && source === "ruling" && file !== resolvePath(theCase.rulingsPath)) {
-      problems.push(`${label}: Source ruling may cite only rulings.md, not ${cite.File}.`);
+    if (sourceFits && source === "ruling" && !isRulingFile(theCase, file)) {
+      problems.push(`${label}: Source ruling may cite only a rulings file — the case's top-level rulings.md, or its slice's — not ${cite.File}.`);
     }
   }
   const citesMeridian = cites.some((held) => {
@@ -994,7 +1098,7 @@ const checkValue = (
 const cmdCheck = (caseArg: string, passName: string, sliceName: string): number => {
   const theCase = loadCase(caseArg);
   checkPass(passName);
-  const table = readTable(theCase);
+  const { rows: table } = readTable(theCase);
   const [problems, records] = parity(theCase, passName, sliceName, table);
   const where = `${theCase.label} ${passName} ${sliceName}`;
   if (problems.length > 0) {
@@ -1014,7 +1118,7 @@ const cmdCheck = (caseArg: string, passName: string, sliceName: string): number 
 const cmdMerge = (caseArg: string, passName: string, sliceName: string): number => {
   const theCase = loadCase(caseArg);
   checkPass(passName);
-  const table = readTable(theCase);
+  const { rows: table, unplaced } = readTable(theCase);
   const [problems, records] = parity(theCase, passName, sliceName, table);
   const where = `${theCase.label} ${passName} ${sliceName}`;
   if (problems.length > 0) {
@@ -1023,7 +1127,7 @@ const cmdMerge = (caseArg: string, passName: string, sliceName: string): number 
   }
   const fills = records.map((record) => FillRecordSchema.parse(record));
 
-  const verdictPath = path.join(theCase.folder, passName, "verdicts", `${sliceName}.jsonl`);
+  const verdictPath = path.join(theCase.folder, sliceName, `${passName}-verdicts.jsonl`);
   if (!isFile(verdictPath)) {
     throw new RecordError([`${verdictPath} does not exist: no verdicts, nothing merges.`]);
   }
@@ -1093,7 +1197,7 @@ const cmdMerge = (caseArg: string, passName: string, sliceName: string): number 
       testsEmptied += 1;
     }
   }
-  writeJsonl(theCase.tablePath, table);
+  writeTable(theCase, table, unplaced);
   console.log(
     `${where}: ${merged} fields merged; ${stayEmpty} stay empty, which leaves those rows open.` +
       (testsEmptied > 0 ? ` ${testsEmptied} Tests emptied: their expected field changed, so the test pass re-grades them.` : ""),
@@ -1162,14 +1266,14 @@ const junitResults = (files: string[], rowIds: string[]): { colours: Map<string,
 
 const cmdResults = (caseArg: string, files: string[], sliceName: string | undefined): number => {
   const theCase = loadCase(caseArg);
-  const table = readTable(theCase);
+  const { rows: table, unplaced } = readTable(theCase);
   const { colours: results, errored } = junitResults(
     files,
     table.map((row) => row.Id),
   );
   const scope = table.filter((row) => sliceName === undefined || sliceOf(row) === sliceName);
   if (scope.length === 0) {
-    throw new RecordError([`${theCase.tablePath}: no row has the slice ${inspect(sliceName)}.`]);
+    throw new RecordError([`${theCase.label}: no row has the slice ${inspect(sliceName)}.`]);
   }
   for (const row of table) {
     const ran = results.get(row.Id);
@@ -1179,7 +1283,7 @@ const cmdResults = (caseArg: string, files: string[], sliceName: string | undefi
       delete row.Ran;
     }
   }
-  writeJsonl(theCase.tablePath, table);
+  writeTable(theCase, table, unplaced);
 
   const red: string[] = [];
   const notReady: string[] = [];
@@ -1222,39 +1326,59 @@ const cmdResults = (caseArg: string, files: string[], sliceName: string | undefi
 
 // ---------------------------------------------------------------- --rule and --strike
 
-const cmdRule = (caseArg: string, rowId: string, field: string, words: string): number => {
+const cmdRule = (caseArg: string, rowId: string | undefined, field: string | undefined, words: string): number => {
   const theCase = loadCase(caseArg);
-  const table = readTable(theCase);
-  const row = table.find((each) => each.Id === rowId);
+  const oneLine = words.replace(/\r\n|\r|\n/g, " ");
+  if (rowId === undefined || field === undefined) {
+    // A case-wide ruling carries no row, so it lands in the top-level rulings.md, cited where it applies.
+    let line = `- ${today()} · ${oneLine}\n`;
+    const existing = isFile(theCase.rulingsPath) ? readText(theCase.rulingsPath) : "";
+    if (existing !== "" && !existing.endsWith("\n")) {
+      line = `\n${line}`;
+    }
+    appendFileSync(theCase.rulingsPath, line, "utf8");
+    console.log(`case-wide ruling recorded in ${theCase.rulingsPath}: the filler cites it where it applies.`);
+    return 0;
+  }
+  const { rows } = readTable(theCase);
+  const row = rows.find((each) => each.Id === rowId);
   if (row === undefined) {
     throw new RecordError([`${rowId} is not a row of the table; nothing is ruled.`]);
   }
   if (!fieldsOf(row).includes(field)) {
     throw new RecordError([`${field} is not a field to fill on ${rowId}; nothing is ruled.`]);
   }
-  const oneLine = words.replace(/\r\n|\r|\n/g, " ");
+  const file = path.join(theCase.folder, sliceOf(row), "rulings.md");
   let line = `- ${today()} · ${rowId} · ${field}: ${oneLine}\n`;
-  const existing = isFile(theCase.rulingsPath) ? readText(theCase.rulingsPath) : "";
+  const existing = isFile(file) ? readText(file) : "";
   if (existing !== "" && !existing.endsWith("\n")) {
     line = `\n${line}`;
   }
-  appendFileSync(theCase.rulingsPath, line, "utf8");
-  console.log(`${rowId}.${field}: ruled; the filler is sent again for its pass and slice, and cites this line of rulings.md.`);
+  appendFileSync(file, line, "utf8");
+  console.log(`${rowId}.${field}: ruled in ${file}; the filler is sent again for its pass and slice, and cites this line.`);
   return 0;
 };
 
 const cmdStrike = (caseArg: string, rowId: string, why: string): number => {
   const theCase = loadCase(caseArg);
-  const table = readTable(theCase);
-  for (const row of table) {
+  const { rows, unplaced } = readTable(theCase);
+  for (const row of rows) {
     if (row.Id === rowId) {
       row.Struck = { Why: why, Date: today() };
-      writeJsonl(theCase.tablePath, table);
+      writeTable(theCase, rows, unplaced);
       console.log(`${rowId} is struck. ${why}`);
       return 0;
     }
   }
-  throw new RecordError([`${rowId} is not a row of the table; nothing is struck.`]);
+  for (const line of unplaced) {
+    if (line.Id === rowId) {
+      line.Struck = { Why: why, Date: today() };
+      writeTable(theCase, rows, unplaced);
+      console.log(`${rowId} is struck (a declared unplaced line). ${why}`);
+      return 0;
+    }
+  }
+  throw new RecordError([`${rowId} is not a row or a declared unplaced line of the table; nothing is struck.`]);
 };
 
 // ---------------------------------------------------------------- --open
@@ -1300,16 +1424,24 @@ const openReason = (row: Row, sources: Sources, rulings: Set<string>): string | 
 
 const cmdOpen = (caseArg: string): number => {
   const theCase = loadCase(caseArg);
-  const table = readTable(theCase);
+  const { rows: table, unplaced } = readTable(theCase);
   if (table.length === 0) {
     console.log("the table has no rows; the row script printed none.");
     return 1;
   }
   const sources = new Sources(theCase.root);
-  const rulings = readRulings(theCase);
+  const rulingsBySlice = new Map<string, Set<string>>();
+  const rulingsFor = (slice: string): Set<string> => {
+    let rulings = rulingsBySlice.get(slice);
+    if (rulings === undefined) {
+      rulings = readRulings(theCase, slice);
+      rulingsBySlice.set(slice, rulings);
+    }
+    return rulings;
+  };
   const openRows: [Row, string][] = [];
   for (const row of table) {
-    const reason = openReason(row, sources, rulings);
+    const reason = openReason(row, sources, rulingsFor(sliceOf(row)));
     if (reason !== null) {
       openRows.push([row, reason]);
     }
@@ -1330,7 +1462,7 @@ const cmdOpen = (caseArg: string): number => {
     }
     for (const field of fieldsOf(row)) {
       const held = row[field];
-      if (isQuestion(held) && !rulings.has(pairKey(row.Id, field))) {
+      if (isQuestion(held) && !rulingsFor(sliceOf(row)).has(pairKey(row.Id, field))) {
         asks.push(`  ${row.Id}: ${held.Question} (recommended: ${held.Recommend})`);
       }
     }
@@ -1338,6 +1470,21 @@ const cmdOpen = (caseArg: string): number => {
   if (asks.length > 0) {
     console.log("rows for the user:");
     for (const line of asks) {
+      console.log(line);
+    }
+  }
+  // Declared unplaced: the misses the row script named and the user saw, with their reasons.
+  // They are never open and never change the exit code; a strike retires one.
+  const declaredUnplaced: string[] = [];
+  for (const line of unplaced) {
+    if (line.Struck || line.Gone) {
+      continue;
+    }
+    declaredUnplaced.push(`  ${line.Id}: ${line[UNPLACED]}`);
+  }
+  if (declaredUnplaced.length > 0) {
+    console.log("declared unplaced:");
+    for (const line of declaredUnplaced) {
       console.log(line);
     }
   }
@@ -1379,7 +1526,7 @@ const main = (argv: string[]): number => {
     });
   program
     .command("rows <case>")
-    .description("run the row script (the command in oracle.conf.json, given the case folder's path) and merge its rows into table/rows.jsonl")
+    .description("run the row script (the command in oracle.conf.json, given the case folder's path) and merge its rows and unplaced lines into each slice's oracle.jsonl")
     .option("--draft", "print the rows and write nothing")
     .action((caseArg: string, options: { draft?: boolean }) => {
       exit = cmdRows(caseArg, options.draft === true);
@@ -1404,10 +1551,10 @@ const main = (argv: string[]): number => {
       exit = cmdResults(caseArg, files, options.slice);
     });
   program
-    .command("rule <case> <id> <field>")
-    .description("record the user's ruling")
+    .command("rule <case> [id] [field]")
+    .description("record the user's ruling: on a row (into its slice's rulings.md) or case-wide (into the top-level rulings.md)")
     .requiredOption("--words <words>", "the user's words")
-    .action((caseArg: string, rowId: string, field: string, options: { words: string }) => {
+    .action((caseArg: string, rowId: string | undefined, field: string | undefined, options: { words: string }) => {
       exit = cmdRule(caseArg, rowId, field, options.words);
     });
   program

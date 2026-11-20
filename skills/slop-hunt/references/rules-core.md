@@ -58,6 +58,24 @@ the same authority as an atomicity or dependency rule.
 
 Bad: A file-name suffix check (a Preference) set to `error`, so CI fails on a `.service.ts` file.
 Good: The same check set to `info`, with the module-boundary check (a Law) left at `error`.
+<!-- rule: core/write-every-rule-in-the-five-part-format.md -->
+## Write every rule in the five-part format
+
+**Preference:** A rule file holds five fields, in this order: a `##` title that states the rule as an imperative, a strength line (`**Law:**`, `**Default:**`, `**Preference:**`, or `**Tooling:**`) that says the rule in one sentence, a `**When:**` line that says where it applies, a `Bad:` example and a `Good:` of the same case done right, and, last and optional, a `Links:` line, the only place a rule holds a URL.
+
+**When:** Writing, editing, or checking a rule in the house rule library, or a rule-shaped file the house build format-checks.
+
+Bad: A rule stated in prose paragraphs, a URL in the middle of the text, and its example under a second heading.
+Good: The same rule as one `##` imperative, one strength sentence, one `**When:**` line, one `Bad:` line, one `Good:` line, and the URL on a final `Links:` line.
+<!-- rule: core/build-every-generated-file-from-its-list.md -->
+## Build every generated file from its list
+
+**Preference:** A role file is the parts its `roles.list` line names, a rule file is the rules its `rules-<name>.list` names, and a `rule` line's file is the one rule it names, each joined in the list's order; none is hand-written, and a part, or a rule, that no line names is dead weight the build refuses.
+
+**When:** Adding, renaming, or removing a role part or a rule in the house skills repo, or editing anything under a routine's `references/`.
+
+Bad: Editing `references/filler.md` by hand, or leaving a rule file in the library that no `rules-<name>.list` names.
+Good: Editing the part under `roles/` (or the rule under the rule library), naming it in its list in the order it should read, and running `sh scripts/build-roles.sh`.
 <!-- rule: coding/change-the-design-when-it-breaks-a-law.md -->
 ## Change the design when it breaks a Law
 

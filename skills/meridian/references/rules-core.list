@@ -2,6 +2,8 @@
 core/laws.md
 core/rule-strength.md
 core/fail-a-build-only-for-a-broken-law.md
+core/write-every-rule-in-the-five-part-format.md
+core/build-every-generated-file-from-its-list.md
 coding/change-the-design-when-it-breaks-a-law.md
 coding/fix-a-gap-never-document-it.md
 coding/cite-the-tracked-fix-beside-any-documented-gap.md

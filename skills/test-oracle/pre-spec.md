@@ -2,7 +2,7 @@
 
 For whoever writes the spec of a case's tests (`/spec`), once the `fill` pass is merged. It is a step for an agent, not a command. `<skill>` below is the folder this file sits in, and `<case>` is the case folder the user named.
 
-The case's table, `<case>/table/rows.jsonl`, is the oracle for the tests. Read it, and the case's row script (the program named by the `rows` command in `<case>/oracle.conf.json`), before you write anything. `<case>` is an `__oracle__` folder. The spec you write is checked by `/spec`'s cold reader and built by `/go`, both unchanged, so what follows has to be in the spec itself.
+The case's tables are the oracle for the tests: one `<case>/<slice>/oracle.jsonl` per slice, each holding the slice's rows and its declared-unplaced lines. Read them, and the case's row script (the program named by the `rows` command in `<case>/oracle.conf.json`), before you write anything. Where the work names a kind, read the kind file in full too: it says what shape the tests must be. `<case>` is an `__oracle__` folder. The spec you write is checked by `/spec`'s cold reader and built by `/go`, both unchanged, so what follows has to be in the spec itself.
 
 ## What to do
 
