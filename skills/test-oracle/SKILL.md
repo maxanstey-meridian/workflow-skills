@@ -137,7 +137,7 @@ Fetch the source and quote it. Never answer from memory. A web page is saved to 
 
 One set per case, under `<the case's folder>/`. The records **are** the artefact: JSONL only, no markdown document, no generated view. The word "table" survives as the name of the record set.
 
-A case is a folder named exactly `__oracle__`, placed next to what it pins down (beside a page, say). The ledger takes the folder's path and refuses, with exit 2 and nothing written, one whose final folder name is anything else (`__oracles__`, `oracle`). The row script is not in the folder unless the case wants it there, so a script can be shared between cases. The folder has this layout:
+A case is a folder named exactly `__oracle__`, placed next to what it pins down (beside a page, say). The ledger takes the folder's path and refuses, with exit 2 and nothing written, one whose final folder name is anything else (`__oracles__`, `oracle`), and one whose `rows` command names no existing file when resolved against the case folder — a case must reach its row script. The row script is not in the folder unless the case wants it there, so a script can be shared between cases. The folder has this layout:
 
 ```
 <the thing the case pins down>         a page, a CLI, a module: the case sits beside it

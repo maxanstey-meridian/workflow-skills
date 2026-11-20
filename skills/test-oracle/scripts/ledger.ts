@@ -343,6 +343,19 @@ const readConf = (folder: string): string[] => {
   return conf.data.rows;
 };
 
+// The row script's file: the last element of the rows command that names an existing file, resolved against the case
+// folder, or null when none does. A runner or interpreter sits at the front of the command; the script sits at the end.
+const scriptFileOf = (folder: string, command: string[]): string | null => {
+  let file: string | null = null;
+  for (const part of command) {
+    const candidate = path.resolve(folder, part);
+    if (isFile(candidate)) {
+      file = candidate;
+    }
+  }
+  return file;
+};
+
 // `readFreeze` is false only for --freeze, which replaces frozen.json and so never needs the old one to be valid.
 const loadCase = (folderArg: string, readFreeze = true): Case => {
   const folder = resolvePath(folderArg);
@@ -353,30 +366,29 @@ const loadCase = (folderArg: string, readFreeze = true): Case => {
     throw new RecordError([`${folder} is not a folder: a case is a folder named ${CASE_FOLDER} holding ${CONF_FILE}.`]);
   }
   const frozen = readFreeze ? readFrozen(path.join(folder, FROZEN_FILE)) : null;
-  return new Case(folder, citationRoot(folder), frozen, readConf(folder));
+  const rows = readConf(folder);
+  if (scriptFileOf(folder, rows) === null) {
+    throw new RecordError([
+      `${path.join(folder, CONF_FILE)}: no element of \`rows\` (${rows.join(" ")}) names an existing file when resolved against ${folder}: a case's rows command must name its row script.`,
+    ]);
+  }
+  return new Case(folder, citationRoot(folder), frozen, rows);
 };
 
 // ---------------------------------------------------------------- the row script's pin
 
-// The row script's file: the last element of the rows command that names an existing file, resolved against the case folder.
-// A runner or interpreter sits at the front of the command; the script sits at the end.
-const scriptFile = (theCase: Case): string | null => {
-  let file: string | null = null;
-  for (const part of theCase.rowsCommand) {
-    const candidate = path.resolve(theCase.folder, part);
-    if (isFile(candidate)) {
-      file = candidate;
-    }
+// A loaded case always names an existing script file: loadCase refuses one that does not.
+const scriptFile = (theCase: Case): string => {
+  const file = scriptFileOf(theCase.folder, theCase.rowsCommand);
+  if (file === null) {
+    throw new RecordError(["internal error: a loaded case names no existing script file; loadCase should have refused it."]);
   }
   return file;
 };
 
-// The row script's file (relative to the case folder) and the sha256 of its bytes, or null when the command names no file.
-const scriptPin = (theCase: Case): Frozen["script"] | null => {
+// The row script's file (relative to the case folder) and the sha256 of its bytes.
+const scriptPin = (theCase: Case): Frozen["script"] => {
   const file = scriptFile(theCase);
-  if (file === null) {
-    return null;
-  }
   return { file: path.relative(theCase.folder, file), sha256: createHash("sha256").update(readFileSync(file)).digest("hex") };
 };
 
@@ -394,14 +406,13 @@ const pinMismatch = (theCase: Case): string | null => {
     );
   }
   const now = scriptPin(theCase);
-  if (now !== null && now.file === frozen.script.file && now.sha256 === frozen.script.sha256) {
+  if (now.file === frozen.script.file && now.sha256 === frozen.script.sha256) {
     return null;
   }
-  const nowText = now !== null ? `${now.file} sha256 ${now.sha256}` : "no file (the rows command names none that exists)";
   return (
     "the row script changed since the freeze, and must be frozen again.\n" +
     `  frozen:  ${frozen.script.file} sha256 ${frozen.script.sha256}\n` +
-    `  now:     ${nowText}`
+    `  now:     ${now.file} sha256 ${now.sha256}`
   );
 };
 
@@ -549,10 +560,7 @@ class Sources {
 // The files a `written` source may not cite for a row: the row script, the file its `Where` points into, and the records.
 const barredForWritten = (theCase: Case, row: Row | undefined): Set<string> => {
   const barred = new Set(RECORD_FILES.map((name) => resolvePath(path.join(theCase.folder, name))));
-  const script = scriptFile(theCase);
-  if (script !== null) {
-    barred.add(resolvePath(script));
-  }
+  barred.add(resolvePath(scriptFile(theCase)));
   const where = row === undefined ? undefined : row["Where"];
   if (typeof where === "string" && where.trim() !== "") {
     const name = where.trim().replace(LINE_SUFFIX, "");
@@ -582,11 +590,6 @@ const inCaseRecords = (theCase: Case, file: string): boolean =>
 const cmdFreeze = (caseArg: string, words: string): number => {
   const theCase = loadCase(caseArg, false);
   const pin = scriptPin(theCase);
-  if (pin === null) {
-    throw new RecordError([
-      `${path.join(theCase.folder, CONF_FILE)}: no element of \`rows\` (${theCase.rowsCommand.join(" ")}) names an existing file when resolved against ${theCase.folder}, so the script file can't be found and there is nothing to freeze.`,
-    ]);
-  }
   if (!isStr(words)) {
     throw new RecordError(["--words is empty: the freeze records the user's words."]);
   }

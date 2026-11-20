@@ -29856,6 +29856,16 @@ var readConf = (folder) => {
   }
   return conf.data.rows;
 };
+var scriptFileOf = (folder, command) => {
+  let file2 = null;
+  for (const part of command) {
+    const candidate = path2.resolve(folder, part);
+    if (isFile(candidate)) {
+      file2 = candidate;
+    }
+  }
+  return file2;
+};
 var loadCase = (folderArg, readFreeze = true) => {
   const folder = resolvePath(folderArg);
   if (path2.basename(folder) !== CASE_FOLDER) {
@@ -29865,23 +29875,23 @@ var loadCase = (folderArg, readFreeze = true) => {
     throw new RecordError([`${folder} is not a folder: a case is a folder named ${CASE_FOLDER} holding ${CONF_FILE}.`]);
   }
   const frozen = readFreeze ? readFrozen(path2.join(folder, FROZEN_FILE)) : null;
-  return new Case(folder, citationRoot(folder), frozen, readConf(folder));
+  const rows = readConf(folder);
+  if (scriptFileOf(folder, rows) === null) {
+    throw new RecordError([
+      `${path2.join(folder, CONF_FILE)}: no element of \`rows\` (${rows.join(" ")}) names an existing file when resolved against ${folder}: a case's rows command must name its row script.`
+    ]);
+  }
+  return new Case(folder, citationRoot(folder), frozen, rows);
 };
 var scriptFile = (theCase) => {
-  let file2 = null;
-  for (const part of theCase.rowsCommand) {
-    const candidate = path2.resolve(theCase.folder, part);
-    if (isFile(candidate)) {
-      file2 = candidate;
-    }
+  const file2 = scriptFileOf(theCase.folder, theCase.rowsCommand);
+  if (file2 === null) {
+    throw new RecordError(["internal error: a loaded case names no existing script file; loadCase should have refused it."]);
   }
   return file2;
 };
 var scriptPin = (theCase) => {
   const file2 = scriptFile(theCase);
-  if (file2 === null) {
-    return null;
-  }
   return { file: path2.relative(theCase.folder, file2), sha256: createHash("sha256").update(readFileSync(file2)).digest("hex") };
 };
 var pinMismatch = (theCase) => {
@@ -29895,13 +29905,12 @@ var pinMismatch = (theCase) => {
   now:     ${JSON.stringify(theCase.rowsCommand)}`;
   }
   const now = scriptPin(theCase);
-  if (now !== null && now.file === frozen.script.file && now.sha256 === frozen.script.sha256) {
+  if (now.file === frozen.script.file && now.sha256 === frozen.script.sha256) {
     return null;
   }
-  const nowText = now !== null ? `${now.file} sha256 ${now.sha256}` : "no file (the rows command names none that exists)";
   return `the row script changed since the freeze, and must be frozen again.
   frozen:  ${frozen.script.file} sha256 ${frozen.script.sha256}
-  now:     ${nowText}`;
+  now:     ${now.file} sha256 ${now.sha256}`;
 };
 var checkPass = (name) => {
   if (!PASSES.includes(name)) {
@@ -30015,10 +30024,7 @@ var Sources = class {
 };
 var barredForWritten = (theCase, row) => {
   const barred = new Set(RECORD_FILES.map((name) => resolvePath(path2.join(theCase.folder, name))));
-  const script = scriptFile(theCase);
-  if (script !== null) {
-    barred.add(resolvePath(script));
-  }
+  barred.add(resolvePath(scriptFile(theCase)));
   const where = row === void 0 ? void 0 : row["Where"];
   if (typeof where === "string" && where.trim() !== "") {
     const name = where.trim().replace(LINE_SUFFIX, "");
@@ -30036,11 +30042,6 @@ var inCaseRecords = (theCase, file2) => inRecords(theCase, file2) || file2 === r
 var cmdFreeze = (caseArg, words) => {
   const theCase = loadCase(caseArg, false);
   const pin = scriptPin(theCase);
-  if (pin === null) {
-    throw new RecordError([
-      `${path2.join(theCase.folder, CONF_FILE)}: no element of \`rows\` (${theCase.rowsCommand.join(" ")}) names an existing file when resolved against ${theCase.folder}, so the script file can't be found and there is nothing to freeze.`
-    ]);
-  }
   if (!isStr(words)) {
     throw new RecordError(["--words is empty: the freeze records the user's words."]);
   }
