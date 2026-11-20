@@ -1,66 +1,39 @@
-# Browser behaviour
+# Kind: browser-behaviour
 
-What is true of any case whose rows are things a person does in a browser. A case uses this file when the user names the kind `browser-behaviour` at the start, and its agents read it after the rules and before `SKILL.md`.
+The doctrine for cases whose rows are things a person does in a browser. It adds to `SKILL.md` for this kind only: what a row is, where its intent comes from, what a browser test may and may not do, how the disprover handles a claim about a page, what to sweep, and how the tests run. Everything `SKILL.md` already holds — the loop, the records, the ledger, citations, verdict gating, the `Source` order and its five words, the question mechanism, and where a case stands — stays as it is.
 
-## What a browser test may change, and what it may not do
+## What a row is
 
-A stand-in for an outside service, and a test id a step needs in order to find an element, are the only app changes it may make (rule 14).
+A row is a response the app's declared contract declares that a person can cause from the app's pages: every write that succeeds, and every way of being turned away. The frontend is read for exactly two things: which page reaches an operation, and what a person does there to cause the row, the row's `When`. A check the page makes itself (a schema, a required box, a limit) is never a row, and never a source for what the person should see. A row no person can cause from a page carries its cited chain in `CantHappen`. A browser that turns a person away with no test driving it is an accepted gap, not a row and not a finding.
 
-9. **A red step sits in a test of its own wherever the person can reach it on its own**, so the rest still run. Where it can't be reached on its own, it stays where it is and blocks. The steps behind it are then "not run", and their rows are open.
-10. **Outside services may be stood in for; the frontend, the API, and the database are real.** No journey intercepts a request.
-14. **A test id finds an element. The step then asserts what the person sees in it.** An attribute that carries a value from the server (a `data-` attribute holding a status, an outcome, or a state) is forbidden, to add or to assert on: the page can show the wrong thing and the step stays green.
+## Where intent comes from
 
-## Building the test
+The `Source` order is the one `SKILL.md` holds; for this kind, a row's `Expected` cites among these:
 
-- Read source for selectors, not for the answer.
-- Do what the person does, through the page.
-- Find elements by role, test id, or element id, inside the question, row, panel, or dialog they belong to. Assert the fact a message carries (a number, a name, which question it is on), not its sentence, unless the plan gives the sentence.
-- A test id finds an element; you then assert what the person sees in it. Never add, and never assert on, an attribute that carries a value from the server (a `data-` attribute holding a status, an outcome, or a state). If the only way to tell two states apart is such an attribute, say so in your report and assert what the person sees.
-- A step the plan marks red on purpose (its `Red` field) goes in a test of its own where the plan says so.
-- No `.first()`, `.last()`, `.nth()`, `force: true`, `nth-child`, `waitForTimeout`, `.catch(`, `try` around an assertion, `page.route`, or type assertion (`as T`).
+- the app's declared contract, in whatever form the repo declares it — a `written` source;
+- the frontend's consumers of it: which pages reach an operation, and what a person does there;
+- the repo's written rules: its AGENTS.md, its invariants, its decisions, its design system, its specs;
+- the repo's design-system reference, where a written rule leaves a detail open — fetched and quoted, never from memory.
 
-## Running the tests
+## The hard rules
 
-`--max-failures=0` always: the CI run otherwise stops at the first failure, and an area with a red-on-purpose step would never run the rest. One private `--output` per run.
-
-Always `--max-failures=0`, and a `--output` folder of your own.
-
-## Filling a row
-
-- `PersonDoes` — plain English: the page, the control, what they type or press; for two people, both.
-- `CausedFromPage` — `"yes"` or `"no"`.
-
-3. **Say what the person does.** Say what a person does on which page to cause this row: the control, what they type or press, and, where it takes two people or two tabs, what each does.
-
-4. **Decide whether a person can cause it from a page.** They can if any sequence of things a person can do in a browser leads to it: typing, pressing, uploading, opening a page by its address, going back, reloading, a second tab, a second person, waiting. They can't only if it takes a crafted request, or a state no page ever offers.
-
-### Where a control is hidden from the person
-
-say what hides it, and whether opening the page by its address, or acting from a page loaded before the state changed, still reaches it.
-
-5. **Find what they should see.**
+1. **Do what the person does, through the page**, against the real frontend, the real API, and the real database.
+2. **Outside services may be stood in for, reached through their trigger values; the frontend, the API, and the database are real.** No test intercepts a request.
+3. **Read source for selectors, not for the answer.**
+4. **Find elements by role, test id, or element id**, inside the container they belong to.
+5. **A test id finds an element; the test then asserts what the person sees in it.** An attribute that carries a value from the server (a `data-` attribute holding a status, an outcome, or a state) is forbidden, to add and to assert on: the page can show the wrong thing and the test stays green. Where the only way to tell two states apart is such an attribute, say so in the report and assert what the person sees.
+6. **Assert the fact a message carries** (a number, a name, which question it is on), not its sentence, unless the source gives the sentence.
+7. **A red-on-purpose test sits in a test of its own** wherever the person can reach it on its own, so the rest still run. Where it can't be reached on its own, it stays where it is and blocks; the steps behind it are "not run", and their rows are open.
+8. **No workaround to get a test past a defect:** no `force`, no `.first()`, `.last()`, or `.nth()`, no `nth-child`, no `waitForTimeout`, no `.catch(`, no `try` around an assertion, no request interception, no type assertion, no keyboard in place of a click, no reload the source doesn't have, no direct API call in place of what the person does, no retry, no loosened match, no input chosen to steer round the defect.
+9. **Only a browser test that has run closes a row.** A server test, a page test, or a component test does not.
+10. **What the server says today, its code and its sentences included, is evidence, never an expected value.** Every sentence is judged against the written rules for wording. One that breaks a rule gets a test that asserts the rule, red, with `Shortfall` citing the code. One no rule covers goes to the user, quoted, as a question with one recommended answer.
+11. **Playwright is the maintained browser driver.** The runner's exact command and flags are the repo's: the case's spec and its AGENTS.md name them.
+12. **The runner runs every test of the case** — it does not stop at the first failure, because an area with a red-on-purpose test would never run the rest — and each run writes to a private output folder of its own.
 
 ## Disproving a claim about a page
 
-- **"A person can't cause this from a page."** Try to find a way: the page opened by its address, a page loaded before the state changed, a second tab, a second person, Back, a reload, an upload, a pasted value.
+For "a person can't cause this from a page" (a `CantHappen` claim), the disprover tries to find a way: the page opened by its address, a page loaded before the state changed, a second tab, a second person, Back, a reload, an upload, a pasted value. Where a control is hidden, the claim says what hides it, and whether opening by address, or acting from a page loaded before the state changed, still reaches it.
 
-## Planning and checking the steps
+## The sweep
 
-- **One step, one thing a person does and what follows.**
-- **Steps are what a person does.**
-
-4. **It can be followed.** Read the page's code and the stand-ins. Can a person, and so a test, get to that state and do that thing? A step that would assert on an attribute carrying a value from the server (a `data-` attribute holding a status, an outcome, or a state), in place of what the person sees, is a finding (hard rule 14). Name what the step would use to find each element (a role, a test id, an element id), and say where the meta record's `TestIds` names one that doesn't exist.
-
-5. **It is what a person does.**
-
-### A step marked red on purpose
-
-Is the step in a test of its own where the person can reach it on its own? If it blocks other steps, which rows sit behind it?
-
-## Sweeping a test file
-
-### Part 2: sweep
-
-List every one of these in the file and its helpers, with file and line and what it is used for: `.first()`, `.last()`, `.nth(`, `force: true`, `nth-child`, `expect.soft`, `test.skip`, `test.fixme`, `test.fail`, `.catch(`, `try {`, `waitForTimeout`, `page.route`, `context.route`, ` as ` used as a type assertion, `toBeTruthy` or `toBeDefined` on something that always exists, a `page.request` or `request.` call that does what the plan says a person does, copy the plan doesn't give, and any assertion on an attribute that carries a value from the server (a `data-` attribute holding a status, an outcome, or a state) in place of what the person sees.
-
-Read source for selectors, not for the answer.
+After the build, list every one of the hard rules' forbidden items in the test file and its helpers, with file, line, and what it is used for — including an assertion on a server-valued attribute in place of what the person sees, and a `request` call that does what the source says a person does.

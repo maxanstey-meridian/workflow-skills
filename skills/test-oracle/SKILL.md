@@ -251,7 +251,7 @@ Check you can start subagents. If you can't, say so and stop.
 
 ### 1. Scope
 
-Agree with the user what a row is and what the rows are read from. It is said in the conversation; nothing is written to a file. Ask which kind reference applies, if the work has one.
+Agree with the user what a row is and what the rows are read from. It is said in the conversation; nothing is written to a file. The kind references are in `<skill>/kinds/`, and the first line of each names the cases it fits. Check the work against them, and where one fits, put it to the user with the file named — the user names the kind, and it enters the read-first list; where none fits, say so and go on with none.
 
 Done when: the user has said it is what they meant.
 
@@ -294,11 +294,17 @@ Done when: every row `open` named has been answered, struck, or sent back, and t
 
 ### 6. The pre-spec step
 
-When the `fill` pass is merged (a row that is still a question for the user does not hold the step back), read `<skill>/pre-spec.md` in full, and tell the user to run `/spec`, naming the case folder and that file as the work. `/spec` and `/go` run in the user's own session, unchanged.
+When the `fill` pass is merged (a row that is still a question for the user does not hold the step back), read `<skill>/pre-spec.md` in full, and send the user this line, with the absolute paths filled in, ready to paste into this session or a fresh one:
+
+```
+/spec Build the tests for the test-oracle case at <the case folder's absolute path>. Its table, <the case folder's absolute path>/table/rows.jsonl, is the oracle. Follow <the absolute path of pre-spec.md> in full.
+```
+
+`/spec` takes no arguments: the words after it are the agreed work in the conversation, and the two paths are the documents the work names, which its gather step reads. `/spec` and `/go` run in the user's own session, unchanged.
 
 Before anything is built, `/spec`'s cold reader reads the spec cold against the table and the written sources, row for row. Whoever writes the spec checks what it relies on against the code, then sends corrections back into the spec. A correction never removes a row, and never changes what a test expects to match the code. The check is done when every finding is fixed in the spec, or is a question for the user, or is named to the user as not taken with the reason; and the user has answered the questions.
 
-Done when: you have read `pre-spec.md` in full and told the user to run `/spec`, naming the case folder and that file.
+Done when: you have read `pre-spec.md` in full and sent that line with both absolute paths.
 
 ### 7. After /go and /cycle
 
