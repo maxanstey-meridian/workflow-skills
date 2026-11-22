@@ -1,6 +1,0 @@
-# The kinds of this routine, built by scripts/build-roles.sh into <name>.md beside this list. One kind of line:
-#   kind <name> <part>[,<part>...]
-#     builds kinds/<name>.md: the parts (files under kinds/<name>/, without .md), in order.
-#     A part is a rule, in the five-part format (core/write-every-rule-in-the-five-part-format.md),
-#     and the part named head is exempt from the format check, as the index files are.
-kind browser-behaviour head,do-what-the-person-does-through-the-page,outside-services-may-be-stood-in-for-the-rest-are-real,read-source-for-selectors-not-for-the-answer,find-elements-by-role-test-id-or-element-id,a-test-id-finds-an-element-the-test-asserts-what-the-person-sees,assert-the-fact-a-message-carries,a-red-on-purpose-test-sits-in-a-test-of-its-own,no-workaround-to-get-a-test-past-a-defect,only-a-browser-test-that-has-run-closes-a-row,what-the-server-says-today-is-evidence-never-an-expected-value,playwright-is-the-maintained-browser-driver,the-runner-runs-every-test-of-the-case,leave-what-the-person-saw-the-way-the-repo-leaves-it,disproving-a-claim-about-a-page,the-sweep

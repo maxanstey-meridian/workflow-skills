@@ -1,8 +1,0 @@
-*
-!.gitignore
-!oracle.conf.json
-!frozen.json
-!rulings.md
-!rows.py
-!*/oracle.jsonl
-!*/rulings.md
