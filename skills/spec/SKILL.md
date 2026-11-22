@@ -13,7 +13,7 @@ description: Turn the agreed work into a deterministic named spec at <main>/.pla
 
 ## 1. Gather
 
-Find the agreed work in this conversation, the user's answers, and any document, backlog, or waypoint the work names. If nothing is agreed yet, say `/spec` needs the work agreed in the conversation first, and stop. Otherwise read, in full, `<skill>/references/rules-core.md`, `<skill>/references/rules-invariants.md`, and `<skill>/references/rules-tests.md`, plus `<skill>/references/rules-backend.md` with `<skill>/references/rules-backend-tooling.md` and/or `<skill>/references/rules-frontend.md` for the stacks the work touches. These are the house Laws and rules the spec is held to.
+Find the agreed work in this conversation, the user's answers, and any document, backlog, or waypoint the work names. If nothing is agreed yet, say `/spec` needs the work agreed in the conversation first, and stop. Otherwise read, in full, `<skill>/references/rules-core.md`, `<skill>/references/rules-invariants.md`, and `<skill>/references/rules-tests.md`, plus `<skill>/references/rules-backend.md` with `<skill>/references/rules-backend-tooling.md` and/or `<skill>/references/rules-frontend.md` for the stacks the work touches. These are the house Laws and rules the spec is held to. When the agreed work builds tests for an `__oracle__` case, also read `<case>/oracle.conf.json`, its locked `*.oracle.yaml` files, its kind file (`<skill>/../oracle/kinds/<kind>.md`), and `<skill>/../oracle/handoff.md`.
 
 Done when you can say in a few sentences what will be true for the user, and you have read those files.
 

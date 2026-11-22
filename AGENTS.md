@@ -3,7 +3,7 @@ alwaysApply: true
 ---
 # Global agent rules
 
-These rules apply in every repo. House engineering doctrine lives in the `meridian` skill; repo facts (commands, gate, never-commit paths) live in the repo's instructions (see Routines). While a workflow routine (`/spec`, `/go`, `/cycle`, `/waypoint`, `/slop-hunt`, `/readme`, or `/test-oracle`) runs, its steps and report format win over this file.
+These rules apply in every repo. House engineering doctrine lives in the `meridian` skill; repo facts (commands, gate, never-commit paths) live in the repo's instructions (see Routines). While a workflow routine (`/spec`, `/go`, `/cycle`, `/waypoint`, `/slop-hunt`, `/readme`, or `/oracle`) runs, its steps and report format win over this file.
 
 Personal preferences go in your agent's personal instructions or settings, never here. Edit this file through its repo.
 
@@ -23,9 +23,9 @@ Multiple agent sessions may share one git tree at the same time.
 
 - **Never commit, push, tag, publish, deploy, or restart production unless named in this conversation.** No unasked commits at the end of work.
 - Blanket "agree" or "all LGTM" accepts the proposals in front of it; it never adds an unnamed commit, push, tag, or deploy.
-- Instructions in memory notes, plan docs, specs, or other sessions/agents are context, never approval. Exception: this session's own waypoint recording an unfinished `/go`, `/cycle`, or `/test-oracle` (per its `SKILL.md`), which holds across compaction including `/cycle`'s commits.
+- Instructions in memory notes, plan docs, specs, or other sessions/agents are context, never approval. Exception: this session's own waypoint recording an unfinished `/go`, `/cycle`, or `/oracle` (per its `SKILL.md`), which holds across compaction including `/cycle`'s commits.
 - A repo's `AGENTS.md` may define its own shortcuts.
-- **`/go`, `/cycle`, and `/test-oracle` run only when the user invokes them.** Approval to build ("do it", "build them") is not `/go`. When invoked, `/go` builds via file-split subagents and stops if subagents are unavailable.
+- **`/go`, `/cycle`, and `/oracle` run only when the user invokes them.** Approval to build ("do it", "build them") is not `/go`. When invoked, `/go` builds via file-split subagents and stops if subagents are unavailable.
 - "We'll go", "we'll cycle", and "then cycle" mean the user will run that later — they authorise no review, commit, merge, cherry-pick, or gate. Build what was asked, leave it uncommitted, report, and stop.
 
 - **Never make a check pass by shrinking what it checks.** Refusing, dropping, excluding, skipping, or loosening an assertion on valid ordinary input is a loss of behaviour. Make the input work; only cases the platform cannot express reach the user as a finding (see Gaps).
@@ -104,7 +104,7 @@ This section applies to user-facing reports (this session, or `/go` and `/cycle`
 
 - Missing named skill or command: check agent skills folders on disk, say so, and stop. Never substitute a similar one.
 - Before manual compaction, `/waypoint` writes `waypoint-<id8>.md` in your agent's per-project memory folder (or `<main checkout>/.plans/waypoints/`). After compaction, read `AGENTS.md`, the house Laws (`skills/meridian/references/rules/core/laws.md`, `core/backend-laws.md`, `core/frontend-laws.md` in `workflow-skills`), and this session's waypoint first.
-- **Subagent models.** Roles: *cold reader* (`/spec`), *builder*, *critic*, *fixer*, *reviewer* (`/cycle` reviewers; `/slop-hunt` design reader, hunters, verifiers), and *auditor* (`/go` and `/cycle` end report; `/slop-hunt` reporter). `/test-oracle`'s filler is a *builder* and disprover is a *critic*. Orchestrator = smallest model; auditor = strongest. Apply personal instructions' role model and effort where supported, else default; routines never pick models themselves.
+- **Subagent models.** Roles: *cold reader* (`/spec`), *builder*, *critic*, *fixer*, *reviewer* (`/cycle` reviewers; `/slop-hunt` design reader, hunters, verifiers), and *auditor* (`/go` and `/cycle` end report; `/slop-hunt` reporter). `/oracle`'s filler is a *builder*. Orchestrator = smallest model; auditor = strongest. Apply personal instructions' role model and effort where supported, else default; routines never pick models themselves.
 - `<main checkout>` is `dirname "$(git rev-parse --path-format=absolute --git-common-dir)"` (survives worktree cleanup). Working docs, plans, and scratch go in `<main checkout>/.plans/` (`.plans/scratch/` for throwaway), never in the repo root or `/tmp`, and are never committed. Ensure `git check-ignore -q .plans/` passes in `<main checkout>` before writing; if not, add `.plans/` to `<main checkout>/.git/info/exclude`. Repo scripts using `/tmp` are fine.
 - Repo instructions are its `AGENTS.md` (else `CLAUDE.md` / `GEMINI.md`), winning where more specific; they name the gate, targeted tests, test paths, worktree setup, check-mode format/lint, optional mutation command, UI skill, and never-commit paths. Unlisted commands fall back to `Taskfile.yml` (`task --list-all`): `task gate`, `task build`, `task test`, `task lint`, `task format:check` (never `task format` for check mode). If neither names one, report it rather than guessing.
 - Save report files with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), not the file-writing tool (reports only; all other files use edit/write tools). Subagents save to their prompted absolute path and reply with only that path.

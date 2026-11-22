@@ -1,0 +1,4 @@
+{
+  "kind": "cli",
+  "rows": ["node", "rows.ts"]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "oracle-ledger",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild ledger.ts --bundle --format=esm --platform=node --minify --banner:js=\"import { createRequire as __oracleCreateRequire } from 'node:module'; import { fileURLToPath as __oracleFileURLToPath } from 'node:url'; import { dirname as __oracleDirname } from 'node:path'; const require = __oracleCreateRequire(import.meta.url); const __filename = __oracleFileURLToPath(import.meta.url); const __dirname = __oracleDirname(__filename);\" --outfile=ledger.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/ledger.test.ts"
+  },
+  "dependencies": {
+    "@xmldom/xmldom": "0.9.12",
+    "commander": "15.1.0",
+    "typescript": "6.0.3",
+    "yaml": "2.9.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "esbuild": "^0.28.2"
+  }
+}
