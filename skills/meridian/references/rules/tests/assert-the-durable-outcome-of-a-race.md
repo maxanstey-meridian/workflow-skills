@@ -1,8 +1,8 @@
 ## Assert the durable outcome of a race
 
-**Default:** A concurrency test runs at the boundary that really arbitrates (the database, queue, or workflow engine that decides the winner) and asserts the durable result for the winner, the loser, any retry, and the conflict, not that a lock, repository, or queue method was called.
+**Default:** Run concurrency tests at the real arbitrating boundary (DB, queue, or workflow engine) and assert durable outcomes for winner, loser, retries, and conflicts — not mock method calls.
 
-**When:** A test that proves an invariant (a rule that must always hold) under an interleaving (a concrete order of reads and writes).
+**When:** Any interleaving test proving an invariant.
 
 Bad: `lock.Received(1).Acquire()`
-Good: one row in the table, and the second caller's result is `Conflict`.
+Good: One row in the table, and the second caller receives `Conflict`.

@@ -2,21 +2,21 @@
 <!-- rule: invariants/state-the-invariant-before-choosing-enforcement.md -->
 ## State the invariant before choosing enforcement
 
-**Law:** State the invariant (a rule the product must always keep true) in words that name no mechanism before you choose how to enforce it or think about concurrency.
+**Law:** State the invariant in plain words naming no mechanism before choosing enforcement or concurrency controls.
 
-**When:** Any change that adds or changes a rule the product must always keep true, before a lock, constraint, queue, or check is chosen for it.
+**When:** Adding or changing any product invariant, before picking a lock, constraint, queue, or check.
 
-Bad: "Wrap publish in a lock", with no rule stated.
-Good: "A form has at most one published version" stated first, then a unique index chosen to keep it true.
+Bad: "Wrap publish in a lock" with no rule stated.
+Good: Stating "a form has at most one published version" first, then choosing a unique index.
 <!-- rule: invariants/enforce-an-invariant-at-its-authoritative-boundary.md -->
 ## Enforce an invariant at its authoritative boundary
 
-**Law:** The domain decides what an important product invariant is, and an authoritative boundary enforces it; a controller, a UI, an AI model or its prompt, a comment, or a test suite never decides what the invariant is.
+**Law:** The domain defines product invariants and an authoritative boundary enforces them; a controller, UI, AI prompt, comment, or test suite never owns an invariant.
 
-**When:** Any product invariant (a rule the product must always keep true). The authoritative boundary is the place every write must pass: the domain decision, the constraint, or the conditional write.
+**When:** Any product invariant. The authoritative boundary is where every write must pass: domain decision, DB constraint, or conditional write.
 
-Bad: "A published form cannot be edited" kept only by the page hiding the Edit button.
-Good: The same rule kept by the use case's domain check and a conditional write, so no caller can get past it.
+Bad: Enforcing "a published form cannot be edited" only by hiding the Edit button.
+Good: Enforcing it via the use case's domain check and a conditional write so no caller can bypass it.
 <!-- rule: invariants/enforce-at-the-narrowest-owner-with-enough-information.md -->
 ## Enforce at the narrowest owner with enough information
 
@@ -29,21 +29,21 @@ Good: One unique index on `(tenant_id, name)`.
 <!-- rule: invariants/add-a-type-to-enforce-an-invariant-only-when-it-earns-its-place.md -->
 ## Add a type to enforce an invariant only when it earns its place
 
-**Default:** While enforcing an invariant, add a new type only when it shrinks the states that can be represented, centralises a legal transition, or owns a real consistency boundary.
+**Default:** Add a new type for an invariant only when it shrinks representable states, centralises a legal transition, or owns a real consistency boundary.
 
-**When:** Deciding whether to add a type while enforcing an invariant (a rule the product must always keep true).
+**When:** Deciding whether to add a type while enforcing an invariant.
 
-Bad: A `PublishedFormId` wrapper type that holds the same string as `FormId` and rules nothing out.
-Good: A `PublishedForm` type with no edit operation, so an edited published form cannot be represented.
+Bad: A `PublishedFormId` wrapper holding the same string as `FormId` and ruling nothing out.
+Good: A `PublishedForm` type with no edit operation, making an edited published form unrepresentable.
 <!-- rule: invariants/rule-out-an-invalid-value-with-the-smallest-tool.md -->
 ## Rule out an invalid value with the smallest tool
 
-**Default:** Rule out an invalid value with the first of these that is enough: a precise static type or discriminated union, runtime schema validation at an untrusted boundary, then a parser or value object (a type whose construction checks its input) only when it makes invalid construction impossible or removes duplicated validation.
+**Default:** Rule out invalid values with the smallest tool that suffices: a precise static type or discriminated union, runtime schema validation at untrusted boundaries, and a parser or value object only when it prevents invalid construction or removes duplicated validation.
 
-**When:** A value whose shape or range can be wrong, on any stack.
+**When:** Any value whose shape or range can be invalid, on any stack.
 
-Bad: A `Quantity` class wrapping every integer in the codebase.
-Good: `quantity: number` checked once by the request schema.
+Bad: Wrapping every integer in a `Quantity` class.
+Good: `quantity: number` validated once by the request schema.
 <!-- rule: invariants/use-an-aggregate-only-for-one-atomic-boundary.md -->
 ## Use an aggregate only for one atomic boundary
 
@@ -56,48 +56,48 @@ Good: A pure function that validates the two dates.
 <!-- rule: invariants/make-each-domain-decision-in-one-place.md -->
 ## Make each domain decision in one place
 
-**Law:** Write a domain decision (a rule's verdict on supplied state) once and have every use case (the Application code for one operation) call it; never copy the guard into a second caller.
+**Law:** Write a domain decision once and have every use case call it; never duplicate the guard in a second caller.
 
-**When:** Any rule that more than one use case or screen depends on. A UI shows the result the server returns, such as a flag or `availableActions` on the read model (the object the server returns for a screen); it never repeats the decision.
+**When:** Any rule shared by multiple use cases or screens. The UI renders the server's answer (a flag or `availableActions` on the read model) and never repeats the decision.
 
-Bad: `if (record.Status == Ended) return Refused` written in both `ExtendRecordUseCase` and `SuspendRecordUseCase`.
-Good: Both call `RecordLifecycle.Refusal(record, action, today)`.
+Bad: `if (record.Status == Ended) return Refused` copied into `ExtendRecordUseCase` and `SuspendRecordUseCase`.
+Good: Both calling `RecordLifecycle.Refusal(record, action, today)`.
 <!-- rule: invariants/let-the-write-decide-never-a-check-before-it.md -->
 ## Let the write decide, never a check before it
 
-**Law:** Never rely on a check made before a write (check-then-write) to keep an invariant: the write's constraint, conditional write, concurrency token, or transaction decides, and an application check only improves the error.
+**Law:** Never rely on check-then-write to hold an invariant: the write's constraint, conditional write, concurrency token, or transaction decides, and any prior check only improves the error.
 
-**When:** Any write whose correctness depends on the state it read, including an existence check before an insert or update and a decider's refusal (the pure function that guards a lifecycle's actions) in front of a write.
+**When:** Any state-dependent write, including existence checks before insert/update and decider refusals before writes.
 
-Bad: `if (!await repo.ExistsAsync(name)) await repo.AddAsync(item)`, which still races because another request can insert between the check and the write.
-Good: `INSERT ... ON CONFLICT DO NOTHING` against a unique index, with the conflict returned as an outcome.
+Bad: `if (!await repo.ExistsAsync(name)) await repo.AddAsync(item)`, which races between check and write.
+Good: `INSERT ... ON CONFLICT DO NOTHING` against a unique index, returning the conflict as an outcome.
 <!-- rule: invariants/show-the-interleaving-before-adding-coordination.md -->
 ## Show the interleaving before adding coordination
 
-**Law:** Do not add a lock, queue, or other coordination because a race is conceivable; first show a concrete interleaving (an order of two actors' reads and writes) that breaks the stated invariant.
+**Law:** Never add a lock, queue, or coordination mechanism because a race feels possible; first demonstrate a concrete read/write interleaving that breaks the stated invariant.
 
-**When:** Before adding any concurrency or messaging mechanism, a library one included.
+**When:** Before adding any concurrency or messaging mechanism, including library ones.
 
-Bad: A distributed lock around "update profile" because two requests might overlap.
-Good: The two-request sequence written out, found harmless because last writer wins, and no lock added.
+Bad: Putting a distributed lock around "update profile" because two requests might overlap.
+Good: Writing out the two-request sequence, seeing last-writer-wins is harmless, and adding no lock.
 <!-- rule: invariants/fix-a-shown-race-with-the-smallest-mechanism.md -->
 ## Fix a shown race with the smallest mechanism
 
-**Default:** For a race you have shown, use the first of these that keeps the invariant: accept last-writer-wins when it violates no invariant, a database constraint for a declarative truth, one atomic conditional statement (`INSERT ... ON CONFLICT` or `UPDATE ... WHERE ... RETURNING`) for a state-dependent write, a version or concurrency token when writers must detect stale state, a short transaction at the appropriate isolation level when one invariant needs several writes to be atomic, a row lock when one decision spans existing rows, then an established advisory or distributed-lock library, only when no row, constraint, or atomic statement can represent what is being coordinated.
+**Default:** For a demonstrated race, use the smallest mechanism that holds the invariant, in order: last-writer-wins (if harmless), DB constraint, single atomic conditional write (`INSERT ... ON CONFLICT` / `UPDATE ... WHERE ... RETURNING`), version/concurrency token, short transaction at appropriate isolation, row lock, and only last an established advisory/distributed lock library when no row, constraint, or atomic statement can represent the coordination.
 
-**When:** Persisted relational state with a demonstrated race (a concrete order of reads and writes that breaks the invariant).
+**When:** Persisted relational state with a concrete breaking interleaving.
 
 Bad: An advisory lock around "claim the next job".
 Good: `UPDATE jobs SET owner = @me WHERE id = @id AND owner IS NULL RETURNING id`.
 <!-- rule: invariants/prove-custom-concurrency-machinery-before-adding-it.md -->
 ## Prove custom concurrency machinery before adding it
 
-**Law:** Before adding a custom lock, lease, retry, heartbeat, fencing, or coordination state, write a test that runs the breaking order of reads and writes against the production persistence or runtime, with a header comment that states the invariant, that order, why last-writer-wins is unacceptable, which boundary arbitrates, and why each smaller mechanism that could apply (a constraint, a conditional write, a version token, a short transaction, a row lock) fails.
+**Law:** Before adding a custom lock, lease, retry, heartbeat, fencing, or coordination state, write an interleaving test against the real persistence/runtime with a header comment stating: the invariant, the breaking order of reads and writes, why last-writer-wins fails, which boundary arbitrates, and why every smaller mechanism (constraint, conditional write, version token, short transaction, row lock) fails.
 
-**When:** Any custom concurrency machinery, at any size. Ordinary SQL, adapter wiring, and tests are not machinery.
+**When:** Any custom concurrency machinery, regardless of size (ordinary SQL, adapter wiring, and tests are not machinery).
 
-Bad: A hand-written lease table added with a unit test that only asserts the lease method was called.
-Good: The same change with an interleaving test (the breaking order of reads and writes) run on PostgreSQL, whose header comment answers the five points.
+Bad: Adding a custom lease table with a unit test that only asserts the lease method was called.
+Good: An interleaving test on PostgreSQL whose header comment answers all five points.
 <!-- rule: invariants/use-an-advisory-lock-only-for-a-domain-identity.md -->
 ## Use an advisory lock only for a domain identity
 
@@ -110,47 +110,47 @@ Good: A unique index on the idempotency key.
 <!-- rule: invariants/design-every-locks-scope-timeout-and-loss-handling.md -->
 ## Design every lock's scope, timeout, and loss handling
 
-**Default:** When you add a lock, design its name, scope, timeout, cancellation, what happens when the connection or handle is lost (the lock can be released while the work is still running), and how it is released.
+**Default:** For every lock, design its name, scope, timeout, cancellation, release, and what happens if the connection or handle is lost while work is still running.
 
-**When:** Any advisory or distributed lock, a library one included.
+**When:** Any advisory or distributed lock, including library ones.
 
-Bad: `await lock("reindex", work)` with no timeout and no thought for a dropped connection.
-Good: A lock named per tenant, with a timeout, cancellation passed in, and a stated outcome if the lock is lost while the work runs.
+Bad: `await lock("reindex", work)` with no timeout or connection-loss handling.
+Good: A tenant-scoped lock with timeout, cancellation token, and a defined outcome if lost mid-run.
 <!-- rule: invariants/define-idempotency-key-meaning-in-the-application.md -->
 ## Define idempotency key meaning in the application
 
-**Default:** The application defines what an idempotency key (a token that makes a repeated request safe to run twice) means, including its scope, fingerprint, replay policy, and expiry, and the database or an established library reserves it and arbitrates; an idempotency key is not duplicate-content detection.
+**Default:** Define an idempotency key's scope, fingerprint, replay policy, and expiry in the application, while the database or an established library reserves and arbitrates it; it is not duplicate-content detection.
 
 **When:** Any operation made idempotent with a key.
 
-Bad: Two requests with the same body treated as one.
-Good: A key scoped to the tenant, stored under a unique index, replaying the first response for 24 hours.
+Bad: Treating two requests with the same body as one.
+Good: A tenant-scoped key under a unique index replaying the first response for 24 hours.
 <!-- rule: invariants/never-stretch-a-transaction-across-an-http-call.md -->
 ## Never stretch a transaction across an HTTP call
 
-**Law:** Never claim that a database change and an HTTP call are atomic by holding a transaction or a lock open across the call; accept explicit reconciliation, or, when the invariant needs retries, compensation, or reconciliation across systems that share no transaction, use a durable workflow with idempotent external steps.
+**Law:** Never hold a DB transaction or lock across an HTTP call to fake atomicity; use explicit reconciliation, or a durable workflow with idempotent external steps when retries or compensation are needed.
 
-**When:** A use case that writes to the database and calls an external API.
+**When:** Any use case that writes to the database and calls an external API.
 
 Bad: `BEGIN; insert order; await payments.charge(); COMMIT`.
-Good: The order saved as pending, the charge made with an idempotency key, and a reconciliation step that settles the order.
+Good: Saving the order pending, charging with an idempotency key, and settling via reconciliation.
 <!-- rule: invariants/use-an-outbox-only-for-atomic-state-plus-message.md -->
 ## Use an outbox only for atomic state plus message
 
-**Law:** Use a transactional outbox only when a committed database change must reliably produce a message; it is not a stronger form of database concurrency control.
+**Law:** Use a transactional outbox only when a committed DB change must reliably emit a message; it is not a stronger DB concurrency control.
 
-**When:** Backend code considering an outbox, a table of messages written in the same transaction as the state change and published afterwards.
+**When:** Backend code considering a transactional outbox.
 
-Bad: An outbox added so two writers don't overwrite each other.
-Good: A version column for the writers, and no outbox.
+Bad: Adding an outbox so two writers don't overwrite each other.
+Good: Using a version column for the writers and no outbox.
 <!-- rule: invariants/use-a-durable-queue-only-to-assign-serial-ownership.md -->
 ## Use a durable queue only to assign serial ownership
 
-**Default:** Use an established durable queue only when the invariant crosses the process boundary and the domain can give one partition or consumer serial ownership of the work.
+**Default:** Use an established durable queue only when an invariant crosses process boundaries and the domain can assign one partition or consumer serial ownership.
 
-**When:** Backend code considering a queue or durable messaging. A queue changes who owns the work and how it is processed; it is not a stronger form of database concurrency control.
+**When:** Backend code considering a queue or durable messaging — a queue assigns work ownership, it is not a stronger DB concurrency control.
 
-Bad: A queue put in front of "update stock" to avoid a lost update.
+Bad: Putting a queue in front of "update stock" to prevent a lost update.
 Good: A conditional `UPDATE ... WHERE quantity >= @n`.
 <!-- rule: invariants/never-blindly-retry-a-non-idempotent-operation.md -->
 ## Never blindly retry a non-idempotent operation
@@ -164,9 +164,9 @@ Good: The same call sent with an idempotency key the provider honours, then retr
 <!-- rule: invariants/give-a-guarded-lifecycle-one-pure-decider.md -->
 ## Give a guarded lifecycle one pure decider
 
-**Default:** Give an entity one decider, a pure function that answers "may this action happen now, and if not, why?" and lists the actions that are open, when all four hold: its lifecycle is a small closed set of states (an enum, or a few flags and dates that combine into one), several user actions depend on that state, the answer is needed in several use cases and on the page, and the decision is pure because facts that need I/O are loaded first and passed in.
+**Default:** Give an entity one pure decider answering "may this action happen now, and if not, why?" and listing open actions when all four hold: its lifecycle is a small closed state set (an enum, or a few flags and dates), several user actions depend on that state, several use cases and the page need the answer, and I/O facts are loaded first and passed in.
 
-**When:** Server domain code. Fit is structural: a live bug, or a page that disagrees with the server, shows where a decider would have helped and is not evidence that one fits.
+**When:** Server domain code. Fit is structural: a live bug or page/server drift shows where a decider would have helped, not that one fits.
 
 Bad: Four use cases each with their own `if (record.Status ...)` guard, and the page with a fifth copy.
 Good: One `RecordLifecycle` with `Refusal(record, action, today)` and `Available(record, today)`:
@@ -185,20 +185,20 @@ public static class RecordLifecycle
 <!-- rule: invariants/use-a-smaller-tool-when-no-decider-fits.md -->
 ## Use a smaller tool when no decider fits
 
-**Default:** When one of a decider's four conditions fails (a small closed set of states, several user actions depending on it, an answer needed in several use cases and on the page, a decision that is pure once the facts that need I/O are loaded and passed in), use the smaller tool: an inline guard, plus a flag on the read model (the object the server returns for a screen) if the page needs it, for one action guarded in one place, a flag on the read model for one yes-or-no, a plain pure decision function for one decision with one or two callers and no action list, conditional writes and constraints for transitions the system drives, a closed type that mirrors an external system's states, or the database alone when it already expresses the whole rule.
+**Default:** When any of a decider's four conditions fails (small closed state set, multiple state-dependent user actions, needed across multiple use cases and the UI, pure once I/O facts are loaded), use the smaller tool: an inline guard (+ read-model flag if the UI needs it) for one action in one place; a read-model flag for a single yes/no; a plain pure function for one decision with 1–2 callers and no action list; conditional writes/constraints for system-driven transitions; a closed type mirroring external states; or the DB alone when it expresses the whole rule.
 
-**When:** Server domain code where a decider (the one pure function that guards a lifecycle's actions) was considered.
+**When:** Server domain code where a lifecycle decider was considered.
 
-Bad: A `DeliveryLifecycle` decider for retries that the scheduler drives.
+Bad: A `DeliveryLifecycle` decider for scheduler-driven retries.
 Good: A conditional `UPDATE ... WHERE status = 'pending'`.
 <!-- rule: invariants/pass-state-and-time-into-a-decider.md -->
 ## Pass state and time into a decider
 
-**Default:** A decider takes plain state and the time as arguments and does no I/O, so it reads no clock, repository, or service, and facts that need I/O are loaded first and passed in.
+**Default:** Pass plain state and time into a decider; it does no I/O (no clock, repository, or service) — load I/O facts first and pass them in.
 
-**When:** Writing a decider (the one pure function that guards a lifecycle's actions) or any pure decision function.
+**When:** Writing a lifecycle decider or any pure decision function.
 
-Bad: `Refusal(recordId, action)` that loads the record and calls `DateTime.UtcNow`.
+Bad: `Refusal(recordId, action)` loading the record and calling `DateTime.UtcNow`.
 Good: `Refusal(RecordState record, RecordAction action, DateOnly today)`.
 <!-- rule: invariants/take-date-rules-from-the-organisations-business-date.md -->
 ## Take date rules from the organisation's business date
@@ -212,29 +212,29 @@ Good: Today's date in the organisation's time zone, taken from the injected cloc
 <!-- rule: invariants/keep-the-state-change-out-of-the-decider.md -->
 ## Keep the state change out of the decider
 
-**Default:** Formalise only the decision; the state change stays a plain transform in the use case unless the transform is itself a rule.
+**Default:** Put only the decision in the decider; keep the state change as a plain transform in the use case unless the transform itself is a rule.
 
-**When:** Writing a decider (the one pure function that guards a lifecycle's actions); the use case is the Application code for one operation.
+**When:** Writing a lifecycle decider.
 
-Bad: `RecordLifecycle.Apply(record, action)` that both decides and builds the new record.
-Good: The use case checks `Refusal`, then writes `record with { Status = Suspended }`.
+Bad: `RecordLifecycle.Apply(record, action)` both deciding and building the new record.
+Good: The use case checking `Refusal`, then writing `record with { Status = Suspended }`.
 <!-- rule: invariants/pin-a-rules-sql-copy-to-the-decider.md -->
 ## Pin a rule's SQL copy to the decider
 
-**Default:** When SQL must also express a rule the decider owns, such as a list filter by derived status, keep the SQL copy and hold it to the decider with a test.
+**Default:** When SQL must mirror a decider rule (e.g., filtering a list by derived status), keep the SQL copy and pin it to the decider with a parity test.
 
-**When:** A query that filters or sorts by a state the decider (the one pure function that guards a lifecycle's actions) derives.
+**When:** Any query filtering or sorting by a decider-derived state.
 
-Bad: A `WHERE` clause for "extendable records" that nobody compares with `Refusal`.
-Good: A test that runs the query and the decider over the same rows and asserts they agree.
+Bad: A `WHERE` clause for "extendable records" never compared against `Refusal`.
+Good: A test running the query and decider over the same rows and asserting agreement.
 <!-- rule: invariants/record-a-modules-invariants-beside-its-code.md -->
 ## Record a module's invariants beside its code
 
-**Default:** A module records the invariants it owns in an `INVARIANTS.md` at the module root, beside the code a change would break.
+**Default:** Record a module's invariants in `INVARIANTS.md` at the module root, beside the code a change would break.
 
-**When:** A backend module (one feature's folder under `Modules/`) that owns at least one invariant worth an entry. A decision with no single owning module, such as deployment topology, contract generation, or a release policy, goes in no `INVARIANTS.md`.
+**When:** Any backend module (`Modules/<Feature>`) owning at least one invariant worth an entry. Cross-repo decisions (deployment topology, contract codegen, release policy) do not go in any `INVARIANTS.md`.
 
-Bad: The forms module's rules written in a wiki page.
+Bad: Recording the forms module's rules on a wiki page.
 Good: `Modules/Forms/INVARIANTS.md`.
 <!-- rule: invariants/record-only-invariants-a-newcomer-could-break.md -->
 ## Record only invariants a newcomer could break
@@ -248,21 +248,21 @@ Good: No entry for the unique email, and an entry for "a published form never ch
 <!-- rule: invariants/record-only-rules-that-are-enforced-and-proved.md -->
 ## Record only rules that are enforced and proved
 
-**Default:** Give a rule an entry only when it is both enforced and proved; a rule that is not is not an invariant yet and gets no entry.
+**Default:** Add an `INVARIANTS.md` entry only when the rule is both enforced and proved; otherwise it is not an invariant yet.
 
-**When:** Deciding whether a rule belongs in a module's `INVARIANTS.md`, whose entries each name an `Owner` (the code that enforces the rule) and a `Proof` (the test that proves it).
+**When:** Deciding whether a rule belongs in `INVARIANTS.md` (each entry requires a real `Owner` and `Proof`).
 
-Bad: An entry for "a published form never changes" when no code guards it and no test covers it.
-Good: The guard and its test written first, then the entry.
+Bad: Adding an entry for "a published form never changes" with no guard or test.
+Good: Writing the guard and test first, then adding the entry.
 <!-- rule: invariants/give-every-invariant-entry-an-id-and-five-fields.md -->
 ## Give every invariant entry an id and five fields
 
-**Default:** Each entry is a heading with a stable id, unique across the repository and never renumbered once code or docs cite it, and a present-tense title, followed by `Rule`, `Why`, `Accepts`, `Owner`, and `Proof`, with no status, author, date, or tag fields and no minimum number of alternatives or consequences.
+**Default:** Each entry has a stable, repo-unique heading id (never renumbered once cited) and present-tense title, followed by `Rule`, `Why`, `Accepts`, `Owner`, and `Proof` — no status, author, date, or tag fields, and no minimum count of alternatives or consequences.
 
-**When:** Writing an entry in a module's `INVARIANTS.md`. `Owner` names the authoritative boundary (the place every write must pass), not every caller on the path; `Accepts`, the entry's field for a deliberately chosen cost, is left out when the rule has none.
+**When:** Writing a module's `INVARIANTS.md`. `Owner` names the authoritative boundary (not every caller); omit `Accepts` when there is no chosen cost.
 
 Bad: `## Publishing rules (draft, owner: Sam, 2026-03)` followed by free prose.
-Good: An id and present-tense title, then the five fields:
+Good:
 ```markdown
 ## FORM-RULES-001: A published form never changes
 **Rule:** what must hold, in one paragraph.
@@ -283,21 +283,21 @@ Good: The `Rule` paragraph rewritten to the current rule.
 <!-- rule: invariants/record-only-chosen-trade-offs-under-accepts.md -->
 ## Record only chosen trade-offs under Accepts
 
-**Law:** `Accepts` (the entry's field for a deliberately chosen cost) holds only a cost chosen over a working alternative, for a stated reason; a known defect or an unchecked promise never goes there, however well documented.
+**Law:** `Accepts` holds only a deliberate trade-off chosen over a working alternative for a stated reason — never a known defect or unchecked promise.
 
-**When:** Writing the `Accepts` field of an entry in a module's `INVARIANTS.md`, the field that stops a later change from "fixing" a deliberate cost.
+**When:** Writing the `Accepts` field in `INVARIANTS.md` (which prevents later changes from "fixing" a deliberate cost).
 
 Bad: "Accepts: uniqueness is not enforced across tenants".
-Good: The cross-tenant uniqueness enforced with a unique index, and no `Accepts` line.
+Good: Enforcing cross-tenant uniqueness with a unique index and omitting `Accepts`.
 <!-- rule: invariants/confirm-the-proof-fails-without-the-owner.md -->
 ## Confirm the proof fails without the owner
 
-**Default:** Before writing `Owner` or `Proof`, open both and confirm the proof would fail if the owner stopped enforcing the rule.
+**Default:** Before writing `Owner` or `Proof`, open both and confirm the proof fails if the owner stops enforcing the rule.
 
-**When:** Writing or changing an entry in a module's `INVARIANTS.md`, whose `Owner` field names the code that enforces the rule and whose `Proof` field names the test that proves it; a claim the code does not back is worse than no entry.
+**When:** Writing or editing an `INVARIANTS.md` entry (`Owner` = enforcing code, `Proof` = proving test); an unbacked claim is worse than no entry.
 
-Bad: `Proof: PublishFormTests` named from memory, where the tests never try to edit a published form.
-Good: The guard removed locally, the test seen to fail, then the entry written.
+Bad: Writing `Proof: PublishFormTests` from memory when those tests never try to edit a published form.
+Good: Removing the guard locally, seeing the test fail, then writing the entry.
 <!-- rule: invariants/record-a-cross-module-invariant-in-each-owner.md -->
 ## Record a cross-module invariant in each owner
 

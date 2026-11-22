@@ -1,8 +1,8 @@
 ## Apply the authorization policy at the endpoint
 
-**Law:** The endpoint applies the authentication requirement and the named authorisation policy unconditionally, and a decision that needs the resource or its state is made in the use case, never in a controller.
+**Law:** Apply authentication and the named authorisation policy unconditionally at the endpoint; make resource- or state-dependent decisions in the use case, never in a controller.
 
-**When:** Every endpoint. ASP.NET: `[Authorize]`, an `AuthorizeFilter` in `MvcOptions.Filters`, `.RequireAuthorization()`, or a fallback policy. A security declaration in the OpenAPI document enforces nothing; the handler's authorisation does.
+**When:** Every endpoint. ASP.NET: `[Authorize]`, `AuthorizeFilter` in `MvcOptions.Filters`, `.RequireAuthorization()`, or a fallback policy. OpenAPI security declarations enforce nothing; handler authorisation does.
 
-Bad: `if (settings.AuthEnabled) group.RequireAuthorization("Editors")`, with the ownership check in the controller.
-Good: `.RequireAuthorization("Editors")` always, and the ownership check in the use case.
+Bad: `if (settings.AuthEnabled) group.RequireAuthorization("Editors")`, with ownership checked in the controller.
+Good: `.RequireAuthorization("Editors")` unconditionally, and ownership checked in the use case.

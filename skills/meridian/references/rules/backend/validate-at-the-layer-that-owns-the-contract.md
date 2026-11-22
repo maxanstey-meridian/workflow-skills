@@ -1,8 +1,8 @@
 ## Validate at the layer that owns the contract
 
-**Default:** Validate each thing once, where its contract is owned: parsing and binding at the transport edge (controllers, endpoints, and the mappers beside them), command shape and meaning in Application, state invariants in Domain, and uniqueness and referential rules in Application backed by database constraints.
+**Default:** Validate each rule once at its contract owner: parsing/binding at the transport edge, command shape/meaning in Application, state invariants in Domain, and uniqueness/referential rules in Application backed by DB constraints.
 
-**When:** .NET and TypeScript backends. A check that is only about HTTP may stay at the edge, while a command that HTTP, queues, jobs, and tests can all send owns its own validation; never repeat one rule in both places.
+**When:** .NET and TypeScript backends. HTTP-only checks stay at the edge; commands reachable from HTTP, queues, jobs, or tests own their own validation — never duplicate one rule in both places.
 
-Bad: "Name is required" checked in the request validator and again in the command validator.
-Good: "Name is required" checked in the command validator only.
+Bad: Checking "Name is required" in both the request validator and the command validator.
+Good: Checking "Name is required" in the command validator only.

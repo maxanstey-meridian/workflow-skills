@@ -1,8 +1,8 @@
 ## Close published contracts over published types
 
-**Law:** A module's published contract (the types it deliberately exposes to other modules) and the transport contract (the route definitions and wire types in top-level `Contracts/<Feature>/`) refer only to published or shared types, never to a module's Domain, Application, Infrastructure, or presentation types; move wire-facing enums, records, and value shapes into the contract and map at the transport edge (controllers, endpoints, and the mappers beside them).
+**Law:** Module published contracts (`Modules/<Feature>/Contracts/` or `src/modules/<feature>/contracts/`) and transport contracts (`Contracts/<Feature>/`) reference only published or shared types — never Domain, Application, Infrastructure, or presentation types; map at the transport edge.
 
-**When:** Files under a module's published contract folder (`Modules/<Feature>/Contracts/` on .NET, `src/modules/<feature>/contracts/` on TypeScript) and under the top-level transport contract folder (`Contracts/<Feature>/`). C# `public` does not make a domain type published. A module's published contract may be used by Application, integration, and transport contract code.
+**When:** Published and transport contract files. C# `public` does not make a domain type published. Application, integration, and transport contract code may use a module's published contract.
 
-Bad: a contract record with a property of type `Forms.Domain.FormStatus`.
-Good: a `FormStatusDto` enum declared in the contract and mapped at the edge.
+Bad: A contract record with a `Forms.Domain.FormStatus` property.
+Good: A `FormStatusDto` enum declared in the contract and mapped at the edge.

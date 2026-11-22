@@ -1,8 +1,8 @@
 ## Fake the port, never the database
 
-**Law:** A test that avoids persistence fakes the repository or query port (the application-owned type that names the capability); it never puts a fake database underneath the real adapter.
+**Law:** To avoid persistence in a test, fake the repository or query port — never put a fake database beneath the real adapter.
 
-**When:** Backend tests. Either the test runs the real adapter on the real engine, or it fakes the port and the adapter is not under test.
+**When:** Backend tests: either run the real adapter on the real engine, or fake the port.
 
-Bad: the real `EfFormRepository` over a fake `DbContext`.
-Good: an `InMemoryFormRepository` in place of the port.
+Bad: Running `EfFormRepository` over a fake `DbContext`.
+Good: Substituting `InMemoryFormRepository` for the port.

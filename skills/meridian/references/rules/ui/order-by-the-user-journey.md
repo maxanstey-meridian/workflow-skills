@@ -1,8 +1,8 @@
 ## Order by the user journey
 
-**Default:** Order decisions as the user reasons about the task (establish context, make the primary choice, configure only what it requires, handle exceptional behaviour, review the result, confirm or save), and never ask a later question before the user has the context for it.
+**Default:** Order decisions as the user reasons about the task (context, primary choice, required config, edge cases, review, confirm); never ask a later question before its context is set.
 
-**When:** Any form or flow with more than one decision.
+**When:** Any multi-decision form or flow.
 
-Bad: "What should happen if the file already exists?" asked before the user has chosen where files go.
-Good: The same question asked after the destination is chosen.
+Bad: Asking "What should happen if the file already exists?" before choosing where files go.
+Good: Asking that after the destination is chosen.

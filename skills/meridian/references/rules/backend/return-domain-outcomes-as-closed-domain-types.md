@@ -1,8 +1,8 @@
 ## Return Domain outcomes as closed Domain types
 
-**Default:** A Domain decision (a rule's verdict on supplied state) with a closed set of meaningful outcomes returns its own result record or sealed outcome type, never an exception and never a general-purpose result type such as FluentResults or a hand-rolled `Result`.
+**Default:** Return a closed Domain decision's outcomes as its own result record or sealed type — never an exception or general-purpose `Result` (FluentResults or custom).
 
-**When:** Domain code on .NET or TypeScript. A decider's refusal (the decider is the one pure function that guards a lifecycle's actions) is such an outcome.
+**When:** Domain code on .NET or TypeScript (including lifecycle decider refusals).
 
 Bad: A Domain method returning `Result.Fail("ended")`.
 Good: `RecordRefusal? Refusal(…)` returning `RecordRefusal.Ended`.

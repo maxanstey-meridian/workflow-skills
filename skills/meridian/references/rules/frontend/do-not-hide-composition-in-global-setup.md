@@ -1,8 +1,8 @@
 ## Do not hide composition in global setup
 
-**Default:** Do not put composition (creating implementation composables and providing ports) in the app shell, which is set up once for every page, unless the capability is genuinely app-wide.
+**Default:** Never wire page-scoped composables or ports in the app shell (`app.vue`); put composition there only for genuinely app-wide capabilities.
 
-**When:** Vue and Nuxt frontends; in Nuxt the app shell is `app.vue`.
+**When:** Vue and Nuxt frontends.
 
-Bad: `provideFormDraft(useFormDraft(id))`, for state one page uses, in `app.vue`.
-Good: the same line in that page.
+Bad: `provideFormDraft(useFormDraft(id))` in `app.vue` for state used by one page.
+Good: The same line in that page.

@@ -11,30 +11,30 @@ Good: the saved form loaded back and its fields asserted.
 <!-- rule: tests/use-real-dependencies-first-fakes-second-mocks-last.md -->
 ## Use real dependencies first, fakes second, mocks last
 
-**Default:** Use the real dependency when it is cheap enough, a hand-written fake (a working stand-in) when the real thing is too heavy, slow, or unstable for the test, and a mock (a stand-in from a mocking library) only at a narrow, volatile boundary; do not build the test around mocks first.
+**Default:** Prefer the real dependency when cheap enough, a hand-written fake when the real thing is too heavy, slow, or unstable, and a library mock only at a narrow, volatile boundary — never default to mocks.
 
-**When:** Choosing a stand-in in any test. Reasons for a mock: a non-deterministic external system, an expensive boundary, unstable infrastructure, a rare failure case. Reasons for a fake: storage or transport is too heavy for the test but the behaviour callers rely on still matters, a cheaper in-memory implementation can exercise the same capability honestly, or the real dependency would make the test brittle. Not reasons for either: avoiding a proper port (the application-owned type that names a capability), testing call order, making coupled code look testable, or making the test easier to write at the cost of realism.
+**When:** Choosing test doubles. Mock for: non-deterministic external systems, expensive boundaries, unstable infrastructure, or rare failures. Fake when: real storage or transport is too heavy or brittle, yet caller-facing behaviour still matters and an in-memory implementation exercises it honestly. Never mock or fake to avoid a proper port, test call order, make coupled code look testable, or trade realism for convenience.
 
-Bad: a use case test built from five `Substitute.For<>()` calls.
-Good: the real use case with an in-memory fake repository and one substitute for the payment gateway.
+Bad: A use case test built from five `Substitute.For<>()` calls.
+Good: The real use case with an in-memory fake repository and one substitute for the payment gateway.
 <!-- rule: tests/test-through-the-real-boundary-when-you-can.md -->
 ## Test through the real boundary when you can
 
-**Default:** When behaviour crosses a boundary, test it through the real wiring and the real flow rather than an isolated unit with the wiring mocked.
+**Default:** Test cross-boundary behaviour through the real wiring and flow rather than an isolated unit with mocked wiring.
 
-**When:** A behaviour that spans a use case (the Application code for one operation) and its adapters (the implementations of the ports it needs), or a page and its composables.
+**When:** Behaviour spanning a use case and its adapters, or a page and its composables.
 
-Bad: a controller test with the use case mocked, and a use case test with the repository mocked.
-Good: one test that posts to the real host and reads the row back.
+Bad: A controller test mocking the use case plus a use-case test mocking the repository.
+Good: One test posting to the real host and reading the row back.
 <!-- rule: tests/match-the-test-level-to-the-failure-risk.md -->
 ## Match the test level to the failure risk
 
-**Default:** Choose the test by what could go wrong: a focused unit test for a pure decision, a behaviour test through ports (the application-owned types that name capabilities) for orchestration, a real-adapter integration test (an adapter is the implementation of a port) for persistence or protocol, a host or page composition test for wiring, and a few end-to-end tests for critical journeys; follow no fixed pyramid or branch-coverage quota.
+**Default:** Match test level to failure risk — unit test for pure decisions, behaviour test through ports for orchestration, real-adapter integration test for persistence/protocol, composition test for wiring, and a few end-to-end tests for critical journeys; follow no fixed pyramid or coverage quota.
 
-**When:** Deciding what kind of test a change needs.
+**When:** Choosing what test a change needs.
 
-Bad: an end-to-end browser test for a discount calculation.
-Good: a unit test of the pure discount function.
+Bad: An end-to-end browser test for a discount calculation.
+Good: A unit test of the pure discount function.
 <!-- rule: tests/test-pure-code-directly.md -->
 ## Test pure code directly
 
@@ -47,32 +47,32 @@ Good: the mapping in `logic/` called with three inputs.
 <!-- rule: tests/test-an-adapter-directly-only-when-it-has-behaviour.md -->
 ## Test an adapter directly only when it has behaviour
 
-**Default:** Test an adapter (the implementation of a port against a database, client, or SDK) directly when it is non-trivial, its mapping matters, its failure handling matters, or the external system's API is brittle; do not write tests that only restate what the ORM or SDK does.
+**Default:** Test an adapter directly when it is non-trivial, its mapping or failure handling matters, or the external API is brittle; never write tests that only restate the ORM or SDK.
 
 **When:** Deciding whether an adapter needs its own tests.
 
-Bad: a test that saves an entity and loads it back through a one-line EF repository.
-Good: a test of the adapter that maps a unique-violation to "already exists".
+Bad: Saving and loading an entity through a one-line EF repository.
+Good: Testing an adapter that maps a unique-violation to "already exists".
 <!-- rule: tests/enforce-module-boundaries-with-a-check-that-runs.md -->
 ## Enforce module boundaries with a check that runs
 
-**Default:** Where the code depends on module boundaries (one feature's folder under `Modules/` must not reach into another's), enforce them with a check that runs in the build or in CI, not with a document.
+**Default:** Enforce module boundaries (`Modules/` isolation) with a check that runs in the build or CI, not a document.
 
-**When:** Any backend with modules. .NET: every project that owns a `Modules/` tree is covered by architecture tests that execute ArchUnitNET or NetArchTest rules, or by CI, a task, or a script that runs Plumb; a package with no execution, or a declared rule that is never checked, does not count. TypeScript: lint import-boundary rules, dependency-cruiser, architecture tests, or real workspace package boundaries. The checks cover: Domain depends on neither Application nor Infrastructure, Application not on Infrastructure, no module on a sibling's internals, module dependencies running one way against the repo's claims, and a dependency between modules only through a port the consumer owns (a port is the application-owned type that names a capability), a published contract the provider owns (the types a module deliberately exposes to other modules), or a shared kernel (a small concept two or more modules own together).
+**When:** Any modular backend. .NET: every project owning `Modules/` needs executed ArchUnitNET/NetArchTest rules or a CI/task/script running Plumb (an unexecuted package or rule does not count). TypeScript: lint import-boundary rules, dependency-cruiser, architecture tests, or workspace package boundaries. Checks must cover: Domain depends on neither Application nor Infrastructure; Application not on Infrastructure; no module imports a sibling's internals; module dependencies run one way as claimed; cross-module dependencies use only a consumer-owned port, a provider-owned published contract, or a shared kernel.
 
-Bad: the ArchUnitNET package referenced with no test that runs a rule.
-Good: an architecture test that fails `dotnet test` when a module imports a sibling's Domain.
+Bad: Referencing ArchUnitNET with no test executing a rule.
+Good: An architecture test that fails `dotnet test` when a module imports a sibling's Domain.
 
 Links: [Plumb](https://github.com/maxanstey-meridian/plumb)
 <!-- rule: tests/give-every-different-outcome-a-test.md -->
 ## Give every different outcome a test
 
-**Default:** Every materially different outcome a change introduces has evidence at the cheapest honest level; several code branches that produce one outcome do not each need a test, and covering the wiring does not cover the use case (the Application code for one operation) behind it.
+**Default:** Test every materially different outcome at the cheapest honest level; multiple branches yielding one outcome don't each need a test, and wiring tests don't cover the use case behind them.
 
-**When:** Any change that adds behaviour.
+**When:** Any change adding behaviour.
 
-Bad: a new endpoint with one happy-path test.
-Good: tests for the endpoint's 404, 422, and success outcomes.
+Bad: A new endpoint with only a happy-path test.
+Good: Tests covering the endpoint's 404, 422, and success outcomes.
 <!-- rule: tests/add-a-test-only-for-behaviour-nothing-else-proves.md -->
 ## Add a test only for behaviour nothing else proves
 
@@ -130,36 +130,36 @@ Good: `expect(total).toBe(100)`, with the red result reported.
 <!-- rule: tests/mark-an-unfixed-gap-as-an-expected-failure.md -->
 ## Mark an unfixed gap as an expected failure
 
-**Default:** When a test reaches a gap (a known defect) that is reported as new work rather than fixed, mark the test as an expected failure that names that work, never as a skip, so the suite goes red the day the gap is fixed, and the mark is then removed.
+**Default:** When a test hits a reported unfixed gap, mark it as an expected failure naming that work — never skip it — so the suite goes red when the gap is fixed and the mark gets removed.
 
-**When:** A test that asserts intended behaviour the code does not yet meet. Playwright: `test.fail()`; other frameworks: their expected-failure mark.
+**When:** Tests asserting intended behaviour not yet met (Playwright: `test.fail()`; other frameworks: their expected-failure mark).
 
 Bad: `test.skip("rounds half up", async () => { … })`
 Good: `test.fail("rounds half up (issue 412)", async () => { … })`
 <!-- rule: tests/count-a-fake-as-coverage-only-above-the-port.md -->
 ## Count a fake as coverage only above the port
 
-**Default:** A test that uses a fake or a mock covers the behaviour above the port, never the adapter it replaced; prove arbitration, atomicity, ordering, redelivery, and lock loss through the real adapter.
+**Default:** A test using a fake or mock covers only behaviour above the port, never the replaced adapter; prove arbitration, atomicity, ordering, redelivery, and lock loss through the real adapter.
 
-**When:** Any test with a stand-in, and any claim about what a test covers. A port is the application-owned type that names a capability; an adapter implements it.
+**When:** Any test with a double and any coverage claim.
 
-Bad: "Outbox delivery is covered" on the strength of a test with an in-memory publisher.
-Good: that test described as covering the use case, plus an integration test of the real outbox adapter.
+Bad: Claiming "outbox delivery is covered" from a test using an in-memory publisher.
+Good: Counting that test as use-case coverage, plus an integration test on the real outbox adapter.
 <!-- rule: tests/run-one-behaviour-suite-against-fake-and-real-adapter.md -->
 ## Run one behaviour suite against fake and real adapter
 
-**Default:** Where a fake could drift from the real adapter (the implementation of a port), run one suite of the behaviour callers rely on against the fake and against every real adapter.
+**Default:** Where a fake could drift from the real adapter, run one shared behaviour suite against the fake and every real adapter.
 
-**When:** A port (the application-owned type that names a capability) with a hand-written fake and a real adapter whose behaviour matters to callers.
+**When:** Any port with both a hand-written fake and a real adapter whose behaviour matters to callers.
 
-Bad: `InMemoryFormRepository` tested on its own.
-Good: one `FormRepositoryBehaviourTests` suite run against both `InMemoryFormRepository` and `EfFormRepository`.
+Bad: Testing `InMemoryFormRepository` on its own.
+Good: Running one `FormRepositoryBehaviourTests` suite against both `InMemoryFormRepository` and `EfFormRepository`.
 <!-- rule: tests/name-a-double-for-what-it-is.md -->
 ## Name a double for what it is
 
-**Preference:** Use `Fake*` for a behavioural fake, `InMemory*` for an in-memory implementation of a storage or transport port (the application-owned type that names a capability), and `Inline*` for a synchronous stand-in for an async dispatcher, rather than `Mock*` or `Stub*`.
+**Preference:** Name hand-written doubles `Fake*` (behavioural fake), `InMemory*` (in-memory storage/transport port), or `Inline*` (synchronous async-dispatcher stand-in) — never `Mock*` or `Stub*`.
 
-**When:** Hand-written test doubles (stand-ins for a real dependency) on any stack.
+**When:** Hand-written test doubles on any stack.
 
 Bad: `MockFormRepository`
 Good: `InMemoryFormRepository`
@@ -184,9 +184,9 @@ Good: one `private CreateFormUseCase CreateUseCase()` that every test method cal
 <!-- rule: tests/type-a-stand-in-response-against-the-generated-api-types.md -->
 ## Type a stand-in response against the generated API types
 
-**Default:** Type a stand-in API response against the generated API types, with `satisfies components["schemas"]["…"]` or a typed fixture helper, so a change to the API breaks the test at compile time.
+**Default:** Type stand-in API responses against generated API types (`satisfies components["schemas"]["…"]` or a typed fixture helper) so API changes break tests at compile time.
 
-**When:** A frontend component or page test that fulfils a request (a Playwright `route.fulfill` body, a mocked client result). An end-to-end journey has no stand-in responses, since it never intercepts requests.
+**When:** Frontend component/page tests fulfilling requests (Playwright `route.fulfill`, mocked client results); end-to-end journeys never intercept requests.
 
 Bad: `route.fulfill({ json: { id: 1, nmae: "A" } })`
 Good: `route.fulfill({ json: { id: 1, name: "A" } satisfies components["schemas"]["FormDto"] })`
@@ -211,21 +211,21 @@ Good: `await page.getByRole("button", { name: "Save" }).click()`
 <!-- rule: tests/coordinate-concurrency-tests-without-sleeps.md -->
 ## Coordinate concurrency tests without sleeps
 
-**Default:** Drive the actors in a concurrency test in a fixed order with barriers, hooks, or controlled transactions, never with timing sleeps.
+**Default:** Drive concurrency-test actors in a fixed order using barriers, hooks, or controlled transactions — never timing sleeps.
 
-**When:** A test that proves an invariant (a rule that must always hold) under an interleaving (a concrete order of reads and writes).
+**When:** Interleaving tests proving an invariant.
 
-Bad: two tasks started with `Task.Delay(50)` between them.
-Good: the first transaction held open at a barrier until the second has read.
+Bad: Two tasks started with `Task.Delay(50)` between them.
+Good: Holding the first transaction at a barrier until the second has read.
 <!-- rule: tests/assert-the-durable-outcome-of-a-race.md -->
 ## Assert the durable outcome of a race
 
-**Default:** A concurrency test runs at the boundary that really arbitrates (the database, queue, or workflow engine that decides the winner) and asserts the durable result for the winner, the loser, any retry, and the conflict, not that a lock, repository, or queue method was called.
+**Default:** Run concurrency tests at the real arbitrating boundary (DB, queue, or workflow engine) and assert durable outcomes for winner, loser, retries, and conflicts — not mock method calls.
 
-**When:** A test that proves an invariant (a rule that must always hold) under an interleaving (a concrete order of reads and writes).
+**When:** Any interleaving test proving an invariant.
 
 Bad: `lock.Received(1).Acquire()`
-Good: one row in the table, and the second caller's result is `Conflict`.
+Good: One row in the table, and the second caller receives `Conflict`.
 <!-- rule: tests/keep-frontend-tests-in-a-top-level-tests-folder.md -->
 ## Keep frontend tests in a top-level tests folder
 

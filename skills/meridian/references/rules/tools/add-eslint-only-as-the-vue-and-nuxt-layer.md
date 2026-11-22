@@ -1,13 +1,13 @@
 ## Add eslint only as the Vue and Nuxt layer
 
-**Tooling:** Use `eslint` with `@nuxt/eslint` only for the Vue and Nuxt rules `oxlint` does not cover; an app with no `.vue` files carries no eslint at all.
+**Tooling:** Use `eslint` with `@nuxt/eslint` only for Vue/Nuxt rules `oxlint` does not cover; omit eslint completely when an app has no `.vue` files.
 
-**When:** Every TypeScript repo; an app with `.vue` files carries the `@nuxt/eslint` layer on top of `oxlint`.
+**When:** Any TypeScript repo.
 
-Bad: an eslint config in an API package that has no `.vue` files.
-Good: no eslint in the API package, and in the UI app a config that only wraps `withNuxt(...)`:
+Bad: An eslint config in an API package with no `.vue` files.
+Good: No eslint in the API package; in the UI app, only wrap `withNuxt(...)`:
 ```js
-// apps/ui/eslint.config.mjs — eslint is only the Vue/Nuxt layer; oxlint does the rest.
+// apps/ui/eslint.config.mjs — Vue/Nuxt layer only; oxlint handles the rest.
 // @nuxt/eslint writes ./.nuxt/eslint.config.mjs during `nuxt prepare`.
 import withNuxt from "./.nuxt/eslint.config.mjs";
 

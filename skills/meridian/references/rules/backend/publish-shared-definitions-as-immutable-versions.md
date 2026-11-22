@@ -1,8 +1,8 @@
 ## Publish shared definitions as immutable versions
 
-**Default:** A shared definition that other things consume (a template, list, boundary, type, or schema) has published, immutable versions, and every consumer, its draft included, pins the version it uses and moves to a newer one only by an explicit action that shows what changes.
+**Default:** Give every shared definition consumed elsewhere (templates, lists, boundaries, types, schemas) published, immutable versions; every consumer — drafts included — pins its version and upgrades only via an explicit diff-showing action.
 
-**When:** Any definition with consumers. Runtime settings (credentials, endpoints, on/off) are not definitions and stay live. Freezing a copy when the consumer publishes is not enough, because a draft must not shift under its author.
+**When:** Any definition with consumers (runtime settings like credentials, endpoints, or toggles stay live). Freezing only on consumer publish is insufficient because drafts must not shift under authors.
 
 Bad: A draft form whose dropdown changes when someone edits the shared list.
-Good: The draft pinned to list version 3, with an "update to version 4" action that shows the difference.
+Good: The draft pinned to list v3 with an "update to v4" action showing the diff.

@@ -1,8 +1,8 @@
 ## Declare file inputs with AcceptsFile or AcceptsBinary
 
-**Tooling:** Declare a multipart upload with `.AcceptsFile()` and a raw stream with `.AcceptsBinary()`, never `.FormEncoded()` for multipart input.
+**Tooling:** Declare multipart uploads with `.AcceptsFile()` and raw streams with `.AcceptsBinary()` — never `.FormEncoded()` for multipart input.
 
-**When:** Rivet routes that receive a file (Rivet reads C# and emits the OpenAPI document and typed terminals for each declared response).
+**When:** Rivet routes receiving files.
 
 Bad: `.FormEncoded()` on an upload route.
 Good: `.AcceptsFile()` on the upload route.

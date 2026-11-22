@@ -1,8 +1,8 @@
 ## Keep entity mapping in the owning module
 
-**Default:** Each module (one feature's folder under `Modules/`) configures its own entities in its own Infrastructure; a module never configures another's entities, and mapping is never centralised beside the DbContext.
+**Default:** Configure each module's entities inside its own Infrastructure (`Modules/<Feature>/Infrastructure/Persistence/`) — never configure another module's entities or centralise mappings beside `DbContext`.
 
-**When:** .NET with EF Core. One host-level DbContext is fine as the persistence root, and migrations are host-level; `IEntityTypeConfiguration<T>` classes live in `Modules/<Feature>/Infrastructure/Persistence/`.
+**When:** .NET with EF Core (a single host-level `DbContext` and host-level migrations are fine).
 
-Bad: Every entity configured in `AppDbContext.OnModelCreating`.
+Bad: Configuring every entity in `AppDbContext.OnModelCreating`.
 Good: `FormConfiguration : IEntityTypeConfiguration<Form>` in `Modules/Forms/Infrastructure/Persistence/`.

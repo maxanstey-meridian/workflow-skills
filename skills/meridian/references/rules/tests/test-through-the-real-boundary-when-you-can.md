@@ -1,8 +1,8 @@
 ## Test through the real boundary when you can
 
-**Default:** When behaviour crosses a boundary, test it through the real wiring and the real flow rather than an isolated unit with the wiring mocked.
+**Default:** Test cross-boundary behaviour through the real wiring and flow rather than an isolated unit with mocked wiring.
 
-**When:** A behaviour that spans a use case (the Application code for one operation) and its adapters (the implementations of the ports it needs), or a page and its composables.
+**When:** Behaviour spanning a use case and its adapters, or a page and its composables.
 
-Bad: a controller test with the use case mocked, and a use case test with the repository mocked.
-Good: one test that posts to the real host and reads the row back.
+Bad: A controller test mocking the use case plus a use-case test mocking the repository.
+Good: One test posting to the real host and reading the row back.

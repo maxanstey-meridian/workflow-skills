@@ -1,8 +1,8 @@
 ## Keep a target picker visible with one candidate
 
-**Default:** A target picker (which stage, which list, which column) stays visible even with one candidate, and so does a lone stale "(unavailable)" option.
+**Default:** Keep a target picker (stage, list, column) visible even with one candidate, and keep a lone stale "(unavailable)" option visible too.
 
-**When:** Controls that choose what a setting points at; the picker shows the target, and the stale option shows the setting is broken.
+**When:** Controls choosing what a setting points at: the picker shows the target, and the stale option exposes a broken setting.
 
-Bad: A column picker hidden because the list has one column, leaving the user unsure where data goes.
-Good: The picker shown with its one column selected.
+Bad: Hiding a column picker because the list has one column, leaving the target unclear.
+Good: Showing the picker with its one column selected.

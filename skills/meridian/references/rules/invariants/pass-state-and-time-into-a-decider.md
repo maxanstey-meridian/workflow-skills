@@ -1,8 +1,8 @@
 ## Pass state and time into a decider
 
-**Default:** A decider takes plain state and the time as arguments and does no I/O, so it reads no clock, repository, or service, and facts that need I/O are loaded first and passed in.
+**Default:** Pass plain state and time into a decider; it does no I/O (no clock, repository, or service) — load I/O facts first and pass them in.
 
-**When:** Writing a decider (the one pure function that guards a lifecycle's actions) or any pure decision function.
+**When:** Writing a lifecycle decider or any pure decision function.
 
-Bad: `Refusal(recordId, action)` that loads the record and calls `DateTime.UtcNow`.
+Bad: `Refusal(recordId, action)` loading the record and calling `DateTime.UtcNow`.
 Good: `Refusal(RecordState record, RecordAction action, DateOnly today)`.

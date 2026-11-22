@@ -1,8 +1,8 @@
 ## Keep generated Rivet output in a contracts package
 
-**Tooling:** Generated Rivet output lives in a workspace package, `packages/contracts`, consumed through its `exports` map, never in a directory inside an app.
+**Tooling:** Put generated Rivet output in `packages/contracts`, consumed via its `exports` map — never inside an app directory.
 
-**When:** Frontends that call a Rivet API (Rivet reads C# and emits the OpenAPI document). The package holds `generated/openapi.json` (OpenAPI 3.1 from the contract), `generated/schema.d.ts` (`openapi-typescript` output), and `src/index.ts` (the client facade); it is imported as `@<scope>/contracts` or a `./client` subpath.
+**When:** Frontends calling a Rivet API. Holds `generated/openapi.json`, `generated/schema.d.ts`, and `src/index.ts`, imported as `@<scope>/contracts` or `./client`.
 
 Bad: `apps/ui/app/generated/schema.d.ts`
 Good: `packages/contracts/generated/schema.d.ts`

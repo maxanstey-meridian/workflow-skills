@@ -1,10 +1,10 @@
 ## Use pg-advisory-lock for PostgreSQL advisory locks
 
-**Tooling:** When a session-level PostgreSQL advisory lock is needed for a domain identity no row or constraint can represent, use `pg-advisory-lock` on a direct or session-pooled connection, and design for the lock being released by connection loss while the callback still runs.
+**Tooling:** For session-level PostgreSQL advisory locks on a domain identity no row or constraint can represent, use `pg-advisory-lock` on a direct or session-pooled connection and handle lock release on connection loss while the callback runs.
 
-**When:** TypeScript backends on PostgreSQL. It gives no fencing and no exactly-once execution, and does not work through transaction or statement pooling.
+**When:** TypeScript backends on PostgreSQL (gives no fencing or exactly-once execution; incompatible with transaction/statement pooling).
 
-Bad: the library used through a transaction-pooled PgBouncer.
-Good: the library used on a direct connection.
+Bad: Using `pg-advisory-lock` through transaction-pooled PgBouncer.
+Good: Using it on a direct connection.
 
 Links: [pg-advisory-lock](https://github.com/IlyaSemenov/pg-advisory-lock)

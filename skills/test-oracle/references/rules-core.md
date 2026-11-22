@@ -6,28 +6,28 @@
 
 Each line is one rule: its title, its one sentence, and the file that holds it.
 
-- **Change the design when it breaks a Law.** When a spec, plan, or design decision conflicts with a Law (a rule whose violation is a bug), change the design; a decision that breaks a Law is a defect, not a choice. [`coding/change-the-design-when-it-breaks-a-law.md`]
-- **Fix a gap, never document it.** Fix a gap when this work caused it, promised it, or the fix is trivial, and report any other gap as new work; never ask the user whether to fix it, and never record it as a decision record, an accepted cost in the module's invariants file, a changelog "known issue", a README caveat, or a code comment instead. [`coding/fix-a-gap-never-document-it.md`]
-- **Cite the tracked fix beside any documented gap.** A document may say a gap exists only while a tracked fix for it is open, and it names that fix. [`coding/cite-the-tracked-fix-beside-any-documented-gap.md`]
+- **Change the design when it breaks a Law.** When a spec, plan, or design decision conflicts with a Law, change the design — a decision that breaks a Law is a defect, not a choice. [`coding/change-the-design-when-it-breaks-a-law.md`]
+- **Fix a gap, never document it.** Fix a gap when this work caused it, promised it, or the fix is trivial, and report any other gap as new work; never ask whether to fix it, and never record it in a decision record, invariants `Accepts`, changelog "known issue", README caveat, or code comment instead. [`coding/fix-a-gap-never-document-it.md`]
+- **Cite the tracked fix beside any documented gap.** Mention a gap in docs only while a tracked fix is open, and cite that fix beside it. [`coding/cite-the-tracked-fix-beside-any-documented-gap.md`]
 - **Make valid input work, never refuse it.** When valid input breaks the code, make the input work; refusing it is not a fix. [`coding/make-valid-input-work-never-refuse-it.md`]
-- **Use a maintained library before building machinery.** Do not hand-roll infrastructure, security protocols, wire clients, serialisation formats, schedulers, storage clients, authentication flows, locks, outboxes, queues, or dev tooling (comparators, parsers for standard formats, test harnesses) when a maintained library, framework feature, official SDK, or generated client meets the requirement; hand-roll only when none exists or a concrete hard requirement cannot be met, because avoiding one dependency is not a win when it leaves the application maintaining a private, incomplete version of a solved problem. [`coding/use-a-maintained-library-before-building-machinery.md`]
+- **Use a maintained library before building machinery.** Do not hand-roll infrastructure, security protocols, wire clients, serialisation, schedulers, storage clients, auth flows, locks, outboxes, queues, or dev tooling (comparators, standard-format parsers, test harnesses) when a maintained library, framework feature, official SDK, or generated client fits; hand-roll only when none exists or a hard requirement cannot be met. [`coding/use-a-maintained-library-before-building-machinery.md`]
 - **Record why no library fits before hand-rolling.** When you hand-roll machinery, record the exact constraint that ruled out each established option. [`coding/record-why-no-library-fits-before-hand-rolling.md`]
 - **Test hand-rolled machinery as infrastructure.** Test custom general-purpose machinery as infrastructure, not as incidental helper code. [`coding/test-hand-rolled-machinery-as-infrastructure.md`]
-- **Leave commodity mechanics to the library.** When you adopt a library, leave commodity protocol and runtime mechanics to it and keep the application's product rules, ports (the application-owned types that name a capability), idempotency semantics, transaction boundaries, failure interpretation, and orchestration in the application; do not fork an SDK's job into application code. [`coding/leave-commodity-mechanics-to-the-library.md`]
-- **Keep third-party types inside the adapter.** Use a library behind the owning module's port when the application needs its own terms or must not depend on the library directly, and keep the library's types and exceptions inside the adapter that implements the port. [`coding/keep-third-party-types-inside-the-adapter.md`]
+- **Leave commodity mechanics to the library.** Leave commodity protocol and runtime mechanics to the adopted library while keeping product rules, ports, idempotency, transaction boundaries, failure interpretation, and orchestration in the application; never fork an SDK's job into app code. [`coding/leave-commodity-mechanics-to-the-library.md`]
+- **Keep third-party types inside the adapter.** Put a third-party library behind the owning module's port when the application needs its own terms or isolation, keeping library types and exceptions inside the adapter. [`coding/keep-third-party-types-inside-the-adapter.md`]
 - **Turn off library behaviour that breaks an invariant.** Configure or disable any library behaviour that conflicts with an application invariant, especially hidden retries, transactions, caching, or background execution. [`coding/turn-off-library-behaviour-that-breaks-an-invariant.md`]
-- **Fix the type instead of asserting it.** Do not quiet the compiler with a type assertion (`x as T`, `<T>x`) or a non-null assertion (`x!`); fix the type at its source with a typed template ref, `v-model`, a type guard, or a better model. [`coding/fix-the-type-instead-of-asserting-it.md`]
-- **State the invariant before choosing enforcement.** State the invariant (a rule the product must always keep true) in words that name no mechanism before you choose how to enforce it or think about concurrency. [`invariants/state-the-invariant-before-choosing-enforcement.md`]
-- **Enforce an invariant at its authoritative boundary.** The domain decides what an important product invariant is, and an authoritative boundary enforces it; a controller, a UI, an AI model or its prompt, a comment, or a test suite never decides what the invariant is. [`invariants/enforce-an-invariant-at-its-authoritative-boundary.md`]
+- **Fix the type instead of asserting it.** Never silence the compiler with a type assertion (`x as T`, `<T>x`) or non-null assertion (`x!`); fix the type at its source via a typed template ref, `v-model`, type guard, or better model. [`coding/fix-the-type-instead-of-asserting-it.md`]
+- **State the invariant before choosing enforcement.** State the invariant in plain words naming no mechanism before choosing enforcement or concurrency controls. [`invariants/state-the-invariant-before-choosing-enforcement.md`]
+- **Enforce an invariant at its authoritative boundary.** The domain defines product invariants and an authoritative boundary enforces them; a controller, UI, AI prompt, comment, or test suite never owns an invariant. [`invariants/enforce-an-invariant-at-its-authoritative-boundary.md`]
 - **Use an aggregate only for one atomic boundary.** Use an aggregate only when several facts must change together as one atomic consistency boundary; several fields taking part in one validation do not justify one. [`invariants/use-an-aggregate-only-for-one-atomic-boundary.md`]
-- **Make each domain decision in one place.** Write a domain decision (a rule's verdict on supplied state) once and have every use case (the Application code for one operation) call it; never copy the guard into a second caller. [`invariants/make-each-domain-decision-in-one-place.md`]
-- **Let the write decide, never a check before it.** Never rely on a check made before a write (check-then-write) to keep an invariant: the write's constraint, conditional write, concurrency token, or transaction decides, and an application check only improves the error. [`invariants/let-the-write-decide-never-a-check-before-it.md`]
-- **Show the interleaving before adding coordination.** Do not add a lock, queue, or other coordination because a race is conceivable; first show a concrete interleaving (an order of two actors' reads and writes) that breaks the stated invariant. [`invariants/show-the-interleaving-before-adding-coordination.md`]
-- **Prove custom concurrency machinery before adding it.** Before adding a custom lock, lease, retry, heartbeat, fencing, or coordination state, write a test that runs the breaking order of reads and writes against the production persistence or runtime, with a header comment that states the invariant, that order, why last-writer-wins is unacceptable, which boundary arbitrates, and why each smaller mechanism that could apply (a constraint, a conditional write, a version token, a short transaction, a row lock) fails. [`invariants/prove-custom-concurrency-machinery-before-adding-it.md`]
-- **Never stretch a transaction across an HTTP call.** Never claim that a database change and an HTTP call are atomic by holding a transaction or a lock open across the call; accept explicit reconciliation, or, when the invariant needs retries, compensation, or reconciliation across systems that share no transaction, use a durable workflow with idempotent external steps. [`invariants/never-stretch-a-transaction-across-an-http-call.md`]
-- **Use an outbox only for atomic state plus message.** Use a transactional outbox only when a committed database change must reliably produce a message; it is not a stronger form of database concurrency control. [`invariants/use-an-outbox-only-for-atomic-state-plus-message.md`]
+- **Make each domain decision in one place.** Write a domain decision once and have every use case call it; never duplicate the guard in a second caller. [`invariants/make-each-domain-decision-in-one-place.md`]
+- **Let the write decide, never a check before it.** Never rely on check-then-write to hold an invariant: the write's constraint, conditional write, concurrency token, or transaction decides, and any prior check only improves the error. [`invariants/let-the-write-decide-never-a-check-before-it.md`]
+- **Show the interleaving before adding coordination.** Never add a lock, queue, or coordination mechanism because a race feels possible; first demonstrate a concrete read/write interleaving that breaks the stated invariant. [`invariants/show-the-interleaving-before-adding-coordination.md`]
+- **Prove custom concurrency machinery before adding it.** Before adding a custom lock, lease, retry, heartbeat, fencing, or coordination state, write an interleaving test against the real persistence/runtime with a header comment stating: the invariant, the breaking order of reads and writes, why last-writer-wins fails, which boundary arbitrates, and why every smaller mechanism (constraint, conditional write, version token, short transaction, row lock) fails. [`invariants/prove-custom-concurrency-machinery-before-adding-it.md`]
+- **Never stretch a transaction across an HTTP call.** Never hold a DB transaction or lock across an HTTP call to fake atomicity; use explicit reconciliation, or a durable workflow with idempotent external steps when retries or compensation are needed. [`invariants/never-stretch-a-transaction-across-an-http-call.md`]
+- **Use an outbox only for atomic state plus message.** Use a transactional outbox only when a committed DB change must reliably emit a message; it is not a stronger DB concurrency control. [`invariants/use-an-outbox-only-for-atomic-state-plus-message.md`]
 - **Never blindly retry a non-idempotent operation.** Never blindly retry an operation that is not idempotent (safe to run twice). [`invariants/never-blindly-retry-a-non-idempotent-operation.md`]
-- **Record only chosen trade-offs under Accepts.** `Accepts` (the entry's field for a deliberately chosen cost) holds only a cost chosen over a working alternative, for a stated reason; a known defect or an unchecked promise never goes there, however well documented. [`invariants/record-only-chosen-trade-offs-under-accepts.md`]
+- **Record only chosen trade-offs under Accepts.** `Accepts` holds only a deliberate trade-off chosen over a working alternative for a stated reason — never a known defect or unchecked promise. [`invariants/record-only-chosen-trade-offs-under-accepts.md`]
 - **Write every check so it can fail.** Compare a check's result with something the code under test did not produce; a check that cannot fail is a defect. [`tests/write-every-check-so-it-can-fail.md`]
 - **Assert the intended behaviour, not today's gap.** A test asserts the behaviour the product intends even when today's code fails it, and the gap is then fixed or reported as new work; never weaken the assertion to make it pass. [`tests/assert-the-intended-behaviour-not-todays-gap.md`]
 
@@ -35,71 +35,65 @@ A Law beats any spec or plan Decision: when a design and a Law conflict, the des
 <!-- rule: core/rule-strength.md -->
 ## Rule Strength
 
-Every house doctrine statement belongs to one of four strengths:
+Every house doctrine statement has one of four strengths:
 
-- **Law** — protects correctness, ownership, or dependency direction; a
-  violation is a bug. If valid context contradicts it, the statement was a
-  default or the checker produced a false positive, not a waived law
-- **Default** — the preferred greenfield choice; replace it when the local
-  constraint clearly points elsewhere
-- **Preference** — house consistency with no claim of architectural necessity
-- **Tooling** — a current replaceable implementation choice
+- **Law** — protects correctness, ownership, or dependency direction; a violation is a bug. If valid context contradicts it, it was a Default or a false positive, never a waived Law.
+- **Default** — preferred greenfield choice; replace when a local constraint clearly points elsewhere.
+- **Preference** — house consistency, no architectural claim.
+- **Tooling** — current replaceable implementation choice.
 
-Mechanical checks may fail builds only for laws and mechanically provable
-correctness constraints. Defaults should warn, preferences should inform, and
-tooling rules should remain easy to update. Do not give a filename convention
-the same authority as an atomicity or dependency rule.
+Fail builds only for Laws and provable correctness constraints; warn on Defaults, inform on Preferences, and keep Tooling easy to update.
 <!-- rule: core/fail-a-build-only-for-a-broken-law.md -->
 ## Fail a build only for a broken Law
 
-**Default:** A mechanical check fails a build only for a Law (a rule whose violation is a bug) or a correctness constraint it can prove; for a Default (the preferred choice, replaced when a local constraint clearly points elsewhere) it warns, for a Preference (house consistency, no architectural claim) it informs, and a Tooling rule (a replaceable implementation choice) stays easy to change.
+**Default:** Fail builds only for a Law or mechanically provable correctness constraint; warn on Defaults, inform on Preferences, and keep Tooling rules easy to change.
 
-**When:** Configuring or writing a linter, analyser, architecture test, or CI check that enforces one of these rules.
+**When:** Configuring linters, analysers, architecture tests, or CI checks enforcing these rules.
 
-Bad: A file-name suffix check (a Preference) set to `error`, so CI fails on a `.service.ts` file.
-Good: The same check set to `info`, with the module-boundary check (a Law) left at `error`.
+Bad: Setting a file-name suffix check (Preference) to `error` so CI fails on `.service.ts`.
+Good: Setting that check to `info` and leaving the module-boundary check (Law) at `error`.
 <!-- rule: core/write-every-rule-in-the-five-part-format.md -->
 ## Write every rule in the five-part format
 
-**Preference:** A rule file holds five fields, in this order: a `##` title that states the rule as an imperative, a strength line (`**Law:**`, `**Default:**`, `**Preference:**`, or `**Tooling:**`) that says the rule in one sentence, a `**When:**` line that says where it applies, a `Bad:` example and a `Good:` of the same case done right, and, last and optional, a `Links:` line, the only place a rule holds a URL.
+**Preference:** Every rule file has five fields in order: a `##` imperative title, a one-sentence strength line (`**Law:**`, `**Default:**`, `**Preference:**`, or `**Tooling:**`), a `**When:**` line, `Bad:` and `Good:` examples of the same case, and an optional final `Links:` line (the only place URLs go).
 
-**When:** Writing, editing, or checking a rule in the house rule library, or a rule-shaped file the house build format-checks.
+**When:** Writing, editing, or checking any rule in the library or format-checked rule file.
 
-Bad: A rule stated in prose paragraphs, a URL in the middle of the text, and its example under a second heading.
-Good: The same rule as one `##` imperative, one strength sentence, one `**When:**` line, one `Bad:` line, one `Good:` line, and the URL on a final `Links:` line.
+Bad: Prose paragraphs, an inline URL, and examples under a second heading.
+Good: One `##` imperative, one strength sentence, one `**When:**`, one `Bad:`, one `Good:`, and a final `Links:` line.
 <!-- rule: core/build-every-generated-file-from-its-list.md -->
 ## Build every generated file from its list
 
-**Preference:** A role file is the parts its `roles.list` line names, a rule file is the rules its `rules-<name>.list` names, and a `rule` line's file is the one rule it names, each joined in the list's order; none is hand-written, and a part, or a rule, that no line names is dead weight the build refuses.
+**Preference:** Generate role files from `roles.list`, rule files from `rules-<name>.list`, and `rule`-line files from their named rule in list order; never hand-edit them, and let the build refuse any unlisted part or rule.
 
-**When:** Adding, renaming, or removing a role part or a rule in the house skills repo, or editing anything under a routine's `references/`.
+**When:** Adding, renaming, or removing a role part or rule, or changing anything under a routine's `references/`.
 
-Bad: Editing `references/filler.md` by hand, or leaving a rule file in the library that no `rules-<name>.list` names.
-Good: Editing the part under `roles/` (or the rule under the rule library), naming it in its list in the order it should read, and running `sh scripts/build-roles.sh`.
+Bad: Editing `references/filler.md` by hand, or leaving a rule out of every `rules-<name>.list`.
+Good: Editing the source under `roles/` or `rules/`, listing it in order, and running `sh scripts/build-roles.sh`.
 <!-- rule: coding/change-the-design-when-it-breaks-a-law.md -->
 ## Change the design when it breaks a Law
 
-**Law:** When a spec, plan, or design decision conflicts with a Law (a rule whose violation is a bug), change the design; a decision that breaks a Law is a defect, not a choice.
+**Law:** When a spec, plan, or design decision conflicts with a Law, change the design — a decision that breaks a Law is a defect, not a choice.
 
 **When:** Writing or building from a spec or plan, on any stack.
 
-Bad: A spec decision "check for a duplicate in code, skip the unique index" built as written.
-Good: The spec changed to use the unique index, then built.
+Bad: Building a spec decision "check for a duplicate in code, skip the unique index" as written.
+Good: Changing the spec to use the unique index, then building it.
 <!-- rule: coding/fix-a-gap-never-document-it.md -->
 ## Fix a gap, never document it
 
-**Law:** Fix a gap when this work caused it, promised it, or the fix is trivial, and report any other gap as new work; never ask the user whether to fix it, and never record it as a decision record, an accepted cost in the module's invariants file, a changelog "known issue", a README caveat, or a code comment instead.
+**Law:** Fix a gap when this work caused it, promised it, or the fix is trivial, and report any other gap as new work; never ask whether to fix it, and never record it in a decision record, invariants `Accepts`, changelog "known issue", README caveat, or code comment instead.
 
-**When:** Any work that meets a gap, meaning something wrong, unenforced, or unchecked that could be fixed: a promise nothing verifies, an entry point outside a guard, a false positive, or a rule that holds only because no caller does X today. The test: would we welcome a change that removed it at no other cost? If yes, it is a gap.
+**When:** Meeting any fixable wrong, unenforced, or unchecked thing: an unverified promise, an unguarded entry point, a false positive, or a rule holding only because no caller does X today. The test: would we welcome a change removing it at no other cost? If yes, it is a gap.
 
 Bad: An endpoint outside the tenant guard, "fixed" by a README line "admin routes are not tenant-scoped".
 Good: The tenant guard applied to the endpoint.
 <!-- rule: coding/cite-the-tracked-fix-beside-any-documented-gap.md -->
 ## Cite the tracked fix beside any documented gap
 
-**Law:** A document may say a gap exists only while a tracked fix for it is open, and it names that fix.
+**Law:** Mention a gap in docs only while a tracked fix is open, and cite that fix beside it.
 
-**When:** Writing a README, changelog, decision record, or comment that mentions a gap (something wrong, unenforced, or unchecked that could be fixed).
+**When:** Writing a README, changelog, decision record, or comment mentioning a fixable gap.
 
 Bad: "Known issue: exports over 10,000 rows time out" with no fix named.
 Good: The same line ending "fix tracked in issue 412", removed when the issue closes.
@@ -115,18 +109,18 @@ Good: The export escapes the name.
 <!-- rule: coding/fix-the-root-cause-not-the-symptom.md -->
 ## Fix the root cause, not the symptom
 
-**Default:** Fix the boundary, model, configuration, or dependency direction that caused the problem before adding a shim (a workaround layer around it).
+**Default:** Fix the boundary, model, config, or dependency direction causing the problem rather than adding a workaround shim.
 
-**When:** Fixing a defect on any stack, especially when the fix is local but the cause is systemic.
+**When:** Fixing a defect on any stack, especially when the symptom is local but the cause is systemic.
 
-Bad: A null check added at each of five call sites of a function that wrongly returns null.
-Good: The function's return type and body fixed once.
+Bad: Adding a null check at five call sites of a function that wrongly returns null.
+Good: Fixing the function's return type and body once.
 <!-- rule: coding/use-a-maintained-library-before-building-machinery.md -->
 ## Use a maintained library before building machinery
 
-**Law:** Do not hand-roll infrastructure, security protocols, wire clients, serialisation formats, schedulers, storage clients, authentication flows, locks, outboxes, queues, or dev tooling (comparators, parsers for standard formats, test harnesses) when a maintained library, framework feature, official SDK, or generated client meets the requirement; hand-roll only when none exists or a concrete hard requirement cannot be met, because avoiding one dependency is not a win when it leaves the application maintaining a private, incomplete version of a solved problem.
+**Law:** Do not hand-roll infrastructure, security protocols, wire clients, serialisation, schedulers, storage clients, auth flows, locks, outboxes, queues, or dev tooling (comparators, standard-format parsers, test harnesses) when a maintained library, framework feature, official SDK, or generated client fits; hand-roll only when none exists or a hard requirement cannot be met.
 
-**When:** Before writing general-purpose machinery on any stack. Check the candidate against the real correctness, security, licensing, deployment, observability, failure, and retry requirements first.
+**When:** Before writing general-purpose machinery on any stack. Evaluate candidates against correctness, security, licensing, deployment, observability, failure, and retry requirements first.
 
 Bad: A hand-written retry-with-backoff loop and job table.
 Good: The framework's or an established library's scheduler, configured for the same job.
@@ -151,30 +145,30 @@ Good: Integration tests of the poller itself.
 <!-- rule: coding/leave-commodity-mechanics-to-the-library.md -->
 ## Leave commodity mechanics to the library
 
-**Law:** When you adopt a library, leave commodity protocol and runtime mechanics to it and keep the application's product rules, ports (the application-owned types that name a capability), idempotency semantics, transaction boundaries, failure interpretation, and orchestration in the application; do not fork an SDK's job into application code.
+**Law:** Leave commodity protocol and runtime mechanics to the adopted library while keeping product rules, ports, idempotency, transaction boundaries, failure interpretation, and orchestration in the application; never fork an SDK's job into app code.
 
-**When:** Writing application code around a library, framework feature, or SDK that already does the job.
+**When:** Writing application code around a library, framework feature, or SDK that already handles the mechanics.
 
-Bad: A `PaymentGateway` class that re-implements the SDK's request signing, with the SDK left unused.
+Bad: A `PaymentGateway` re-implementing the SDK's request signing while leaving the SDK unused.
 Good: The SDK signs and sends; the application decides what a failed charge means and when to retry.
 <!-- rule: coding/prove-the-invariant-even-when-a-library-provides-the-capability.md -->
 ## Prove the invariant even when a library provides the capability
 
-**Default:** When a library provides a capability, still prove the invariant, choose the correct boundary, and understand each provider's failure model.
+**Default:** Even when a library provides a capability, still prove the invariant, pick the right boundary, and account for the provider's failure model.
 
-**When:** Adding a library, framework feature, or SDK for a capability an invariant relies on, such as a lock, an outbox, or a queue.
+**When:** Adopting a library, framework feature, or SDK for an invariant-bearing capability (lock, outbox, queue).
 
-Bad: A lock library added and the invariant left untested, because "the library handles it".
-Good: The same lock, with a test that fails without it and the provider's behaviour on connection loss accounted for.
+Bad: Adding a lock library and skipping the test because "the library handles it".
+Good: The same lock with a test that fails without it and handling for connection loss.
 <!-- rule: coding/keep-third-party-types-inside-the-adapter.md -->
 ## Keep third-party types inside the adapter
 
-**Law:** Use a library behind the owning module's port when the application needs its own terms or must not depend on the library directly, and keep the library's types and exceptions inside the adapter that implements the port.
+**Law:** Put a third-party library behind the owning module's port when the application needs its own terms or isolation, keeping library types and exceptions inside the adapter.
 
-**When:** Calling a third-party library or SDK from application code. A port is the application-owned type that names a capability; an adapter is its implementation.
+**When:** Calling a third-party library or SDK from application code.
 
-Bad: A use case that catches `StripeException` and returns a `Stripe.Charge`.
-Good: The adapter catches `StripeException` and returns the application's own `PaymentResult`.
+Bad: A use case catching `StripeException` and returning a `Stripe.Charge`.
+Good: The adapter catching `StripeException` and returning the application's `PaymentResult`.
 <!-- rule: coding/turn-off-library-behaviour-that-breaks-an-invariant.md -->
 ## Turn off library behaviour that breaks an invariant
 
@@ -187,30 +181,30 @@ Good: Retries disabled for that call.
 <!-- rule: coding/add-a-package-only-for-commodity-machinery.md -->
 ## Add a package only for commodity machinery
 
-**Default:** Add a package for commodity machinery, and write small, fully understood product logic yourself when a package's scope, runtime cost, maintenance state, or semantic mismatch outweighs the code it would replace; every package must earn its place.
+**Default:** Add a package for commodity machinery; write small, well-understood product logic yourself when a package's scope, cost, maintenance, or semantic mismatch outweighs the code it replaces.
 
 **When:** Deciding whether to add a dependency on any stack.
 
-Bad: A date-range package added for one three-line overlap check.
-Good: The check written as a pure function.
+Bad: Adding a date-range package for a three-line overlap check.
+Good: Writing the check as a pure function.
 <!-- rule: coding/wrap-a-dependency-only-when-the-wrapper-adds-meaning.md -->
 ## Wrap a dependency only when the wrapper adds meaning
 
-**Default:** Do not wrap a library or a generated client one-for-one, and never merely because the code is generated; add a layer only when it combines several calls into one capability, adds non-trivial policy or orchestration, or translates an external model into the application's own terms (a translation layer) because another team owns it, it changes independently of the application, or tests need an abstraction (an interface the application owns).
+**Default:** Never wrap a library or generated client one-for-one (nor just because it is generated); add a wrapper only when it combines calls into one capability, adds non-trivial policy or orchestration, or translates an external model owned elsewhere, changing independently, or needing a test abstraction.
 
-**When:** Any stack, around a library, SDK, or generated client (a Rivet client, generated from the API's transport contract, included).
+**When:** Any stack, around a library, SDK, or generated client (including Rivet clients).
 
-Bad: A `NotesApi.getNotes()` wrapper that only calls the generated `client.GET("/api/notes")`.
-Good: Callers use the generated `client.GET("/api/notes")` directly.
+Bad: A `NotesApi.getNotes()` wrapper that only calls generated `client.GET("/api/notes")`.
+Good: Callers using `client.GET("/api/notes")` directly.
 <!-- rule: coding/add-an-abstraction-only-at-a-real-boundary.md -->
 ## Add an abstraction only at a real boundary
 
-**Default:** Add an interface, port, adapter, or other indirection only where there is a real boundary: I/O, plausible variability such as a second implementation, another owner, a runtime boundary, a dependency across modules, or a test that needs it.
+**Default:** Add an interface, port, adapter, or indirection only at a real boundary: I/O, plausible variability (a second implementation), another owner, a runtime or cross-module boundary, or a test that needs it.
 
-**When:** Any stack, before introducing a layer. On the frontend this covers a page's `ports/`, `adapters/`, and provide/inject wiring: skip them when the component is presentational, the composable is small and clear, there is no real capability boundary, or no subtree wiring is needed.
+**When:** Any stack, before adding a layer — including frontend `ports/`, `adapters/`, and provide/inject wiring (skip when the component is presentational, the composable is small, or no subtree wiring is needed).
 
 Bad: An `IPriceCalculator` interface with one implementation over pure arithmetic.
-Good: The function called directly.
+Good: Calling the function directly.
 <!-- rule: coding/keep-code-local-until-it-is-shared.md -->
 ## Keep code local until it is shared
 
@@ -223,12 +217,12 @@ Good: The formatter left in the page's folder until a second page needs it.
 <!-- rule: coding/keep-shared-code-with-the-feature-that-owns-it.md -->
 ## Keep shared code with the feature that owns it
 
-**Default:** Code used by several consumers stays with the feature that owns it, behind that feature's public entry point (on the backend, the module's published contract: the types it deliberately exposes to other modules); move it to the shared folder only when no single feature owns it.
+**Default:** Keep code used by multiple consumers inside its owning feature behind its public entry point (on the backend, its published contract); move to a shared folder only when no single feature owns it.
 
-**When:** Any stack, when a second consumer appears. "Shared" means owned by no single feature: cross-cutting, or co-owned by modules that change it only by agreement.
+**When:** Any stack, when a second consumer appears. "Shared" means cross-cutting or co-owned by modules that change it only by agreement.
 
-Bad: The auth feature's session type moved to `Common/` because three modules read it.
-Good: The session type stays in the auth feature and is exposed through its published contract.
+Bad: Moving the auth feature's session type to `Common/` because three modules read it.
+Good: Keeping the session type in auth and exposing it via its published contract.
 <!-- rule: coding/register-dependencies-explicitly.md -->
 ## Register dependencies explicitly
 
@@ -259,9 +253,9 @@ Good: `FormDrafts`.
 <!-- rule: coding/name-ports-for-capabilities-and-adapters-for-implementations.md -->
 ## Name ports for capabilities and adapters for implementations
 
-**Preference:** Use the capability's own name for a port, with no `Port`, `Service`, or `Interface` suffix, and the concrete implementation's name for an adapter.
+**Preference:** Name a port for its capability without `Port`, `Service`, or `Interface` suffixes, and name an adapter for its concrete implementation.
 
-**When:** Naming a port or an adapter on the backend or the frontend (on the frontend, `Auth`, not `AuthPort`). A port is the application-owned type that names a capability; an adapter implements it.
+**When:** Naming ports and adapters on backend or frontend (e.g., `Auth`, not `AuthPort`).
 
 Bad: `MailerService` implemented by `DefaultMailer`.
 Good: `Mailer` implemented by `SendgridMailer`.
@@ -313,9 +307,9 @@ Good: `// the API returns newest first, so stop at the first seen id`.
 <!-- rule: coding/model-the-real-type-of-every-value.md -->
 ## Model the real type of every value
 
-**Default:** Give every value its real type: never `any`, `object`, `object?`, or `dynamic`, and `unknown` only at a boundary until the value is parsed.
+**Default:** Give every value its real type: never `any`, `object`, `object?`, or `dynamic`, and `unknown` only at a boundary until parsed.
 
-**When:** C# and TypeScript. A value that can be a string, a boolean, or a number is a discriminated union (one type with a tag field that says which case it is).
+**When:** C# and TypeScript. Model multi-kind values (e.g., string, boolean, or number) as a discriminated union.
 
 Bad: `value: any` (or `object?`) for a field answer.
 Good: `type Answer = { kind: "text"; value: string } | { kind: "flag"; value: boolean }`.
@@ -331,12 +325,12 @@ Good: `type Settings = { theme: Theme; locale: string; compact: boolean }`.
 <!-- rule: coding/fix-the-type-instead-of-asserting-it.md -->
 ## Fix the type instead of asserting it
 
-**Law:** Do not quiet the compiler with a type assertion (`x as T`, `<T>x`) or a non-null assertion (`x!`); fix the type at its source with a typed template ref, `v-model`, a type guard, or a better model.
+**Law:** Never silence the compiler with a type assertion (`x as T`, `<T>x`) or non-null assertion (`x!`); fix the type at its source via a typed template ref, `v-model`, type guard, or better model.
 
-**When:** TypeScript app code and test code, Vue template expressions included (in a test, type the stand-in response rather than cast it). `as const` and `satisfies` are allowed: they check a type rather than override it.
+**When:** TypeScript app and test code, including Vue templates (in tests, type the stand-in response instead of casting). `as const` and `satisfies` are allowed because they check rather than override types.
 
 Bad: `const user = (await response.json()) as User`.
-Good: The response parsed by a schema or type guard that returns `User`.
+Good: Parsing the response with a schema or type guard returning `User`.
 <!-- rule: coding/model-each-state-explicitly-in-typescript.md -->
 ## Model each state explicitly in TypeScript
 
@@ -376,12 +370,12 @@ Good: The race first under its own heading, the nit after.
 <!-- rule: coding/fix-mechanical-findings-without-asking.md -->
 ## Fix mechanical findings without asking
 
-**Default:** In a review that also fixes, fix mechanical findings (dead code, stale comments, missing includes, unused variables) without asking, make a design fix from the facts and the agreed rules whatever its size, and ask the user only what those cannot settle, such as removing functionality users have, in one batched question with recommendations.
+**Default:** In a fix-enabled review, fix mechanical findings (dead code, stale comments, missing includes, unused variables) without asking, make design fixes settled by facts and rules regardless of size, and ask the user only what those cannot settle (e.g., removing user-facing features) in one batched question with recommendations.
 
-**When:** A review asked to fix what it finds. In a read-only review, list mechanical findings as mechanical.
+**When:** A review asked to fix findings. In a read-only review, label mechanical findings as mechanical.
 
 Bad: "Should I remove the unused import in `forms.ts`?"
-Good: The import removed and listed among the fixes.
+Good: Removing the import and listing it among the fixes.
 <!-- rule: coding/leave-harmless-redundancy-out-of-review-findings.md -->
 ## Leave harmless redundancy out of review findings
 
@@ -394,12 +388,12 @@ Good: No finding.
 <!-- rule: tools/use-zod-at-untrusted-runtime-boundaries.md -->
 ## Use Zod at untrusted runtime boundaries
 
-**Tooling:** Use Zod to validate data at an untrusted runtime boundary, where data enters TypeScript from outside.
+**Tooling:** Validate untrusted external data entering TypeScript with Zod.
 
-**When:** TypeScript on either stack (backend or Nuxt frontend), wherever data crosses into the program from outside.
+**When:** TypeScript backend or frontend code at any untrusted runtime boundary.
 
-Bad: `const form = JSON.parse(body) as Form` treats unchecked input as a typed value.
-Good: `const form = FormSchema.parse(JSON.parse(body))` checks the shape before the value is used.
+Bad: `const form = JSON.parse(body) as Form`
+Good: `const form = FormSchema.parse(JSON.parse(body))`
 <!-- rule: tools/use-pnpm-as-the-package-manager.md -->
 ## Use pnpm as the package manager
 
@@ -421,25 +415,25 @@ Good: `"lint": "oxlint && oxfmt --check"`
 <!-- rule: tools/extend-the-base-oxlint-and-oxfmt-configs.md -->
 ## Extend the base oxlint and oxfmt configs
 
-**Tooling:** Every TypeScript repo carries `.oxlintrc.json` and `.oxfmtrc.json` that contain at least the base settings, with the base values; a repo adds rules, `ignorePatterns`, and `internalPattern` aliases, and never contradicts the base.
+**Tooling:** Every TypeScript repo carries `.oxlintrc.json` and `.oxfmtrc.json` preserving all base settings and values; repos may add rules, `ignorePatterns`, and `internalPattern` aliases, never contradict the base.
 
-**When:** Every TypeScript repo. The base files are `configs/oxlintrc.json` and `configs/oxfmtrc.json` in the Plumb repository.
+**When:** Every TypeScript repo (base files live at `configs/oxlintrc.json` and `configs/oxfmtrc.json` in Plumb).
 
-Bad: an `.oxlintrc.json` that turns a base rule off.
-Good: an `.oxlintrc.json` that keeps every base rule and adds two of its own.
+Bad: Turning a base rule off in `.oxlintrc.json`.
+Good: Keeping all base rules and adding two repo-specific ones.
 
 Links: [oxlintrc.json](https://github.com/maxanstey-meridian/plumb/blob/main/configs/oxlintrc.json), [oxfmtrc.json](https://github.com/maxanstey-meridian/plumb/blob/main/configs/oxfmtrc.json)
 <!-- rule: tools/add-eslint-only-as-the-vue-and-nuxt-layer.md -->
 ## Add eslint only as the Vue and Nuxt layer
 
-**Tooling:** Use `eslint` with `@nuxt/eslint` only for the Vue and Nuxt rules `oxlint` does not cover; an app with no `.vue` files carries no eslint at all.
+**Tooling:** Use `eslint` with `@nuxt/eslint` only for Vue/Nuxt rules `oxlint` does not cover; omit eslint completely when an app has no `.vue` files.
 
-**When:** Every TypeScript repo; an app with `.vue` files carries the `@nuxt/eslint` layer on top of `oxlint`.
+**When:** Any TypeScript repo.
 
-Bad: an eslint config in an API package that has no `.vue` files.
-Good: no eslint in the API package, and in the UI app a config that only wraps `withNuxt(...)`:
+Bad: An eslint config in an API package with no `.vue` files.
+Good: No eslint in the API package; in the UI app, only wrap `withNuxt(...)`:
 ```js
-// apps/ui/eslint.config.mjs — eslint is only the Vue/Nuxt layer; oxlint does the rest.
+// apps/ui/eslint.config.mjs — Vue/Nuxt layer only; oxlint handles the rest.
 // @nuxt/eslint writes ./.nuxt/eslint.config.mjs during `nuxt prepare`.
 import withNuxt from "./.nuxt/eslint.config.mjs";
 
@@ -451,21 +445,21 @@ export default withNuxt({
 <!-- rule: tools/treat-generated-output-as-read-only-and-unlinted.md -->
 ## Treat generated output as read-only and unlinted
 
-**Tooling:** Generated output is never edited by hand and is excluded from every linter that could reach it.
+**Tooling:** Never edit generated output by hand and exclude it from every linter.
 
-**When:** Any generated tree in a TypeScript repo: the nearest `.oxlintrc.json` lists it in `ignorePatterns`, and an ESLint flat config that applies to it has a matching `ignores` entry.
+**When:** Generated trees in TypeScript repos: list them in `.oxlintrc.json` `ignorePatterns` and matching ESLint flat-config `ignores`.
 
-Bad: `packages/contracts/generated/schema.d.ts` edited by hand to fix a lint error.
-Good: `packages/contracts/generated` added to `ignorePatterns`, and `schema.d.ts` regenerated rather than edited.
+Bad: Editing `packages/contracts/generated/schema.d.ts` by hand to fix a lint error.
+Good: Adding `packages/contracts/generated` to `ignorePatterns` and regenerating `schema.d.ts`.
 <!-- rule: tools/keep-comment-lines-within-the-formatters-print-width.md -->
 ## Keep comment lines within the formatter's print width
 
-**Preference:** Keep comment-only lines within the formatter's print width by hand, since neither `CSharpier` nor `oxfmt` wraps comments; a single unbreakable token (a URL, a path) may overflow, and so may a tool directive, which its tool reads from that one line.
+**Preference:** Wrap comment-only lines manually within the formatter's print width (`CSharpier` and `oxfmt` don't wrap comments); single unbreakable tokens (URLs, paths) and single-line tool directives may overflow.
 
-**When:** C# (`//`, `///`) and TypeScript comments; the width is the formatter's, and in TypeScript the `printWidth` in `.oxfmtrc.json`. Tool directives include `// ReSharper disable …`, `// csharpier-ignore …`, `// eslint-disable-next-line … -- reason`, and `// @ts-expect-error …`.
+**When:** C# (`//`, `///`) and TypeScript comments (`printWidth` in `.oxfmtrc.json`). Directives: `// ReSharper disable …`, `// csharpier-ignore …`, `// eslint-disable-next-line … -- reason`, `// @ts-expect-error …`.
 
-Bad: a 140-column `//` comment in a file whose print width is 100.
-Good: the same comment wrapped over two `//` lines, each within 100 columns.
+Bad: A 140-column `//` comment in a 100-column file.
+Good: Wrapping the comment across two `//` lines within 100 columns.
 <!-- rule: tools/use-turbo-for-a-monorepos-task-graph.md -->
 ## Use turbo for a monorepo's task graph
 
@@ -487,12 +481,12 @@ Good: `task generate` and `task check`, defined in `Taskfile.yml`.
 <!-- rule: tools/run-plumb-only-where-the-repo-uses-it.md -->
 ## Run Plumb only where the repo uses it
 
-**Tooling:** Run Plumb, the checker for these rules, only when the repo's instructions name it or the repo defines a Plumb task or script; otherwise skip it without reporting it as unavailable.
+**Tooling:** Run Plumb only when the repo's instructions name it or define a Plumb task/script; otherwise skip it silently.
 
-**When:** After completing changes in any repo. Run the repo's own task (for example `task plumb`) when it has one, since that applies the repo's baseline; otherwise run it as the repo's instructions say, or from a local checkout of Plumb: `<plumb-checkout>/plumb . --json`.
+**When:** After completing changes in any repo. Prefer the repo's task (e.g., `task plumb`) so its baseline applies; otherwise follow repo instructions or run `<plumb-checkout>/plumb . --json`.
 
-Bad: "Plumb is not installed, skipping" said when reporting work on a repo that never mentions Plumb.
-Good: nothing said about Plumb when reporting work on a repo that never mentions it.
+Bad: Reporting "Plumb is not installed, skipping" on a repo that never mentions Plumb.
+Good: Saying nothing about Plumb on a repo that does not use it.
 
 Links: [Plumb](https://github.com/maxanstey-meridian/plumb)
 <!-- rule: tools/fix-every-plumb-error-after-your-changes.md -->

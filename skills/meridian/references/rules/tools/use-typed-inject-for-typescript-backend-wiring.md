@@ -1,10 +1,10 @@
 ## Use typed-inject for TypeScript backend wiring
 
-**Tooling:** Use `typed-inject` for explicit runtime wiring: each class lists its dependencies in `public static inject = [...] as const`, keyed by string and typed by the port (the type that names a capability the class needs).
+**Tooling:** Use `typed-inject` for explicit runtime wiring: list dependencies in `public static inject = [...] as const`, keyed by string and typed by port.
 
-**When:** TypeScript backends and local hosts that want explicit assembly without Nest-style framework injection; under Nest, the abstract-class port is the token instead. It makes wiring explicit; it is not a way to hide boundaries or to bring back a container that resolves things by magic.
+**When:** TypeScript backends and local hosts without Nest-style framework injection (under Nest, the abstract-class port is the token). It keeps wiring explicit — never use it to hide boundaries or restore magic resolution.
 
-Bad: a class whose method looks `clock` up in a service locator.
+Bad: A class looking up `clock` in a service locator.
 Good:
 ```ts
 export class TickPet {

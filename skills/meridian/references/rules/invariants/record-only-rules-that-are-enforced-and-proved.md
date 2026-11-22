@@ -1,8 +1,8 @@
 ## Record only rules that are enforced and proved
 
-**Default:** Give a rule an entry only when it is both enforced and proved; a rule that is not is not an invariant yet and gets no entry.
+**Default:** Add an `INVARIANTS.md` entry only when the rule is both enforced and proved; otherwise it is not an invariant yet.
 
-**When:** Deciding whether a rule belongs in a module's `INVARIANTS.md`, whose entries each name an `Owner` (the code that enforces the rule) and a `Proof` (the test that proves it).
+**When:** Deciding whether a rule belongs in `INVARIANTS.md` (each entry requires a real `Owner` and `Proof`).
 
-Bad: An entry for "a published form never changes" when no code guards it and no test covers it.
-Good: The guard and its test written first, then the entry.
+Bad: Adding an entry for "a published form never changes" with no guard or test.
+Good: Writing the guard and test first, then adding the entry.

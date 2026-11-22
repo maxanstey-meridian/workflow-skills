@@ -6,74 +6,74 @@
 
 Each line is one rule: its title, its one sentence, and the file that holds it.
 
-- **Keep Domain free of IO and frameworks.** Domain depends on nothing outside itself: no repositories, HTTP, database access, framework imports, SDK clients, logging, or a sibling module's published contract (the types it deliberately exposes to other modules). [`backend/keep-domain-free-of-io-and-frameworks.md`]
+- **Keep Domain free of IO and frameworks.** Domain depends on nothing outside itself: no repositories, HTTP, DB access, framework imports, SDKs, logging, or sibling modules' published contracts. [`backend/keep-domain-free-of-io-and-frameworks.md`]
 - **Keep Application independent of Infrastructure.** Application may depend on Domain and never on Infrastructure; Application owns its ports and Infrastructure implements them. [`backend/keep-application-independent-of-infrastructure.md`]
-- **Call only use cases from a controller.** A controller, endpoint, or other transport code calls Application use cases (the Application code for one operation), services, or named queries (the Application's types for one read each) only, and holds no orchestration of its own. [`backend/call-only-use-cases-from-a-controller.md`]
+- **Call only use cases from a controller.** Controllers and endpoints call only Application use cases, services, or named queries — never orchestrating logic themselves. [`backend/call-only-use-cases-from-a-controller.md`]
 - **Never call one controller from another.** A controller or endpoint never calls, injects, inherits from, or stores another controller; share the Application capability underneath. [`backend/never-call-one-controller-from-another.md`]
-- **Never reach into another module's internals.** A module (one feature's folder under `Modules/` or `src/modules/`) never imports a sibling's Domain or Infrastructure, queries its tables, entities, or DbSets, or uses its non-public Application types. [`backend/never-reach-into-another-modules-internals.md`]
-- **Integrate modules through a port, contract, or kernel.** Two modules (feature folders under `Modules/` or `src/modules/`) work together in one of three ways only: a required port (the consumer's own type naming the capability it needs) bridged to the provider by a host adapter (an implementation in the host, which may depend on both sides); a published contract (the commands, queries, and types the provider deliberately exposes to other modules); or a shared kernel (a small concept both own and change only by agreement). [`backend/integrate-modules-through-a-port-contract-or-kernel.md`]
-- **Run module dependencies one way.** Dependencies between modules (feature folders under `Modules/` or `src/modules/`) form a one-way graph, so no module reaches itself by following them; a loop is a gap to fix, and no decision record or accepted cost stands in for its fix. [`backend/run-module-dependencies-one-way.md`]
-- **Depend only on a module yours cannot keep its rules without.** A module (a feature folder under `Modules/` or `src/modules/`) may depend on another only when it couldn't keep its own rules if the other had never been built, so which way a dependency runs is a fact about the domain, not a design choice. [`backend/depend-only-on-a-module-yours-cannot-keep-its-rules-without.md`]
-- **Name neither module when neither needs the other.** When each of two modules (feature folders under `Modules/` or `src/modules/`) could keep its rules if the other had never been built, neither names the other: the one that uses the other's data or behaviour owns a required port (its own type naming the capability it needs), bridged at the host. [`backend/name-neither-module-when-neither-needs-the-other.md`]
-- **Merge two modules that each need the other.** When each of two modules (feature folders under `Modules/` or `src/modules/`) can keep its rules only with the other, they are one concept in two modules, so merge them. [`backend/merge-two-modules-that-each-need-the-other.md`]
-- **Write each module dependency down as a claim.** The repo writes down each pair where one module (a feature folder under `Modules/` or `src/modules/`) can't keep its rules without another as a claim with its reason, and a module depends only on what it claims and, through those claims, on what they claim. [`backend/write-each-module-dependency-down-as-a-claim.md`]
-- **Close published contracts over published types.** A module's published contract (the types it deliberately exposes to other modules) and the transport contract (the route definitions and wire types in top-level `Contracts/<Feature>/`) refer only to published or shared types, never to a module's Domain, Application, Infrastructure, or presentation types; move wire-facing enums, records, and value shapes into the contract and map at the transport edge (controllers, endpoints, and the mappers beside them). [`backend/close-published-contracts-over-published-types.md`]
-- **Never reference transport contracts from a module.** A module's Contracts, Domain, Application, and Infrastructure (a module is one feature's folder under `Modules/`) never reference the top-level transport contracts (the API's wire types), and no `global using` brings them in; the transport edge maps to and from module types. [`backend/never-reference-transport-contracts-from-a-module.md`]
-- **Never reference a module's root from its layers.** A module's Contracts, Domain, Application, and Infrastructure never reference the types at the module's root (the controller, endpoints, transport mappers, request validators, and the module's registration); the root calls into the layers, never the reverse. [`backend/never-reference-a-modules-root-from-its-layers.md`]
-- **Send client-facing rules on the read model.** A rule the client needs travels on the read model (the object the server returns for a screen), computed by the same code the write side uses: `availableActions` on a lifecycle entity's detail model, a named flag for a single decision, and app-wide permissions (capabilities) on the session. [`backend/send-client-facing-rules-on-the-read-model.md`]
-- **Return declared failures and throw undeclared ones.** A failure the API declares (one its transport contract lists as a response) is returned by the use case as a value and mapped once at the endpoint, while an exception is only for what should never happen and is translated once, by the error middleware, to a 5xx. [`backend/return-declared-failures-and-throw-undeclared-ones.md`]
-- **Apply the authorization policy at the endpoint.** The endpoint applies the authentication requirement and the named authorisation policy unconditionally, and a decision that needs the resource or its state is made in the use case, never in a controller. [`backend/apply-the-authorization-policy-at-the-endpoint.md`]
+- **Never reach into another module's internals.** A module never imports a sibling's Domain or Infrastructure, queries its tables, entities, or DbSets, or uses its non-public Application types. [`backend/never-reach-into-another-modules-internals.md`]
+- **Integrate modules through a port, contract, or kernel.** Modules (`Modules/` or `src/modules/`) interact only via: a consumer-owned required port bridged by a host adapter, a provider-owned published contract, or a co-owned shared kernel. [`backend/integrate-modules-through-a-port-contract-or-kernel.md`]
+- **Run module dependencies one way.** Module dependencies form a directed acyclic graph (no module reaches itself); a cycle is a gap to fix, never an accepted cost or decision record. [`backend/run-module-dependencies-one-way.md`]
+- **Depend only on a module yours cannot keep its rules without.** A module may depend on another only when it could not keep its own rules if the other had never been built — dependency direction is a domain fact, not a design choice. [`backend/depend-only-on-a-module-yours-cannot-keep-its-rules-without.md`]
+- **Name neither module when neither needs the other.** When neither of two collaborating modules needs the other to keep its rules, neither names the other: the consumer declares a required port bridged by a host adapter. [`backend/name-neither-module-when-neither-needs-the-other.md`]
+- **Merge two modules that each need the other.** If two modules each cannot keep their own rules without the other, they are one concept split in two — merge them. [`backend/merge-two-modules-that-each-need-the-other.md`]
+- **Write each module dependency down as a claim.** Record every pair where one module cannot keep its rules without another as an explicit claim with its reason, and depend only on claimed modules (and transitively on what they claim). [`backend/write-each-module-dependency-down-as-a-claim.md`]
+- **Close published contracts over published types.** Module published contracts (`Modules/<Feature>/Contracts/` or `src/modules/<feature>/contracts/`) and transport contracts (`Contracts/<Feature>/`) reference only published or shared types — never Domain, Application, Infrastructure, or presentation types; map at the transport edge. [`backend/close-published-contracts-over-published-types.md`]
+- **Never reference transport contracts from a module.** A module's Contracts, Domain, Application, and Infrastructure never reference top-level transport contracts (`<App>.Contracts.*`), and no `global using` imports them; the transport edge maps both ways. [`backend/never-reference-transport-contracts-from-a-module.md`]
+- **Never reference a module's root from its layers.** A module's Contracts, Domain, Application, and Infrastructure never reference module-root types (controller, endpoints, transport mappers, request validators, module registration); the root calls inward, never the reverse. [`backend/never-reference-a-modules-root-from-its-layers.md`]
+- **Send client-facing rules on the read model.** Compute every client-facing rule on the server using the write side's code and send it on the read model: `availableActions` on lifecycle details, named flags for single decisions, and app-wide permissions on the session. [`backend/send-client-facing-rules-on-the-read-model.md`]
+- **Return declared failures and throw undeclared ones.** Return declared API failures (listed in the transport contract) as values mapped once at the endpoint; throw exceptions only for unexpected errors, translated once to 5xx by error middleware. [`backend/return-declared-failures-and-throw-undeclared-ones.md`]
+- **Apply the authorization policy at the endpoint.** Apply authentication and the named authorisation policy unconditionally at the endpoint; make resource- or state-dependent decisions in the use case, never in a controller. [`backend/apply-the-authorization-policy-at-the-endpoint.md`]
 - **Apply tenant and ownership filters on the server.** Tenant and ownership filters are enforced on the server for every read and write; the UI sending the right id is never the control. [`backend/apply-tenant-and-ownership-filters-on-the-server.md`]
-- **Run adapter tests on the production database engine.** Integration tests of a database adapter run on the production database engine; an in-memory or substitute engine is never used. [`tests/run-adapter-tests-on-the-production-database-engine.md`]
-- **Fake the port, never the database.** A test that avoids persistence fakes the repository or query port (the application-owned type that names the capability); it never puts a fake database underneath the real adapter. [`tests/fake-the-port-never-the-database.md`]
+- **Run adapter tests on the production database engine.** Run database adapter integration tests on the production DB engine — never an in-memory or substitute engine. [`tests/run-adapter-tests-on-the-production-database-engine.md`]
+- **Fake the port, never the database.** To avoid persistence in a test, fake the repository or query port — never put a fake database beneath the real adapter. [`tests/fake-the-port-never-the-database.md`]
 <!-- rule: backend/build-one-modular-monolith-first.md -->
 ## Build one modular monolith first
 
-**Default:** Start a backend as one project or one package split into modules (a module is one feature's folder under `Modules/` or `src/modules/`), and do not start with flat service folders, a giant `common/services`, many tiny packages or projects, or microservice boundaries with no real runtime or deployment boundary.
+**Default:** Start a backend as one project or package split into feature modules (`Modules/` or `src/modules/`) — not flat service folders, a giant `common/services`, many tiny packages, or microservices without a real deployment boundary.
 
-**When:** A new backend, .NET or TypeScript, and any proposal to split one into packages or services.
+**When:** New .NET or TypeScript backends, or proposals to split one into packages or services.
 
 Bad: `Forms.Api`, `Forms.Domain`, `Forms.Data`, and `Shared.Services` projects on day one.
-Good: one `Api` project with `Modules/Forms/`.
+Good: One `Api` project with `Modules/Forms/`.
 <!-- rule: backend/give-each-product-capability-its-own-module.md -->
 ## Give each product capability its own module
 
-**Default:** Make a module for each real product capability that has its own language, workflow, or lifecycle; an infrastructure concern, a helper, or a detail of another module is not a module.
+**Default:** Create a module for each real product capability with its own language, workflow, or lifecycle — never for an infrastructure concern, helper, or detail of another module.
 
-**When:** Deciding whether code becomes a new module (one feature's folder under `Modules/` or `src/modules/`) on a .NET or TypeScript backend.
+**When:** Deciding whether code deserves a new module (`Modules/` or `src/modules/`).
 
-Bad: a `Modules/Email/` that every module calls and that owns no product behaviour.
-Good: an email port (the Application-owned type that names a capability) in each module that sends, with one adapter (the implementation of the port) in the host.
+Bad: `Modules/Email/` called by every module with no product behaviour.
+Good: An email port in each sending module backed by one host adapter.
 <!-- rule: backend/add-layers-inside-a-module-only-when-earned.md -->
 ## Add layers inside a module only when earned
 
-**Default:** Inside a module (one feature's folder under `Modules/` or `src/modules/`), use ports (the application-owned types that name a capability), use cases (the Application code for one operation), and domain types only when it has business rules or invariants worth protecting, infrastructure that could realistically vary, orchestration that would be hard to follow inline, or a capability important or brittle enough to need the tests.
+**Default:** Inside a module, add ports, use cases, and domain types only when earned by business rules/invariants worth protecting, plausible infrastructure variability, complex orchestration, or testing needs.
 
-**When:** Shaping the inside of a module on a .NET or TypeScript backend; this is "clean architecture" (separate Domain, Application, and Infrastructure layers), applied only where it earns its place.
+**When:** Shaping a module on .NET or TypeScript ("clean architecture" applied only where earned).
 
-Bad: Domain, Application, and Infrastructure folders with a port and a use case for a lookup-table CRUD screen.
-Good: one endpoint and one query.
+Bad: Domain, Application, and Infrastructure folders with a port and use case for lookup-table CRUD.
+Good: One endpoint and one query.
 <!-- rule: backend/use-tactical-ddd-only-where-complexity-earns-it.md -->
 ## Use tactical DDD only where complexity earns it
 
-**Default:** Use strategic domain-driven design (DDD: bounded contexts, the areas where one model and vocabulary hold; context maps; published language; customer/supplier relationships; anti-corruption layers; and shared kernels, small concepts two or more modules own together) to find boundaries and words, and tactical DDD (aggregates, entities, value objects, domain services, specifications) only where the domain's complexity needs it.
+**Default:** Use strategic DDD (bounded contexts, context maps, published language, anti-corruption layers, shared kernels) to set boundaries and vocabulary, and tactical DDD (aggregates, entities, value objects, domain services, specifications) only where domain complexity earns it.
 
-**When:** Modelling a backend domain, on .NET or TypeScript.
+**When:** Modelling a backend domain on .NET or TypeScript.
 
-Bad: value objects, an aggregate root, and a specification for a list of office locations.
-Good: a record and a query.
+Bad: Value objects, an aggregate root, and a specification for a list of office locations.
+Good: A record and a query.
 <!-- rule: backend/lay-out-a-dotnet-module-in-the-standard-shape.md -->
 ## Lay out a dotnet module in the standard shape
 
-**Default:** A .NET module is `Modules/<Feature>/` holding `Contracts/` (only when it publishes an API, the types it deliberately exposes to other modules), `Domain/`, `Application/` with `Ports/` (the application-owned types that name a capability) and one folder per use case (the Application code for one operation) holding `<UseCaseName>UseCase.cs`, `Infrastructure/` for adapters (the implementations of ports), and at its root the controller and `<Feature>Module.cs`, with no `Interface/` folder by default.
+**Default:** Put a .NET module under `Modules/<Feature>/` with `Contracts/` (only when publishing cross-module APIs), `Domain/`, `Application/` (`Ports/` + one `<UseCaseName>/<UseCaseName>UseCase.cs` folder per use case), `Infrastructure/`, and root `<Feature>Controller.cs` + `<Feature>Module.cs` (no `Interface/` folder by default).
 
-**When:** .NET backends, when creating or reshaping a module.
+**When:** Creating or reshaping .NET backend modules.
 
 Bad: `Modules/Forms/Interface/Controllers/FormsController.cs`, with ports under `Infrastructure/`.
 Good:
 ```text
 Modules/<Feature>/
-├── Contracts/          # deliberately published module API, when needed
+├── Contracts/          # published cross-module API, when needed
 ├── Domain/
 ├── Application/
 │   ├── Ports/
@@ -86,15 +86,15 @@ Modules/<Feature>/
 <!-- rule: backend/lay-out-a-typescript-module-in-the-standard-shape.md -->
 ## Lay out a TypeScript module in the standard shape
 
-**Default:** A TypeScript module is `src/modules/<feature>/` holding `contracts/` (only when it publishes an API, the types it deliberately exposes to other modules), `domain/`, `application/` with `ports/` (the application-owned types that name a capability) and one file per use case (the Application code for one operation), placed directly in `application/` or in `application/use-cases/`, `infrastructure/` for adapters (the implementations of ports), `interface/http/<feature>-routes.ts`, and `<feature>.module.ts`.
+**Default:** Put a TypeScript module under `src/modules/<feature>/` with `contracts/` (only when publishing cross-module APIs), `domain/`, `application/` (`ports/` + one file per use case, directly or in `use-cases/`), `infrastructure/`, `interface/http/<feature>-routes.ts`, and `<feature>.module.ts`.
 
-**When:** TypeScript backends; dependency direction is the same as on .NET.
+**When:** TypeScript backends (same dependency direction as .NET).
 
 Bad: `src/services/forms.service.ts` and `src/routes/forms.ts`.
 Good:
 ```text
 src/modules/<feature>/
-├── contracts/          # deliberately published module API, when needed
+├── contracts/          # published cross-module API, when needed
 ├── domain/
 ├── application/
 │   ├── ports/
@@ -106,32 +106,32 @@ src/modules/<feature>/
 <!-- rule: backend/register-a-module-in-its-own-module-file.md -->
 ## Register a module in its own module file
 
-**Default:** Each module (one feature's folder under `Modules/` or `src/modules/`) registers its own dependencies explicitly in its module file, and the host (the code that assembles the application) supplies only what differs between environments.
+**Default:** Register each module's dependencies explicitly in its own module file; the host supplies only environment-specific overrides.
 
-**When:** `<Feature>Module.cs` on .NET; `<feature>.module.ts` on a TypeScript backend.
+**When:** `<Feature>Module.cs` (.NET) or `<feature>.module.ts` (TypeScript).
 
-Bad: every module's services registered in one long `Program.cs`.
-Good: `builder.Services.AddFormsModule()` calling the registrations in `FormsModule.cs`.
+Bad: Registering every module's services in one long `Program.cs`.
+Good: `builder.Services.AddFormsModule()` delegating to `FormsModule.cs`.
 
 Links: [a TypeScript module file, quotes.module.ts](https://github.com/maxanstey-meridian/rivet-ts/blob/main/templates/example/apps/api/src/modules/quotes/quotes.module.ts)
 <!-- rule: backend/put-rules-in-domain-and-orchestration-in-application.md -->
 ## Put rules in Domain and orchestration in Application
 
-**Default:** Domain holds pure rules, invariants, calculations, and decisions; Application holds use cases (the code for one operation), orchestration, ports (the application-owned types that name a capability), transaction boundaries, and what a failure means; Infrastructure holds repositories, HTTP clients, queue and storage adapters, auth provider integrations, and SDK wrappers, and may depend on frameworks and libraries freely.
+**Default:** Put pure rules, invariants, calculations, and decisions in Domain; put use cases, orchestration, ports, transaction boundaries, and failure semantics in Application; put repositories, HTTP clients, queue/storage adapters, auth integrations, and SDK wrappers in Infrastructure.
 
-**When:** A module (one feature's folder under `Modules/` or `src/modules/`) that has the three layers (Domain, Application, Infrastructure), on .NET or TypeScript.
+**When:** Layered modules (Domain, Application, Infrastructure) on .NET or TypeScript; Infrastructure may depend on frameworks and libraries freely.
 
-Bad: a use case with the business rule as inline `if/else` branches.
-Good: the rule as a Domain function the use case calls.
+Bad: A use case expressing business rules as inline `if/else` branches.
+Good: A Domain function called by the use case.
 <!-- rule: backend/keep-domain-free-of-io-and-frameworks.md -->
 ## Keep Domain free of IO and frameworks
 
-**Law:** Domain depends on nothing outside itself: no repositories, HTTP, database access, framework imports, SDK clients, logging, or a sibling module's published contract (the types it deliberately exposes to other modules).
+**Law:** Domain depends on nothing outside itself: no repositories, HTTP, DB access, framework imports, SDKs, logging, or sibling modules' published contracts.
 
-**When:** Domain code in a module (one feature's folder under `Modules/` or `src/modules/`), on .NET or TypeScript; Domain decisions are values, and `ILogger<T>` belongs in Application and Infrastructure.
+**When:** Domain code in any .NET or TypeScript module (Domain returns values; `ILogger<T>` belongs in Application and Infrastructure).
 
-Bad: a Domain entity that takes `ILogger<Form>` and calls `DbContext`.
-Good: the entity returns a value, and the use case logs and saves.
+Bad: A Domain entity taking `ILogger<Form>` and calling `DbContext`.
+Good: The entity returning a value while the use case logs and saves.
 <!-- rule: backend/keep-application-independent-of-infrastructure.md -->
 ## Keep Application independent of Infrastructure
 
@@ -153,12 +153,12 @@ Good: a use case that takes a `CreateFormCommand` and returns a `CreateFormResul
 <!-- rule: backend/call-only-use-cases-from-a-controller.md -->
 ## Call only use cases from a controller
 
-**Law:** A controller, endpoint, or other transport code calls Application use cases (the Application code for one operation), services, or named queries (the Application's types for one read each) only, and holds no orchestration of its own.
+**Law:** Controllers and endpoints call only Application use cases, services, or named queries — never orchestrating logic themselves.
 
-**When:** Transport code in a module (one feature's folder under `Modules/` or `src/modules/`), on .NET or TypeScript.
+**When:** Transport code in any .NET or TypeScript module.
 
-Bad: a controller action that loads two repositories, applies a rule, and saves.
-Good: an action that binds the request, calls `ExecuteAsync`, and maps the result.
+Bad: A controller action loading two repositories, applying a rule, and saving.
+Good: An action binding the request, calling `ExecuteAsync`, and mapping the result.
 <!-- rule: backend/never-call-one-controller-from-another.md -->
 ## Never call one controller from another
 
@@ -171,146 +171,146 @@ Good: both controllers calling `ListFormsQuery`.
 <!-- rule: backend/never-reach-into-another-modules-internals.md -->
 ## Never reach into another module's internals
 
-**Law:** A module (one feature's folder under `Modules/` or `src/modules/`) never imports a sibling's Domain or Infrastructure, queries its tables, entities, or DbSets, or uses its non-public Application types.
+**Law:** A module never imports a sibling's Domain or Infrastructure, queries its tables, entities, or DbSets, or uses its non-public Application types.
 
-**When:** Any code inside a module, on .NET or TypeScript.
+**When:** Any code inside a .NET or TypeScript module.
 
-Bad: the Cases module joining the CaseTypes module's `CaseTypes` table.
-Good: the Cases module calling the CaseTypes module's published query.
+Bad: `Cases` joining `CaseTypes`'s `CaseTypes` table.
+Good: `Cases` calling `CaseTypes`'s published query.
 <!-- rule: backend/integrate-modules-through-a-port-contract-or-kernel.md -->
 ## Integrate modules through a port, contract, or kernel
 
-**Law:** Two modules (feature folders under `Modules/` or `src/modules/`) work together in one of three ways only: a required port (the consumer's own type naming the capability it needs) bridged to the provider by a host adapter (an implementation in the host, which may depend on both sides); a published contract (the commands, queries, and types the provider deliberately exposes to other modules); or a shared kernel (a small concept both own and change only by agreement).
+**Law:** Modules (`Modules/` or `src/modules/`) interact only via: a consumer-owned required port bridged by a host adapter, a provider-owned published contract, or a co-owned shared kernel.
 
-**When:** Any dependency between modules. Choose the provider's published contract only when the consumer couldn't keep its own rules if the provider had never been built, the consumer's port when the consumer could (the consumer then doesn't name the provider) or when the consuming use case should set the shape, and the shared kernel (in `Common`) only for a concept the modules really co-own. A required port does not move to `Common` because its adapter calls another module; each module depends only on the contract relevant to its own side.
+**When:** Any cross-module dependency. Use the provider's published contract only when the consumer could not keep its own rules without the provider; use a consumer port when it could (hiding the provider) or when the consumer should set the shape; use a shared kernel (in `Common`) only for a genuinely co-owned concept. Never move a required port to `Common` just because its adapter calls another module; each module depends only on its own side's contract.
 
 Bad: Forms' use case importing `Submissions.Application.SubmissionService`.
-Good: forms declaring a `SubmissionCounts` port that a host adapter implements by calling submissions' published query.
+Good: Forms declaring a `SubmissionCounts` port that a host adapter implements via Submissions' published query.
 <!-- rule: backend/run-module-dependencies-one-way.md -->
 ## Run module dependencies one way
 
-**Law:** Dependencies between modules (feature folders under `Modules/` or `src/modules/`) form a one-way graph, so no module reaches itself by following them; a loop is a gap to fix, and no decision record or accepted cost stands in for its fix.
+**Law:** Module dependencies form a directed acyclic graph (no module reaches itself); a cycle is a gap to fix, never an accepted cost or decision record.
 
-**When:** Any backend with more than one module. The integration rule says how two modules talk; this one says which of the two may name the other. A loop made only of edges from a module to one it can't keep its rules without means the modules on it need each other, which makes them one concept split across modules; every other loop holds at least one edge from a module to one it could keep its rules without. The split, or that edge, is the one to fix.
+**When:** Any multi-module backend. A cycle of true domain dependencies means those modules are one concept split across folders; any other cycle contains a non-essential edge to break via a consumer-owned port bridged at the host.
 
-Bad: Cases reading CaseTypes' versions and CaseTypes reading Cases' open count, with a decision record that accepts the loop.
-Good: Cases depending on CaseTypes, and CaseTypes taking the count through its own `OpenCaseCounts` port, bridged at the host.
+Bad: `Cases` reading `CaseTypes` versions and `CaseTypes` reading `Cases` open count, with a decision record accepting the cycle.
+Good: `Cases` depending on `CaseTypes`, and `CaseTypes` reading the count through an `OpenCaseCounts` port bridged at the host.
 <!-- rule: backend/depend-only-on-a-module-yours-cannot-keep-its-rules-without.md -->
 ## Depend only on a module yours cannot keep its rules without
 
-**Law:** A module (a feature folder under `Modules/` or `src/modules/`) may depend on another only when it couldn't keep its own rules if the other had never been built, so which way a dependency runs is a fact about the domain, not a design choice.
+**Law:** A module may depend on another only when it could not keep its own rules if the other had never been built — dependency direction is a domain fact, not a design choice.
 
-**When:** Any two modules where one names the other. Ask it both ways: could this module keep its rules if the other had never been built? When only one of them couldn't, that one may depend on the other, and nothing in the other names it.
+**When:** Any two modules where one names the other. Ask both ways: could X keep its rules without Y? When only one cannot, it depends on the other and never vice versa.
 
-Bad: CaseTypes importing Cases to count the Cases on a type.
-Good: Cases depending on CaseTypes, because a typed Case's stages, statuses, and permissions come from its Case type version, while a Case type keeps every rule with no Cases at all.
+Bad: `CaseTypes` importing `Cases` to count cases on a type.
+Good: `Cases` depending on `CaseTypes` (a typed case's stages, statuses, and permissions come from its case type, while a case type keeps every rule with no cases).
 <!-- rule: backend/name-neither-module-when-neither-needs-the-other.md -->
 ## Name neither module when neither needs the other
 
-**Law:** When each of two modules (feature folders under `Modules/` or `src/modules/`) could keep its rules if the other had never been built, neither names the other: the one that uses the other's data or behaviour owns a required port (its own type naming the capability it needs), bridged at the host.
+**Law:** When neither of two collaborating modules needs the other to keep its rules, neither names the other: the consumer declares a required port bridged by a host adapter.
 
-**When:** Two modules that work together though neither needs the other. This is the only case where a direction would be arbitrary, and the answer is no edge, not a chosen one. Each may still store the other's ids as opaque values. When one pair keeps needing more of these ports, the boundary may be false: merge the modules or redraw it before adding another port.
+**When:** Collaborating modules with no domain dependency (no arbitrary edge; each may store the other's opaque ids). If a pair keeps accumulating such ports, the boundary may be false — merge or redraw it first.
 
-Bad: Records importing Cases' published query to show the Case a record was issued on.
-Good: Records declaring a `CaseSummaries` port that a host adapter implements from Cases, since a record issued by hand is still a record and a Case with no record is still a Case.
+Bad: `Records` importing `Cases`' published query to show the Case a record belongs to.
+Good: `Records` declaring a `CaseSummaries` port implemented by a host adapter over `Cases` (a manual record is still a record; a Case without a record is still a Case).
 <!-- rule: backend/merge-two-modules-that-each-need-the-other.md -->
 ## Merge two modules that each need the other
 
-**Law:** When each of two modules (feature folders under `Modules/` or `src/modules/`) can keep its rules only with the other, they are one concept in two modules, so merge them.
+**Law:** If two modules each cannot keep their own rules without the other, they are one concept split in two — merge them.
 
-**When:** Two modules where neither could keep its rules if the other had never been built. When the cause is one module holding two concepts that sit at different points, such as definitions that others pin and the instances made from them, split that module so each concept sits in its own place.
+**When:** Mutual dependency between modules. If the real cause is one module mixing two concepts at different lifecycle points (e.g., pinned definitions and instances), split that module so each sits in its own place.
 
-Bad: `Invoices` and `InvoiceLines` as two modules, each checking its totals against the other.
-Good: one `Invoices` module.
+Bad: `Invoices` and `InvoiceLines` as two modules checking totals against each other.
+Good: One `Invoices` module.
 <!-- rule: backend/judge-which-module-needs-which-from-the-domain-first.md -->
 ## Judge which module needs which from the domain first
 
-**Default:** Decide whether one module (a feature folder under `Modules/` or `src/modules/`) needs another from the domain first, from stored data second, and from the code last, because the code is what's under suspicion.
+**Default:** Determine module dependency direction from the domain first, stored data second, and existing code last (since existing code is what is under suspicion).
 
-**When:** Answering whether a module could keep its rules if another had never been built. The domain: the people who run it can say whether an X keeps its rules without a Y. Stored data: a required id of Y in X's own row, set when X is made, is evidence that X needs Y; an optional id, or one on a later child or link row, is evidence only that the two are associated, either way.
+**When:** Testing whether module X could keep its rules without Y. Domain: people running the domain can answer directly. Stored data: a required `y_id` on X's own row at creation suggests X needs Y; an optional id or child/link row only shows association.
 
-Bad: "Records depends on Cases, because `RecordsController` already imports it."
-Good: "A record can be issued by hand with no Case, and `records.case_id` is optional, so Records doesn't need Cases."
+Bad: "Records depends on Cases because `RecordsController` already imports it."
+Good: "Records can be issued manually without a Case and `records.case_id` is optional, so Records doesn't need Cases."
 <!-- rule: backend/write-each-module-dependency-down-as-a-claim.md -->
 ## Write each module dependency down as a claim
 
-**Law:** The repo writes down each pair where one module (a feature folder under `Modules/` or `src/modules/`) can't keep its rules without another as a claim with its reason, and a module depends only on what it claims and, through those claims, on what they claim.
+**Law:** Record every pair where one module cannot keep its rules without another as an explicit claim with its reason, and depend only on claimed modules (and transitively on what they claim).
 
-**When:** Any backend whose module dependencies a checker reads (Plumb reads `.plumb-modules.json`). Claim only the pairs where one module needs the other; modules that don't need each other stay unordered. A reference against the claims is wrong: replace it with a consumer-owned required port bridged at the host, or move a genuinely shared type to the shared kernel. A loop the claims don't explain is one question per pair: answer it, then add the claim, remove the reference, or merge or split the modules.
+**When:** Any backend with a module-dependency checker (Plumb reads `.plumb-modules.json`). Claim only true domain dependencies; leave independent modules unordered. Fix unclaimed references via a consumer-owned port bridged at the host or a genuinely shared kernel. Resolve unexplained cycles pair by pair: add the claim, break the edge, or merge/split the modules.
 
-Bad: a claims file generated from the imports the code has today.
-Good: `"Cases": { "CaseTypes": "a typed Case's stages, statuses, and permissions come from its pinned Case type version" }`, added by hand once the question was answered.
+Bad: Generating a claims file from today's imports.
+Good: Hand-writing `"Cases": { "CaseTypes": "a typed Case's stages, statuses, and permissions come from its pinned Case type version" }`.
 <!-- rule: backend/close-published-contracts-over-published-types.md -->
 ## Close published contracts over published types
 
-**Law:** A module's published contract (the types it deliberately exposes to other modules) and the transport contract (the route definitions and wire types in top-level `Contracts/<Feature>/`) refer only to published or shared types, never to a module's Domain, Application, Infrastructure, or presentation types; move wire-facing enums, records, and value shapes into the contract and map at the transport edge (controllers, endpoints, and the mappers beside them).
+**Law:** Module published contracts (`Modules/<Feature>/Contracts/` or `src/modules/<feature>/contracts/`) and transport contracts (`Contracts/<Feature>/`) reference only published or shared types — never Domain, Application, Infrastructure, or presentation types; map at the transport edge.
 
-**When:** Files under a module's published contract folder (`Modules/<Feature>/Contracts/` on .NET, `src/modules/<feature>/contracts/` on TypeScript) and under the top-level transport contract folder (`Contracts/<Feature>/`). C# `public` does not make a domain type published. A module's published contract may be used by Application, integration, and transport contract code.
+**When:** Published and transport contract files. C# `public` does not make a domain type published. Application, integration, and transport contract code may use a module's published contract.
 
-Bad: a contract record with a property of type `Forms.Domain.FormStatus`.
-Good: a `FormStatusDto` enum declared in the contract and mapped at the edge.
+Bad: A contract record with a `Forms.Domain.FormStatus` property.
+Good: A `FormStatusDto` enum declared in the contract and mapped at the edge.
 <!-- rule: backend/never-reference-transport-contracts-from-a-module.md -->
 ## Never reference transport contracts from a module
 
-**Law:** A module's Contracts, Domain, Application, and Infrastructure (a module is one feature's folder under `Modules/`) never reference the top-level transport contracts (the API's wire types), and no `global using` brings them in; the transport edge maps to and from module types.
+**Law:** A module's Contracts, Domain, Application, and Infrastructure never reference top-level transport contracts (`<App>.Contracts.*`), and no `global using` imports them; the transport edge maps both ways.
 
-**When:** .NET backends with top-level transport contracts (`<App>.Contracts.*`). The transport edge is `Contracts/**/…TransportMapper` and the module-root presentation files: controllers, endpoints, transport mappers, request validators, and the module's registration.
+**When:** .NET backends with top-level transport contracts. The transport edge is `Contracts/**/…TransportMapper` plus module-root presentation files (controllers, endpoints, transport mappers, request validators, module registration).
 
 Bad: `CreateFormUseCase.ExecuteAsync(CreateFormRequest request, …)` taking the wire DTO.
-Good: the controller maps `CreateFormRequest` to `CreateFormCommand`.
+Good: The controller mapping `CreateFormRequest` to `CreateFormCommand`.
 <!-- rule: backend/never-reference-a-modules-root-from-its-layers.md -->
 ## Never reference a module's root from its layers
 
-**Law:** A module's Contracts, Domain, Application, and Infrastructure never reference the types at the module's root (the controller, endpoints, transport mappers, request validators, and the module's registration); the root calls into the layers, never the reverse.
+**Law:** A module's Contracts, Domain, Application, and Infrastructure never reference module-root types (controller, endpoints, transport mappers, request validators, module registration); the root calls inward, never the reverse.
 
-**When:** .NET backends, in a module (one feature's folder under `Modules/`).
+**When:** .NET backend modules (`Modules/`).
 
-Bad: an EF configuration in `Infrastructure/` reading `FormsRequestValidators.MaxTitleLength`.
-Good: the limit declared in Domain, read by both the validator and the configuration.
+Bad: An EF configuration in `Infrastructure/` reading `FormsRequestValidators.MaxTitleLength`.
+Good: Declaring the limit in Domain and reading it from both validator and configuration.
 <!-- rule: backend/redraw-a-boundary-that-needs-atomic-cross-module-changes.md -->
 ## Redraw a boundary that needs atomic cross-module changes
 
-**Default:** When two modules (feature folders under `Modules/` or `src/modules/`) keep needing each other's internal concepts, or one invariant keeps needing atomic changes to both, merge them or redraw the boundary before adding integration ports (the consumer's own types naming a capability it needs) or coordination.
+**Default:** When two modules repeatedly need each other's internals or atomic cross-module changes for one invariant, merge them or redraw the boundary instead of adding integration ports or coordination.
 
-**When:** Any design that adds another integration port, or any coordination, between two modules that already work together through a port or a contract.
+**When:** Before adding another integration port or saga between modules that already collaborate.
 
-Bad: a saga (a multi-step coordinator) and two ports so `Orders` and `OrderLines` stay consistent.
-Good: one `Orders` module.
+Bad: A saga and two ports to keep `Orders` and `OrderLines` consistent.
+Good: One `Orders` module.
 <!-- rule: backend/put-only-cross-cutting-code-in-common.md -->
 ## Put only cross-cutting code in Common
 
-**Default:** `Common/` or `shared/` holds only shared code (code no single feature owns): base error types, common middleware and filters, value types that are truly cross-module, and deliberately co-owned shared-kernel contracts (a small concept two or more modules own together); never feature logic or a way round a module boundary (a module is one feature's folder under `Modules/` or `src/modules/`).
+**Default:** Put only genuinely ownerless shared code in `Common/` or `shared/` — base error types, common middleware/filters, cross-module value types, and co-owned shared-kernel contracts; never feature logic or boundary workarounds.
 
-**When:** .NET and TypeScript backends, when adding code to `Common/` or `shared/`.
+**When:** Adding code to `Common/` or `shared/` on .NET or TypeScript backends.
 
 Bad: `Common/FormHelpers.cs` holding form-naming rules.
-Good: the rules in `Modules/Forms/Domain/`.
+Good: Placing those rules in `Modules/Forms/Domain/`.
 <!-- rule: backend/never-mirror-a-module-under-common.md -->
 ## Never mirror a module under Common
 
-**Default:** `Common/<Feature>/` never mirrors an existing module (one feature's folder, `Modules/<Feature>/` or `src/modules/<feature>/`), even when several modules consume the types; organise shared code by its shared role and keep the types a feature publishes to other modules with the feature.
+**Default:** Never mirror an existing module under `Common/<Feature>/`, even when multiple modules consume its types; organise shared code by role and keep feature-published types inside the feature.
 
-**When:** .NET and TypeScript backends, when adding a folder or file to `Common/` or `shared/`.
+**When:** Adding files to `Common/` or `shared/` on .NET or TypeScript backends.
 
 Bad: `Common/Forms/FormStatus.cs` beside `Modules/Forms/`.
 Good: `Modules/Forms/Contracts/FormStatus.cs`.
 <!-- rule: backend/keep-a-port-narrow-and-capability-shaped.md -->
 ## Keep a port narrow and capability-shaped
 
-**Default:** A port names one narrow capability the application needs (something the code needs done for it); it is not a giant service, a mirror of an SDK, or wider than the capability used.
+**Default:** Give each port one narrow capability — never a giant service, SDK mirror, or wider surface than callers use.
 
-**When:** Declaring a port (the Application-owned type that names a capability) on .NET or TypeScript.
+**When:** Declaring ports on .NET or TypeScript.
 
-Bad: `StorageService` with twenty methods copied from the blob SDK.
+Bad: `StorageService` copying twenty methods from the blob SDK.
 Good: `DocumentStore` with `Save` and `Open`.
 <!-- rule: backend/write-a-typescript-port-as-an-abstract-class.md -->
 ## Write a TypeScript port as an abstract class
 
-**Default:** Write a port (the Application-owned type that names a capability) as an abstract class with a private constructor and only abstract methods (no fields, no implementation, no static factory), which adapters (the implementations of a port) `implement` and never `extend`.
+**Default:** Declare a TypeScript port as an abstract class with a private constructor and only abstract methods (no fields, implementation, or static factory) that adapters `implement` (never `extend`).
 
-**When:** TypeScript backends, where the class is also the runtime injection token (under Nest) or the type behind a `typed-inject` key.
+**When:** TypeScript backends, where the class serves as the runtime injection token (Nest) or the type behind a `typed-inject` key.
 
-Bad: `export interface Mailer { send(input: SendMailInput): Promise<void> }`, which has no runtime identity.
+Bad: `export interface Mailer { send(input: SendMailInput): Promise<void> }` (no runtime identity).
 Good:
 ```ts
 export abstract class Mailer {
@@ -323,12 +323,12 @@ export class SendgridMailer implements Mailer { /* ... */ }
 <!-- rule: backend/share-adapter-behaviour-through-functions-not-a-base-class.md -->
 ## Share adapter behaviour through functions, not a base class
 
-**Default:** When two adapters (implementations of a port) need the same behaviour, put it in pure functions in a shared file that both call, never in a base adapter class.
+**Default:** Share common behaviour across adapters via pure functions in a shared file, never a base adapter class.
 
-**When:** Adapters on a TypeScript backend.
+**When:** Adapters on TypeScript backends.
 
 Bad: `abstract class AbstractBaseMailer` extended by two mailers.
-Good: `renderMessage(input)` in a shared file of pure functions that both mailers call.
+Good: `renderMessage(input)` in a shared pure file called by both mailers.
 <!-- rule: backend/write-a-use-case-class-only-for-real-orchestration.md -->
 ## Write a use case class only for real orchestration
 
@@ -350,9 +350,9 @@ Good: `await forms.Save(form); await mailer.Send(notice);` in the use case.
 <!-- rule: backend/give-each-read-shape-a-named-query.md -->
 ## Give each read shape a named query
 
-**Default:** A repository loads and saves the state a mutation needs; list rows, dropdown options, exports, dashboards, and API read models (the objects the server returns for a screen) each belong to a named query (a type for one read, whose name ends `Query`), not to the write repository.
+**Default:** Repositories load and save state for mutations; list rows, dropdowns, exports, dashboards, and API read models each belong to a named `*Query`, not the write repository.
 
-**When:** Read paths on .NET or TypeScript. A trivial query may load through the repository and map locally; when the read grows wider, slower, or UI-specific, replace the query's implementation and leave the repository alone.
+**When:** Read paths on .NET or TypeScript. Trivial queries may load via the repository and map locally, then swap implementations when reads grow wider, slower, or UI-specific.
 
 Bad: `FormRepository.GetDashboardRowsAsync()`.
 Good: `ListFormDashboardRowsQuery`.
@@ -377,16 +377,16 @@ Good: `await createForm.ExecuteAsync(new CreateFormCommand(name), ct)`.
 <!-- rule: backend/send-client-facing-rules-on-the-read-model.md -->
 ## Send client-facing rules on the read model
 
-**Law:** A rule the client needs travels on the read model (the object the server returns for a screen), computed by the same code the write side uses: `availableActions` on a lifecycle entity's detail model, a named flag for a single decision, and app-wide permissions (capabilities) on the session.
+**Law:** Compute every client-facing rule on the server using the write side's code and send it on the read model: `availableActions` on lifecycle details, named flags for single decisions, and app-wide permissions on the session.
 
-**When:** Any read model whose consumer must know what the user may do. If a client would otherwise compare status strings, timestamps, counters, version lists, or roles, the read model is missing a field. Session capabilities are computed from the named authorisation policies the endpoints use.
+**When:** Any read model whose client needs to know what is allowed. If a client would otherwise compare statuses, timestamps, counters, version lists, or roles, the read model is missing a field. Derive session capabilities from the same named authorisation policies endpoints enforce.
 
-Bad: a DTO with `status` and `publishedAt`, leaving the page to work out "can post".
-Good: the DTO with `canPost`, computed by the function the use case guards with.
+Bad: Sending `status` and `publishedAt` and letting the page compute `canPost`.
+Good: Sending `canPost` computed by the same function the use case guards with.
 <!-- rule: backend/declare-command-and-result-beside-the-use-case.md -->
 ## Declare Command and Result beside the use case
 
-**Default:** A use case (the Application code for one operation) declares its Command and Result records (its input and output) as siblings of the use case class in the same file, never nested inside it.
+**Default:** Declare a use case's Command and Result records as sibling top-level types in the same file, never nested inside the use case class.
 
 **When:** .NET use cases.
 
@@ -428,38 +428,38 @@ Good: `await http.GetAsync(url, cancellationToken)`.
 <!-- rule: backend/return-declared-failures-and-throw-undeclared-ones.md -->
 ## Return declared failures and throw undeclared ones
 
-**Law:** A failure the API declares (one its transport contract lists as a response) is returned by the use case as a value and mapped once at the endpoint, while an exception is only for what should never happen and is translated once, by the error middleware, to a 5xx.
+**Law:** Return declared API failures (listed in the transport contract) as values mapped once at the endpoint; throw exceptions only for unexpected errors, translated once to 5xx by error middleware.
 
 **When:** Use cases and endpoints on .NET or TypeScript. Never support both an exception and a failed result for the same expected outcome, and never return a result for a programmer error.
 
-Bad: `throw new FormNotFoundException()` for a 404 the endpoint declares.
-Good: `return Result.Fail(FormErrors.NotFound)` from the use case, mapped to the 404 by the endpoint.
+Bad: `throw new FormNotFoundException()` for a declared 404.
+Good: `return Result.Fail(FormErrors.NotFound)` from the use case, mapped to 404 at the endpoint.
 <!-- rule: backend/return-domain-outcomes-as-closed-domain-types.md -->
 ## Return Domain outcomes as closed Domain types
 
-**Default:** A Domain decision (a rule's verdict on supplied state) with a closed set of meaningful outcomes returns its own result record or sealed outcome type, never an exception and never a general-purpose result type such as FluentResults or a hand-rolled `Result`.
+**Default:** Return a closed Domain decision's outcomes as its own result record or sealed type — never an exception or general-purpose `Result` (FluentResults or custom).
 
-**When:** Domain code on .NET or TypeScript. A decider's refusal (the decider is the one pure function that guards a lifecycle's actions) is such an outcome.
+**When:** Domain code on .NET or TypeScript (including lifecycle decider refusals).
 
 Bad: A Domain method returning `Result.Fail("ended")`.
 Good: `RecordRefusal? Refusal(…)` returning `RecordRefusal.Ended`.
 <!-- rule: backend/map-a-refusal-to-its-failure-in-one-place.md -->
 ## Map a refusal to its failure in one place
 
-**Default:** Each decider (the one pure function that guards a lifecycle's actions) has one mapping from its refusal values to the declared failure, which owns the error codes and wording, and every use case (the Application code for one operation) goes through it instead of building the failure at the call site.
+**Default:** Give each decider one central mapper from refusal values to declared failures (owning error codes and wording), and route every use case through it instead of building failures at call sites.
 
-**When:** Use cases that guard with a decider.
+**When:** Use cases guarding with a decider.
 
-Bad: `Result.Fail("Record has ended")` built in three use cases.
-Good: `RecordFailures.From(refusal)` called by all three.
+Bad: Building `Result.Fail("Record has ended")` in three use cases.
+Good: Calling `RecordFailures.From(refusal)` in all three.
 <!-- rule: backend/use-one-error-envelope-for-every-declared-failure.md -->
 ## Use one error envelope for every declared failure
 
-**Default:** Every declared failure uses the one `ErrorResponse(Code, Message, Errors?)` type, with no `Dto` suffix and no special-purpose variant, so a validation failure is the same envelope with `Errors` filled and the frontend matches on `Code`.
+**Default:** Use one `ErrorResponse(Code, Message, Errors?)` envelope for every declared failure — no `Dto` suffix, no special-purpose variants; validation failures populate `Errors`, and the frontend matches on `Code`.
 
-**When:** API error responses on .NET: the transport contract (the route definitions and wire types in top-level `Contracts/<Feature>/`) declares `.Returns<ErrorResponse>(422)` in Rivet, and one conversion at the transport edge (the code that turns a result into a response) builds the envelope.
+**When:** .NET API error responses: declare `.Returns<ErrorResponse>(422)` in Rivet and build the envelope in one transport-edge converter.
 
-Bad: A separate `ValidationErrorDto` returned for 422 responses.
+Bad: Returning a separate `ValidationErrorDto` for 422 responses.
 Good:
 ```csharp
 public sealed record ErrorResponse(string Code, string Message,
@@ -468,12 +468,12 @@ public sealed record ErrorResponse(string Code, string Message,
 <!-- rule: backend/apply-the-authorization-policy-at-the-endpoint.md -->
 ## Apply the authorization policy at the endpoint
 
-**Law:** The endpoint applies the authentication requirement and the named authorisation policy unconditionally, and a decision that needs the resource or its state is made in the use case, never in a controller.
+**Law:** Apply authentication and the named authorisation policy unconditionally at the endpoint; make resource- or state-dependent decisions in the use case, never in a controller.
 
-**When:** Every endpoint. ASP.NET: `[Authorize]`, an `AuthorizeFilter` in `MvcOptions.Filters`, `.RequireAuthorization()`, or a fallback policy. A security declaration in the OpenAPI document enforces nothing; the handler's authorisation does.
+**When:** Every endpoint. ASP.NET: `[Authorize]`, `AuthorizeFilter` in `MvcOptions.Filters`, `.RequireAuthorization()`, or a fallback policy. OpenAPI security declarations enforce nothing; handler authorisation does.
 
-Bad: `if (settings.AuthEnabled) group.RequireAuthorization("Editors")`, with the ownership check in the controller.
-Good: `.RequireAuthorization("Editors")` always, and the ownership check in the use case.
+Bad: `if (settings.AuthEnabled) group.RequireAuthorization("Editors")`, with ownership checked in the controller.
+Good: `.RequireAuthorization("Editors")` unconditionally, and ownership checked in the use case.
 <!-- rule: backend/sign-the-dev-user-in-with-a-development-handler.md -->
 ## Sign the dev user in with a development handler
 
@@ -486,39 +486,39 @@ Good: A `DevAuthenticationHandler` registered in development, with `RequireAutho
 <!-- rule: backend/validate-at-the-layer-that-owns-the-contract.md -->
 ## Validate at the layer that owns the contract
 
-**Default:** Validate each thing once, where its contract is owned: parsing and binding at the transport edge (controllers, endpoints, and the mappers beside them), command shape and meaning in Application, state invariants in Domain, and uniqueness and referential rules in Application backed by database constraints.
+**Default:** Validate each rule once at its contract owner: parsing/binding at the transport edge, command shape/meaning in Application, state invariants in Domain, and uniqueness/referential rules in Application backed by DB constraints.
 
-**When:** .NET and TypeScript backends. A check that is only about HTTP may stay at the edge, while a command that HTTP, queues, jobs, and tests can all send owns its own validation; never repeat one rule in both places.
+**When:** .NET and TypeScript backends. HTTP-only checks stay at the edge; commands reachable from HTTP, queues, jobs, or tests own their own validation — never duplicate one rule in both places.
 
-Bad: "Name is required" checked in the request validator and again in the command validator.
-Good: "Name is required" checked in the command validator only.
+Bad: Checking "Name is required" in both the request validator and the command validator.
+Good: Checking "Name is required" in the command validator only.
 <!-- rule: backend/give-every-validator-an-explicit-error-code.md -->
 ## Give every validator an explicit error code
 
-**Default:** Every FluentValidation validator that can fail declares its own `.WithErrorCode(...)`, because a message or the validator-name default is not a stable code.
+**Default:** Give every failing FluentValidation validator its own `.WithErrorCode(...)` — default messages and validator names are not stable codes.
 
-**When:** .NET with FluentValidation. In a chain each validator has its own code; rules reached through `SetValidator` or `ChildRules`, and reusable custom validator extensions, own theirs; a `Custom` callback sets the code on each failure it adds.
+**When:** .NET with FluentValidation. Every validator in a chain needs its own code, including `SetValidator`, `ChildRules`, reusable custom extensions, and failures added inside `Custom`.
 
-Bad: `RuleFor(x => x.Name).NotEmpty().MaximumLength(80).WithErrorCode("name.invalid")`, where `NotEmpty()` has no code of its own.
+Bad: `RuleFor(x => x.Name).NotEmpty().MaximumLength(80).WithErrorCode("name.invalid")` (`NotEmpty()` has no code).
 Good: `RuleFor(x => x.Name).NotEmpty().WithErrorCode("name.required").MaximumLength(80).WithErrorCode("name.too_long")`.
 <!-- rule: backend/keep-entity-mapping-in-the-owning-module.md -->
 ## Keep entity mapping in the owning module
 
-**Default:** Each module (one feature's folder under `Modules/`) configures its own entities in its own Infrastructure; a module never configures another's entities, and mapping is never centralised beside the DbContext.
+**Default:** Configure each module's entities inside its own Infrastructure (`Modules/<Feature>/Infrastructure/Persistence/`) — never configure another module's entities or centralise mappings beside `DbContext`.
 
-**When:** .NET with EF Core. One host-level DbContext is fine as the persistence root, and migrations are host-level; `IEntityTypeConfiguration<T>` classes live in `Modules/<Feature>/Infrastructure/Persistence/`.
+**When:** .NET with EF Core (a single host-level `DbContext` and host-level migrations are fine).
 
-Bad: Every entity configured in `AppDbContext.OnModelCreating`.
+Bad: Configuring every entity in `AppDbContext.OnModelCreating`.
 Good: `FormConfiguration : IEntityTypeConfiguration<Form>` in `Modules/Forms/Infrastructure/Persistence/`.
 <!-- rule: backend/treat-an-expected-constraint-conflict-as-an-outcome.md -->
 ## Treat an expected constraint conflict as an outcome
 
-**Default:** A constraint conflict the design expects is returned as an outcome, not left to surface as an infrastructure failure.
+**Default:** Catch expected constraint conflicts and return them as domain/application outcomes rather than letting them surface as infrastructure errors.
 
-**When:** Adapters (the implementations of ports against a database or client) that write under a constraint, on .NET or TypeScript.
+**When:** Adapters writing under a DB or client constraint on .NET or TypeScript.
 
-Bad: A unique-index violation that reaches the client as a 500.
-Good: The adapter catching that violation and returning "name already taken".
+Bad: Letting a unique-index violation reach the client as a 500.
+Good: Catching the violation in the adapter and returning "name already taken".
 <!-- rule: backend/dispatch-domain-events-in-process-without-a-queue.md -->
 ## Dispatch domain events in process without a queue
 
@@ -558,11 +558,11 @@ Good: `WHERE expires_at < @now`, with `@now` from the injected clock.
 <!-- rule: backend/record-telemetry-in-the-layer-that-owns-it.md -->
 ## Record telemetry in the layer that owns it
 
-**Default:** Transport records request telemetry, Infrastructure records database and external-call telemetry, and an Application operation that is traced or measured carries its business context and is instrumented through a decorator around the use case (the Application code for one operation) rather than scattered log statements.
+**Default:** Record request telemetry in Transport, DB/external-call telemetry in Infrastructure, and business-context telemetry via a decorator around the Application use case rather than scattered log statements.
 
-**When:** .NET and TypeScript backends. Domain records nothing: its decisions produce values and events, not log lines.
+**When:** .NET and TypeScript backends (Domain never logs — it returns values and events).
 
-Bad: `logger.LogInformation("Saving form…")` lines through a use case.
+Bad: `logger.LogInformation("Saving form…")` lines scattered through a use case.
 Good: A tracing decorator around the use case.
 <!-- rule: backend/never-use-a-static-logger.md -->
 ## Never use a static logger
@@ -639,12 +639,12 @@ Good: `FormPublishedV2` published beside the old message until consumers move.
 <!-- rule: backend/publish-shared-definitions-as-immutable-versions.md -->
 ## Publish shared definitions as immutable versions
 
-**Default:** A shared definition that other things consume (a template, list, boundary, type, or schema) has published, immutable versions, and every consumer, its draft included, pins the version it uses and moves to a newer one only by an explicit action that shows what changes.
+**Default:** Give every shared definition consumed elsewhere (templates, lists, boundaries, types, schemas) published, immutable versions; every consumer — drafts included — pins its version and upgrades only via an explicit diff-showing action.
 
-**When:** Any definition with consumers. Runtime settings (credentials, endpoints, on/off) are not definitions and stay live. Freezing a copy when the consumer publishes is not enough, because a draft must not shift under its author.
+**When:** Any definition with consumers (runtime settings like credentials, endpoints, or toggles stay live). Freezing only on consumer publish is insufficient because drafts must not shift under authors.
 
 Bad: A draft form whose dropdown changes when someone edits the shared list.
-Good: The draft pinned to list version 3, with an "update to version 4" action that shows the difference.
+Good: The draft pinned to list v3 with an "update to v4" action showing the diff.
 <!-- rule: backend/seal-every-concrete-class.md -->
 ## Seal every concrete class
 
@@ -675,11 +675,11 @@ Good: `new FormDto(form.Id, form.Name)`
 <!-- rule: backend/inject-dependencies-through-the-constructor.md -->
 ## Inject dependencies through the constructor
 
-**Default:** Domain and Application receive their dependencies as explicit constructor parameters and never take the service provider, and on a TypeScript backend no class fetches a dependency from a locator inside a method.
+**Default:** Pass Domain and Application dependencies as explicit constructor parameters — never inject `IServiceProvider` or pull dependencies from a locator inside a method.
 
-**When:** .NET (`System.IServiceProvider`) and TypeScript backends. Only the code that assembles the application resolves dependencies.
+**When:** .NET and TypeScript backends (only the composition root resolves dependencies).
 
-Bad: A use case taking `IServiceProvider` and calling `GetRequiredService<FormRepository>()`.
+Bad: A use case injecting `IServiceProvider` and calling `GetRequiredService<FormRepository>()`.
 Good: A use case taking `FormRepository` in its constructor.
 <!-- rule: backend/promote-injected-dependencies-to-private-readonly-properties.md -->
 ## Promote injected dependencies to private readonly properties
@@ -693,9 +693,9 @@ Good: `constructor(private readonly clock: Clock) {}`
 <!-- rule: backend/read-environment-only-in-the-config-owner.md -->
 ## Read environment only in the config owner
 
-**Default:** Production source reads the environment only in the root configuration or bootstrap files, and everything else takes the validated config object by injection.
+**Default:** Read environment variables only in root config or bootstrap files; pass the validated config object everywhere else by injection.
 
-**When:** TypeScript server code. Owners are `config.ts`, `config.mts`, `config.cts`, `config/**`, `bootstrap.ts`, `bootstrap.mts`, `bootstrap.cts`, or `bootstrap/**` at a package root, optionally under `src/`; each package with its own `package.json` has its own, and a folder of that name inside a module is not an owner. Outside them: no `process.env`, `globalThis.process.env`, `Bun.env`, `Deno.env`, or `env` imported from `process` or `node:process`. Build-tool config (`*.config.{ts,mts,cts}` at a package root, such as `vite.config.ts`) is not production source. A new variable is added to the schema in the owner (Zod, in `src/config.ts` or equivalent).
+**When:** TypeScript server code. Owners are `config.{ts,mts,cts}`, `config/**`, `bootstrap.{ts,mts,cts}`, or `bootstrap/**` at each package root (optionally under `src/`; never inside a module). Outside owners: no `process.env`, `globalThis.process.env`, `Bun.env`, `Deno.env`, or `env` from `process`/`node:process`. Root build configs (`*.config.{ts,mts,cts}`) are exempt. Add new variables to the owner's schema (e.g., Zod in `src/config.ts`).
 
 Bad: `const url = process.env.DATABASE_URL` in a repository.
 Good: `constructor(private readonly config: Config)` reading `config.databaseUrl`.
@@ -747,19 +747,19 @@ Good: `DigestTime = 06:30 Europe/London // before staff sign in`
 <!-- rule: tests/run-adapter-tests-on-the-production-database-engine.md -->
 ## Run adapter tests on the production database engine
 
-**Law:** Integration tests of a database adapter run on the production database engine; an in-memory or substitute engine is never used.
+**Law:** Run database adapter integration tests on the production DB engine — never an in-memory or substitute engine.
 
-**When:** Backend tests whose subject touches the database. .NET: `UseInMemoryDatabase` appears nowhere in test source, since the EF InMemory provider checks neither SQL nor relational behaviour; SQLite does not stand in for PostgreSQL-specific SQL, collation, transactions, or concurrency.
+**When:** Backend tests touching the database. .NET: never call `UseInMemoryDatabase` (EF InMemory checks neither SQL nor relational behaviour); SQLite cannot substitute for PostgreSQL SQL, collation, transactions, or concurrency.
 
 Bad: `options.UseInMemoryDatabase("forms")` in a repository test.
-Good: the repository run against a PostgreSQL container (Testcontainers).
+Good: Running the repository against a PostgreSQL container (Testcontainers).
 <!-- rule: tests/fake-the-port-never-the-database.md -->
 ## Fake the port, never the database
 
-**Law:** A test that avoids persistence fakes the repository or query port (the application-owned type that names the capability); it never puts a fake database underneath the real adapter.
+**Law:** To avoid persistence in a test, fake the repository or query port — never put a fake database beneath the real adapter.
 
-**When:** Backend tests. Either the test runs the real adapter on the real engine, or it fakes the port and the adapter is not under test.
+**When:** Backend tests: either run the real adapter on the real engine, or fake the port.
 
-Bad: the real `EfFormRepository` over a fake `DbContext`.
-Good: an `InMemoryFormRepository` in place of the port.
+Bad: Running `EfFormRepository` over a fake `DbContext`.
+Good: Substituting `InMemoryFormRepository` for the port.
 <!-- end of cycle/references/rules-backend.md -->

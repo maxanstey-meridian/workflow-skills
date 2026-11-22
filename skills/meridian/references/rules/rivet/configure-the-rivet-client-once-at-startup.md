@@ -1,8 +1,8 @@
 ## Configure the Rivet client once at startup
 
-**Tooling:** Configure the generated client once, where the app starts, with `configureRivet`.
+**Tooling:** Call `configureRivet` once at app startup.
 
-**When:** Frontends that call a Rivet API (Rivet reads C# and emits the OpenAPI document).
+**When:** Frontends calling a Rivet API.
 
-Bad: `configureRivet({ baseUrl })` called inside three composables.
-Good: `configureRivet({ baseUrl })` called once in the app's startup code.
+Bad: Calling `configureRivet({ baseUrl })` inside three composables.
+Good: Calling `configureRivet({ baseUrl })` once in app startup code.

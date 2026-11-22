@@ -1,8 +1,8 @@
 ## Pass local dependencies as props and events
 
-**Default:** A dependency between one component and its child is a prop and an event, not a port (a typed capability provided to a whole subtree).
+**Default:** Communicate between a parent component and its child via props and events, not a provided port.
 
-**When:** Vue components. A provided port is visible to a whole subtree, so it is for capabilities the subtree depends on.
+**When:** Vue components — a provided port is visible to the whole subtree, so reserve it for subtree-wide capabilities.
 
-Bad: `provideRowSelection(...)` so a table can talk to its own row.
+Bad: `provideRowSelection(...)` for a table talking to its own row.
 Good: `:selected` and `@select` on the row.

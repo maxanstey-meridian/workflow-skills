@@ -1,8 +1,8 @@
 ## Add a package only for commodity machinery
 
-**Default:** Add a package for commodity machinery, and write small, fully understood product logic yourself when a package's scope, runtime cost, maintenance state, or semantic mismatch outweighs the code it would replace; every package must earn its place.
+**Default:** Add a package for commodity machinery; write small, well-understood product logic yourself when a package's scope, cost, maintenance, or semantic mismatch outweighs the code it replaces.
 
 **When:** Deciding whether to add a dependency on any stack.
 
-Bad: A date-range package added for one three-line overlap check.
-Good: The check written as a pure function.
+Bad: Adding a date-range package for a three-line overlap check.
+Good: Writing the check as a pure function.

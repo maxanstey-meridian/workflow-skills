@@ -1,8 +1,8 @@
 ## Take every response field positionally
 
-**Tooling:** A response record takes every field as a positional parameter, with no parameter defaults, no `[RivetOptional]`, no `JsonIgnore(WhenWritingNull/WhenWritingDefault)`, and no settable body property, so the compiler finds every builder when a field is added.
+**Tooling:** Take every response record field as a positional parameter with no defaults, `[RivetOptional]`, `JsonIgnore(WhenWritingNull/WhenWritingDefault)`, or settable body properties, so adding a field flags every call site at compile time.
 
-**When:** Response records in hand-written transport contracts (the `[RivetContract]` classes and records in `Contracts/<Feature>/`) for Rivet, which reads C# and emits the OpenAPI document and typed terminals for each declared response; each case a polymorphic base names with `[JsonDerivedType]` is included. Requests may have optional fields. The shared `ErrorResponse` keeps `Errors = null`. Code `dotnet-rivet --from-openapi` writes is exempt; its polymorphic records use `required` init members instead.
+**When:** Hand-written Rivet response records (including `[JsonDerivedType]` cases). Requests may have optional fields; shared `ErrorResponse` keeps `Errors = null`; `dotnet-rivet --from-openapi` output is exempt (polymorphic records use `required` init members).
 
 Bad: `record FormResponse(Guid Id, string? Note = null)`
 Good: `record FormResponse(Guid Id, string? Note)`

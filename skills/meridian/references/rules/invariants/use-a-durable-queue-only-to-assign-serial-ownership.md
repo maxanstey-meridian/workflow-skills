@@ -1,8 +1,8 @@
 ## Use a durable queue only to assign serial ownership
 
-**Default:** Use an established durable queue only when the invariant crosses the process boundary and the domain can give one partition or consumer serial ownership of the work.
+**Default:** Use an established durable queue only when an invariant crosses process boundaries and the domain can assign one partition or consumer serial ownership.
 
-**When:** Backend code considering a queue or durable messaging. A queue changes who owns the work and how it is processed; it is not a stronger form of database concurrency control.
+**When:** Backend code considering a queue or durable messaging — a queue assigns work ownership, it is not a stronger DB concurrency control.
 
-Bad: A queue put in front of "update stock" to avoid a lost update.
+Bad: Putting a queue in front of "update stock" to prevent a lost update.
 Good: A conditional `UPDATE ... WHERE quantity >= @n`.

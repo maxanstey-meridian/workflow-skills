@@ -1,8 +1,8 @@
 ## Keep comment lines within the formatter's print width
 
-**Preference:** Keep comment-only lines within the formatter's print width by hand, since neither `CSharpier` nor `oxfmt` wraps comments; a single unbreakable token (a URL, a path) may overflow, and so may a tool directive, which its tool reads from that one line.
+**Preference:** Wrap comment-only lines manually within the formatter's print width (`CSharpier` and `oxfmt` don't wrap comments); single unbreakable tokens (URLs, paths) and single-line tool directives may overflow.
 
-**When:** C# (`//`, `///`) and TypeScript comments; the width is the formatter's, and in TypeScript the `printWidth` in `.oxfmtrc.json`. Tool directives include `// ReSharper disable …`, `// csharpier-ignore …`, `// eslint-disable-next-line … -- reason`, and `// @ts-expect-error …`.
+**When:** C# (`//`, `///`) and TypeScript comments (`printWidth` in `.oxfmtrc.json`). Directives: `// ReSharper disable …`, `// csharpier-ignore …`, `// eslint-disable-next-line … -- reason`, `// @ts-expect-error …`.
 
-Bad: a 140-column `//` comment in a file whose print width is 100.
-Good: the same comment wrapped over two `//` lines, each within 100 columns.
+Bad: A 140-column `//` comment in a 100-column file.
+Good: Wrapping the comment across two `//` lines within 100 columns.

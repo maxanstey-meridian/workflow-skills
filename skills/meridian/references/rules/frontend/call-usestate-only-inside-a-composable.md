@@ -1,8 +1,8 @@
 ## Call useState only inside a composable
 
-**Default:** Nuxt `useState(` appears only inside `composables/` files; the composable owns the key, and every other layer (components, pages, plugins, logic, adapters) calls the composable, never the string key.
+**Default:** Call Nuxt `useState(` only inside `composables/`; the composable owns the key, and all other layers (components, pages, plugins, logic, adapters) call the composable, never the string key.
 
-**When:** Nuxt frontends. There is no `state/` directory: composables are where state lives.
+**When:** Nuxt frontends (no `state/` directory; state lives in composables).
 
-Bad: `useState("app-booted")` in a component and again in a plugin.
-Good: `export const useAppBooted = () => useState("app-booted", () => false)`, with `useAppBooted()` called in both.
+Bad: `useState("app-booted")` in both a component and a plugin.
+Good: `export const useAppBooted = () => useState("app-booted", () => false)`, called in both.

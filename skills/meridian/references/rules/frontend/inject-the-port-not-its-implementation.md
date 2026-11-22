@@ -1,8 +1,8 @@
 ## Inject the port, not its implementation
 
-**Default:** A component or composable that depends on a provided capability imports `injectX` from `ports/`, not the implementation composable or the adapter (the implementation of a port).
+**Default:** Depend on a provided capability by importing `injectX` from `ports/`, never the implementation composable or adapter.
 
-**When:** Components and composables in a Vue or Nuxt frontend.
+**When:** Components and composables in Vue and Nuxt frontends.
 
 Bad: `import { useRivetAuth } from "../composables/useRivetAuth"` in a component.
 Good: `import { injectAuth } from "../ports/auth"`.

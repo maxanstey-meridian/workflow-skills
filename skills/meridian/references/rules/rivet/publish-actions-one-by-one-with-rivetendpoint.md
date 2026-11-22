@@ -1,8 +1,8 @@
 ## Publish actions one by one with RivetEndpoint
 
-**Tooling:** Mark each published controller action with `[RivetEndpoint]` rather than putting `[RivetClient]` on the controller, which publishes every HTTP action in it.
+**Tooling:** Mark each published controller action with `[RivetEndpoint]` rather than putting `[RivetClient]` on the controller (which publishes every HTTP action).
 
-**When:** .NET controllers published through Rivet, which reads C# and emits the OpenAPI document and typed terminals for each declared response.
+**When:** .NET controllers published through Rivet.
 
-Bad: `[RivetClient]` on `FormsController`, which also publishes an internal debug action.
-Good: `[RivetEndpoint]` on each of the three public actions only.
+Bad: `[RivetClient]` on `FormsController`, accidentally publishing an internal debug action.
+Good: `[RivetEndpoint]` on only the three public actions.

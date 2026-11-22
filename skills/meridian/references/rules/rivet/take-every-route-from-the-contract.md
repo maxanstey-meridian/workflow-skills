@@ -1,10 +1,10 @@
 ## Take every route from the contract
 
-**Tooling:** The transport contract (the `[RivetContract]` class in top-level `Contracts/<Feature>/`) owns each route as a constant, and no `Map*(...)` call or `[Http*(...)]` attribute holds a literal route string.
+**Tooling:** Define every route as a constant in `Contracts/<Feature>/` — never pass literal route strings to `Map*(...)` or `[Http*(...)]`.
 
-**When:** .NET APIs that use Rivet, which reads C# and emits the OpenAPI document and typed terminals for each declared response. Minimal APIs use `Contract.X.Route`; controllers use the contract's `const string` in the attribute, since a runtime `.Route` property is not an attribute constant. Bootstrap endpoints in `Program.cs` (health, root) are the one exception.
+**When:** .NET Rivet APIs. Minimal APIs use `Contract.X.Route`; controllers use the contract's `const string` (since `.Route` is not a compile-time constant). Exception: bootstrap endpoints in `Program.cs` (health, root).
 
 Bad: `app.MapPost("/api/transcriptions", …)`
-Good: `app.MapPost(TranscriptionsContract.Create.Route, …)`, with `public const string CreateRoute = "/api/transcriptions";` in the contract.
+Good: `app.MapPost(TranscriptionsContract.Create.Route, …)` backed by `public const string CreateRoute = "/api/transcriptions";`.
 
 Links: [endpoint builder reference](https://github.com/maxanstey-meridian/rivet/blob/main/docs/reference/endpoint-builder.md)

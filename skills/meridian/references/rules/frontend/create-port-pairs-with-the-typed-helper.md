@@ -1,8 +1,8 @@
 ## Create port pairs with the typed helper
 
-**Default:** Create every port's `[injectX, provideX]` pair with the one `useProvideInject` helper: its inject throws when called outside a provider, and its provide returns the exact implementation it was given, not the narrowed port type.
+**Default:** Create every port's `[injectX, provideX]` pair with `useProvideInject`: `inject` throws outside a provider, and `provide` returns the concrete implementation rather than the narrowed port type.
 
-**When:** Vue and Nuxt frontends. The helper is built on Vue's `InjectionKey` and VueUse's `provideLocal` and `injectLocal`. Because provide returns the concrete type, the root keeps root-only members while injectors see only the port.
+**When:** Vue and Nuxt frontends (built on Vue `InjectionKey` and VueUse `provideLocal`/`injectLocal`), so roots keep root-only members while injectors see only the port.
 
 Bad: `provide("recorder", value)` and `inject("recorder")` with a string key, returning `undefined` when missing.
 Good:

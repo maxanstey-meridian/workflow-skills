@@ -22,28 +22,28 @@ Links: [an example Directory.Build.props](https://github.com/maxanstey-meridian/
 <!-- rule: tools/keep-dotnet-style-in-the-shared-editorconfig.md -->
 ## Keep dotnet style in the shared editorconfig
 
-**Tooling:** `.editorconfig` is the authority for formatting, style, and analyser severity, and it contains at least the settings of the canonical file; tightening a severity is fine, diverging is not.
+**Tooling:** `.editorconfig` owns formatting, style, and analyser severities and must include all canonical settings; tightening severity is fine, diverging is not.
 
-**When:** Every .NET repo. The canonical file is `configs/editorconfig.dotnet` in the Plumb repository.
+**When:** Every .NET repo (canonical file: `configs/editorconfig.dotnet` in Plumb).
 
-Bad: a repo `.editorconfig` that drops a canonical rule to `silent`.
-Good: a repo `.editorconfig` that keeps every canonical line and raises one severity.
+Bad: Dropping a canonical rule to `silent`.
+Good: Keeping every canonical setting and raising one severity.
 
 Links: [editorconfig.dotnet](https://github.com/maxanstey-meridian/plumb/blob/main/configs/editorconfig.dotnet)
 <!-- rule: tools/format-csharp-with-csharpier.md -->
 ## Format csharp with CSharpier
 
-**Tooling:** Format C# with `CSharpier`, wired through a dotnet tool manifest (`.config/dotnet-tools.json`) or `CSharpier.MsBuild`, with no style file of its own, after `dotnet format` has applied analyser fixes.
+**Tooling:** Format C# with `CSharpier` (via `.config/dotnet-tools.json` or `CSharpier.MsBuild`, no custom style file) after `dotnet format` applies analyser fixes.
 
 **When:** Every .NET repo.
 
-Bad: `dotnet format` alone as the format step.
-Good: analyser fixes first, then `CSharpier` owns the layout:
+Bad: Running `dotnet format` alone as the format step.
+Good: Analyser fixes first, then `CSharpier` owns layout:
 ```yaml
 api:format:
   cmds:
-    - dotnet format <Solution>.slnx analyzers --severity warn   # analyzer code fixes
-    - dotnet csharpier format .                                   # then CSharpier owns layout
+    - dotnet format <Solution>.slnx analyzers --severity warn
+    - dotnet csharpier format .
 format:check:
   cmds:
     - dotnet csharpier check .
@@ -79,11 +79,11 @@ Good: `db.Forms.Add(form)` through EF Core.
 <!-- rule: tools/use-fluentresults-as-the-application-result-carrier.md -->
 ## Use FluentResults as the Application result carrier
 
-**Tooling:** Use FluentResults (`Result`, `Result<T>`) to carry a use case's small open set of ordinary failures, and do not write a generic result type per repo.
+**Tooling:** Use FluentResults (`Result`, `Result<T>`) for a use case's small open set of ordinary failures instead of writing a custom generic result type per repo.
 
-**When:** .NET Application code (the layer that holds use cases, the code for one operation each). Domain decisions with a closed set of outcomes return their own closed types instead.
+**When:** .NET Application code. Domain decisions with a closed set of outcomes still return their own closed types.
 
-Bad: a hand-written `OperationResult<T>` class in `Common/`.
+Bad: A hand-written `OperationResult<T>` class in `Common/`.
 Good: `Result<CreateFormResult>` from FluentResults.
 <!-- rule: tools/use-fluentvalidation-for-request-and-command-shape.md -->
 ## Use FluentValidation for request and command shape
@@ -106,11 +106,11 @@ Good: an OpenTelemetry tracing decorator around the use case, with the vendor ex
 <!-- rule: tools/use-typed-inject-for-typescript-backend-wiring.md -->
 ## Use typed-inject for TypeScript backend wiring
 
-**Tooling:** Use `typed-inject` for explicit runtime wiring: each class lists its dependencies in `public static inject = [...] as const`, keyed by string and typed by the port (the type that names a capability the class needs).
+**Tooling:** Use `typed-inject` for explicit runtime wiring: list dependencies in `public static inject = [...] as const`, keyed by string and typed by port.
 
-**When:** TypeScript backends and local hosts that want explicit assembly without Nest-style framework injection; under Nest, the abstract-class port is the token instead. It makes wiring explicit; it is not a way to hide boundaries or to bring back a container that resolves things by magic.
+**When:** TypeScript backends and local hosts without Nest-style framework injection (under Nest, the abstract-class port is the token). It keeps wiring explicit — never use it to hide boundaries or restore magic resolution.
 
-Bad: a class whose method looks `clock` up in a service locator.
+Bad: A class looking up `clock` in a service locator.
 Good:
 ```ts
 export class TickPet {
@@ -146,34 +146,34 @@ Links: [rivet-ts getting started](https://maxanstey-meridian.github.io/rivet-ts/
 <!-- rule: tools/share-one-testcontainers-database-across-the-test-run.md -->
 ## Share one Testcontainers database across the test run
 
-**Tooling:** Use Testcontainers to start one PostgreSQL container for the whole run, migrate a template database once, give each test fixture its own copy (`CREATE DATABASE … TEMPLATE …`), and reset data between tests with Respawn.
+**Tooling:** Start one PostgreSQL Testcontainer per test run, migrate a template DB once, clone per fixture (`CREATE DATABASE … TEMPLATE …`), and reset between tests with Respawn.
 
 **When:** .NET integration tests on PostgreSQL.
 
-Bad: a container started and migrated in every fixture's constructor.
-Good: one container, one migrated template database, and a copy of the template per fixture.
+Bad: Starting and migrating a container in every fixture's constructor.
+Good: One container, one migrated template DB, and a template clone per fixture.
 
 Links: [Respawn](https://github.com/jbogard/Respawn)
 <!-- rule: tools/mutate-the-named-source-files-from-the-test-project.md -->
 ## Mutate the named source files from the test project
 
-**Tooling:** Run Stryker.NET behind one repo command that starts in the test project's folder and mutates exactly the source files it is given (`-m <file>` for each); never start it in the folder that holds the solution, and never pick its mutants with `--since`.
+**Tooling:** Run Stryker.NET via one repo command from the test project's folder, mutating only named source files (`-m <file>`); never run from the solution folder or select mutants with `--since`.
 
-**When:** A .NET repo's mutation command. Started beside a solution file, Stryker counts every changed file as a test file, so with `--since` one changed Markdown or JSON file retests every mutant, and a changed test file retests everything its tests cover. A `since.ignore-changes-in` pattern that starts with `!` is not a way round it: on Stryker 5.1 it can ignore the C# files too, and the run then passes having tested nothing.
+**When:** Any .NET repo's mutation command. From a solution folder, Stryker treats every changed file as a test file, so `--since` retests all mutants on a README/JSON edit. Avoid `!` patterns in `since.ignore-changes-in` (Stryker 5.1 can ignore C# files and pass vacuously).
 
-Bad: `dotnet stryker --since:<commit>` in the repo root, which retests all 877 mutants because a README changed.
-Good: `tools/mutate.sh Cohort/CohortColumns.cs`, which changes to the test project's folder and runs `dotnet stryker -f stryker-config.json -m CohortColumns.cs`.
+Bad: `dotnet stryker --since:<commit>` from repo root retesting all 877 mutants after a README edit.
+Good: `tools/mutate.sh Cohort/CohortColumns.cs` changing into the test project folder and running `dotnet stryker -f stryker-config.json -m CohortColumns.cs`.
 
 Links: [stryker-net issue 3331](https://github.com/stryker-mutator/stryker-net/issues/3331)
 <!-- rule: tools/use-pg-advisory-lock-for-postgresql-advisory-locks.md -->
 ## Use pg-advisory-lock for PostgreSQL advisory locks
 
-**Tooling:** When a session-level PostgreSQL advisory lock is needed for a domain identity no row or constraint can represent, use `pg-advisory-lock` on a direct or session-pooled connection, and design for the lock being released by connection loss while the callback still runs.
+**Tooling:** For session-level PostgreSQL advisory locks on a domain identity no row or constraint can represent, use `pg-advisory-lock` on a direct or session-pooled connection and handle lock release on connection loss while the callback runs.
 
-**When:** TypeScript backends on PostgreSQL. It gives no fencing and no exactly-once execution, and does not work through transaction or statement pooling.
+**When:** TypeScript backends on PostgreSQL (gives no fencing or exactly-once execution; incompatible with transaction/statement pooling).
 
-Bad: the library used through a transaction-pooled PgBouncer.
-Good: the library used on a direct connection.
+Bad: Using `pg-advisory-lock` through transaction-pooled PgBouncer.
+Good: Using it on a direct connection.
 
 Links: [pg-advisory-lock](https://github.com/IlyaSemenov/pg-advisory-lock)
 <!-- rule: tools/use-distributedlock-for-dotnet-distributed-locks.md -->
@@ -201,9 +201,9 @@ Links: [Brighter](https://github.com/BrighterCommand/Brighter)
 <!-- rule: rivet/put-transport-contracts-in-top-level-contracts.md -->
 ## Put transport contracts in top-level Contracts
 
-**Tooling:** A transport contract (a `[RivetContract]` class of route definitions) and the request and response records its routes carry live in the top-level `Contracts/<Feature>/` folder, never inside `Modules/`.
+**Tooling:** Put `[RivetContract]` classes and their request/response records in top-level `Contracts/<Feature>/`, never inside `Modules/`.
 
-**When:** .NET APIs that use Rivet, which reads C# and emits the OpenAPI document and typed terminals for each declared response; write the contract first. A module's published contract (the types it deliberately exposes to other modules) is a different thing and does live in `Modules/<Feature>/Contracts/`.
+**When:** .NET Rivet APIs (write the contract first). Module published contracts for cross-module use are separate and stay in `Modules/<Feature>/Contracts/`.
 
 Bad: `Modules/Transcriptions/TranscriptionsContract.cs`
 Good:
@@ -211,85 +211,85 @@ Good:
 Contracts/
 └── Transcriptions/
     ├── TranscriptionsContract.cs   # [RivetContract]: route constants + Define.* fields
-    └── TranscriptionsModels.cs     # the request/response records those routes carry
+    └── TranscriptionsModels.cs     # request/response records
 ```
 
 Links: [Rivet README](https://github.com/maxanstey-meridian/rivet#readme), [contracts guide](https://maxanstey-meridian.github.io/rivet/guides/contracts)
 <!-- rule: rivet/keep-a-rivet-contract-to-routes-and-definitions.md -->
 ## Keep a Rivet contract to routes and definitions
 
-**Tooling:** A `[RivetContract]` declaration is a static class holding only `const string` route constants and `static readonly RouteDefinition…` fields built through the `Define` factory, with no methods, properties, instance state, other fields, or domain or application code.
+**Tooling:** Keep `[RivetContract]` static classes to `const string` route constants and `static readonly RouteDefinition…` fields from `Define` — no methods, properties, instance state, or domain/application code.
 
-**When:** .NET APIs that use Rivet, which reads C# and emits the OpenAPI document and typed terminals for each declared response. Rivet is the API's typed edge, not the application's architecture.
+**When:** .NET Rivet APIs (Rivet is the typed HTTP edge, not application architecture).
 
-Bad: a contract class with a `Validate(request)` helper method on it.
-Good: the contract holds only route constants and `Define` fields; the `Validate` logic lives in the use case.
+Bad: A contract class with a `Validate(request)` helper method.
+Good: Route constants and `Define` fields in the contract; `Validate` in the use case.
 
 Links: [contracts guide](https://maxanstey-meridian.github.io/rivet/guides/contracts)
 <!-- rule: rivet/take-every-route-from-the-contract.md -->
 ## Take every route from the contract
 
-**Tooling:** The transport contract (the `[RivetContract]` class in top-level `Contracts/<Feature>/`) owns each route as a constant, and no `Map*(...)` call or `[Http*(...)]` attribute holds a literal route string.
+**Tooling:** Define every route as a constant in `Contracts/<Feature>/` — never pass literal route strings to `Map*(...)` or `[Http*(...)]`.
 
-**When:** .NET APIs that use Rivet, which reads C# and emits the OpenAPI document and typed terminals for each declared response. Minimal APIs use `Contract.X.Route`; controllers use the contract's `const string` in the attribute, since a runtime `.Route` property is not an attribute constant. Bootstrap endpoints in `Program.cs` (health, root) are the one exception.
+**When:** .NET Rivet APIs. Minimal APIs use `Contract.X.Route`; controllers use the contract's `const string` (since `.Route` is not a compile-time constant). Exception: bootstrap endpoints in `Program.cs` (health, root).
 
 Bad: `app.MapPost("/api/transcriptions", …)`
-Good: `app.MapPost(TranscriptionsContract.Create.Route, …)`, with `public const string CreateRoute = "/api/transcriptions";` in the contract.
+Good: `app.MapPost(TranscriptionsContract.Create.Route, …)` backed by `public const string CreateRoute = "/api/transcriptions";`.
 
 Links: [endpoint builder reference](https://github.com/maxanstey-meridian/rivet/blob/main/docs/reference/endpoint-builder.md)
 <!-- rule: rivet/own-each-route-payload-in-its-transport-contract.md -->
 ## Own each route payload in its transport contract
 
-**Tooling:** Every direct request, success response, file input, and declared `.Returns<T>(...)` payload is a type in the same `Contracts/<Feature>/` folder as its route (the transport contract), never an Application command or result, a Domain model, a controller-nested type, or a module's published contract (the types a module deliberately exposes to other modules).
+**Tooling:** Declare every direct request, success response, file input, and `.Returns<T>(...)` payload in its route's `Contracts/<Feature>/` folder — never an Application command/result, Domain model, controller-nested type, or module published contract.
 
-**When:** .NET APIs that use Rivet, which reads C# and emits the OpenAPI document and typed terminals for each declared response; this covers hand-written transport contracts, and code `dotnet-rivet --from-openapi` writes is exempt. Scalars, collections, and the shared `ErrorResponse` and `PaginatedResponse<T>` envelopes in `Common/` are wrappers, not owners. A transport record may compose published or shared-kernel value types (small concepts several modules own together); map at the handler.
+**When:** Hand-written .NET Rivet transport contracts (`dotnet-rivet --from-openapi` output is exempt). Scalars, collections, and shared `ErrorResponse`/`PaginatedResponse<T>` envelopes in `Common/` are wrappers, not owners. Transport records may compose published or shared-kernel value types; map at the handler.
 
-Bad: `.Returns<CreateFormResult>(201)` naming the use case's result.
-Good: `.Returns<CreateFormResponse>(201)`, with `CreateFormResponse` declared in `Contracts/Forms/` and mapped from the result in the handler.
+Bad: `.Returns<CreateFormResult>(201)` using the use case's result.
+Good: `.Returns<CreateFormResponse>(201)` declared in `Contracts/Forms/` and mapped in the handler.
 <!-- rule: rivet/take-every-response-field-positionally.md -->
 ## Take every response field positionally
 
-**Tooling:** A response record takes every field as a positional parameter, with no parameter defaults, no `[RivetOptional]`, no `JsonIgnore(WhenWritingNull/WhenWritingDefault)`, and no settable body property, so the compiler finds every builder when a field is added.
+**Tooling:** Take every response record field as a positional parameter with no defaults, `[RivetOptional]`, `JsonIgnore(WhenWritingNull/WhenWritingDefault)`, or settable body properties, so adding a field flags every call site at compile time.
 
-**When:** Response records in hand-written transport contracts (the `[RivetContract]` classes and records in `Contracts/<Feature>/`) for Rivet, which reads C# and emits the OpenAPI document and typed terminals for each declared response; each case a polymorphic base names with `[JsonDerivedType]` is included. Requests may have optional fields. The shared `ErrorResponse` keeps `Errors = null`. Code `dotnet-rivet --from-openapi` writes is exempt; its polymorphic records use `required` init members instead.
+**When:** Hand-written Rivet response records (including `[JsonDerivedType]` cases). Requests may have optional fields; shared `ErrorResponse` keeps `Errors = null`; `dotnet-rivet --from-openapi` output is exempt (polymorphic records use `required` init members).
 
 Bad: `record FormResponse(Guid Id, string? Note = null)`
 Good: `record FormResponse(Guid Id, string? Note)`
 <!-- rule: rivet/give-every-contract-type-a-unique-simple-name.md -->
 ## Give every contract type a unique simple name
 
-**Tooling:** Every type a transport contract reaches has a simple name that is unique across the API, named for its feature rather than its slot.
+**Tooling:** Give every type reachable from a transport contract a unique simple name across the API, named for its feature rather than its slot.
 
-**When:** .NET APIs that use Rivet, which reads C# and emits the OpenAPI document and typed terminals for each declared response. Schema names are global and built from the simple type name, so two nested `Response` records, one name in two namespaces, or `Result` beside `Result<T>` stop generation (`RIV1007`).
+**When:** .NET Rivet APIs — schema names are global by simple name, so colliding nested `Response` records, duplicate names across namespaces, or `Result` beside `Result<T>` fail generation (`RIV1007`).
 
-Bad: a `Response` record nested in both `InviteMember` and `RemoveMember`.
+Bad: A `Response` record nested in both `InviteMember` and `RemoveMember`.
 Good: `InviteMemberResponse` and `RemoveMemberResponse`.
 
 Links: [RIV diagnostics reference](https://maxanstey-meridian.github.io/rivet/reference/diagnostics)
 <!-- rule: rivet/map-endpoint-groups-and-compose-them-at-startup.md -->
 ## Map endpoint groups and compose them at startup
 
-**Tooling:** Each minimal API group exposes `MapXEndpoints(this IEndpointRouteBuilder …)`, and `Program.cs` composes every such group in its project and holds no inline business handler.
+**Tooling:** Expose each minimal API group via `MapXEndpoints(this IEndpointRouteBuilder …)` and compose every group in `Program.cs` with no inline business handlers.
 
-**When:** .NET minimal APIs, including those served through Rivet (which reads C# and emits the OpenAPI document and typed terminals for each declared response). Literal `/`, `/health`, and `/api/health` bootstrap handlers are the exception, and `MapGroup` is composition, not a handler. The extension's receiver is `IEndpointRouteBuilder`, not `WebApplication`.
+**When:** .NET minimal APIs (including Rivet). Exceptions: literal `/`, `/health`, and `/api/health` bootstrap handlers (`MapGroup` is composition, not a handler). Extend `IEndpointRouteBuilder`, not `WebApplication`.
 
 Bad: `app.MapPost("/api/forms", async (…) => { … })` in `Program.cs`.
-Good: `app.MapFormsEndpoints()` in `Program.cs`, with the handler in the group's `MapFormsEndpoints(this IEndpointRouteBuilder …)`.
+Good: `app.MapFormsEndpoints()` in `Program.cs`, with handlers in `MapFormsEndpoints(this IEndpointRouteBuilder …)`.
 <!-- rule: rivet/return-responses-through-rivets-terminals.md -->
 ## Return responses through Rivet's terminals
 
-**Tooling:** A handler runs the use case, maps its result to the contract's terminal (the typed value Rivet gives a handler for one declared response), and returns it with Rivet's own `.ToResult()` or `.ToActionResult()`; never a native result, a hand-written bridge, or a handler whose only terminals are built inside helpers or handed to helpers that do not adapt them.
+**Tooling:** Map the use case's result to the contract's terminal and return it via `.ToResult()` or `.ToActionResult()` — never a native result, hand-written bridge, or terminals built only inside unadapted helpers.
 
-**When:** .NET handlers for Rivet routes (Rivet reads C# and emits the OpenAPI document and typed terminals for each declared response). A result filter may read `StatusCode` and `Value` of the `RivetActionResult`, but never builds a result from them or writes them to the response. A handler whose only terminals are built inside helpers, or handed to helpers that do not adapt them, is reported as `MissingImplementation`.
+**When:** .NET Rivet handlers. Result filters may inspect `RivetActionResult.StatusCode`/`Value` but never build or write a response from them. Terminals hidden inside helpers report `MissingImplementation`.
 
 Bad: `return Results.Json(dto, statusCode: 201)`
-Good: the handler maps the use case's result to the contract's 201 terminal and returns it with `.ToResult()`.
+Good: Mapping the result to the contract's 201 terminal and returning `.ToResult()`.
 <!-- rule: rivet/declare-file-inputs-with-acceptsfile-or-acceptsbinary.md -->
 ## Declare file inputs with AcceptsFile or AcceptsBinary
 
-**Tooling:** Declare a multipart upload with `.AcceptsFile()` and a raw stream with `.AcceptsBinary()`, never `.FormEncoded()` for multipart input.
+**Tooling:** Declare multipart uploads with `.AcceptsFile()` and raw streams with `.AcceptsBinary()` — never `.FormEncoded()` for multipart input.
 
-**When:** Rivet routes that receive a file (Rivet reads C# and emits the OpenAPI document and typed terminals for each declared response).
+**When:** Rivet routes receiving files.
 
 Bad: `.FormEncoded()` on an upload route.
 Good: `.AcceptsFile()` on the upload route.
@@ -298,27 +298,27 @@ Links: [endpoint builder reference](https://github.com/maxanstey-meridian/rivet/
 <!-- rule: rivet/return-files-through-the-file-terminal-and-writer.md -->
 ## Return files through the file terminal and writer
 
-**Tooling:** Return a file through the contract's file terminal (the typed value Rivet gives a handler for a declared file response), choosing the MIME type explicitly when several are declared, and stream a body with the writer `File(...)`, never `Results.Stream` or `PushStreamContent`.
+**Tooling:** Return files through the contract's file terminal (explicitly picking the MIME type when multiple are declared) and stream with `File(...)`, never `Results.Stream` or `PushStreamContent`.
 
-**When:** Rivet routes that return a file (Rivet reads C# and emits the OpenAPI document and typed terminals for each declared response).
+**When:** Rivet routes returning files.
 
 Bad: `return Results.Stream(stream, "application/pdf")`
-Good: the handler returns the contract's file terminal with the PDF MIME type chosen explicitly, and streams the body through the writer `File(...)`.
+Good: Returning the contract's file terminal with the PDF MIME type and streaming via `File(...)`.
 <!-- rule: rivet/bind-route-and-query-enums-as-plain-enums.md -->
 ## Bind route and query enums as plain enums
 
-**Tooling:** Bind an enum from a route, query, header, or form value as a plain enum, an unrenamed `JsonStringEnumConverter<T>`, or a parsed `string`; never with a Rivet case converter or a renaming `[JsonStringEnumMemberName]`.
+**Tooling:** Bind route, query, header, or form enums as plain enums, unrenamed `JsonStringEnumConverter<T>`, or parsed `string` — never with a Rivet case converter or renaming `[JsonStringEnumMemberName]`.
 
-**When:** Rivet routes (Rivet reads C# and emits the OpenAPI document and typed terminals for each declared response) with enum inputs outside the JSON body. `JsonStringEnumConverter<T>` is not available on Azure Functions.
+**When:** Rivet routes with enum inputs outside the JSON body (`JsonStringEnumConverter<T>` is unavailable on Azure Functions).
 
 Bad: `public enum Status { [JsonStringEnumMemberName("in-progress")] InProgress }` bound from a query value.
-Good: `public enum Status { InProgress }` bound as a plain enum, or the query value taken as a `string` and parsed in the handler.
+Good: `public enum Status { InProgress }` bound as a plain enum, or taken as `string` and parsed in the handler.
 <!-- rule: rivet/name-form-members-for-both-form-binders.md -->
 ## Name form members for both form binders
 
-**Tooling:** Rename a form input's member with both `[DataMember(Name = …)]` (read by the minimal-API form mapper) and `[FromForm(Name = …)]` (read by MVC; on a positional record, put it on the parameter), and never name a form part with `[JsonPropertyName]`.
+**Tooling:** Rename form input members with both `[DataMember(Name = …)]` (minimal API) and `[FromForm(Name = …)]` (MVC; on the parameter for positional records) — never `[JsonPropertyName]`.
 
-**When:** Rivet routes (Rivet reads C# and emits the OpenAPI document and typed terminals for each declared response) with form inputs. One rename without the other is `RIV1100`. On MVC a `Name =` or `[Bind(Prefix = …)]` on the parameter prefixes every member except headers.
+**When:** Rivet routes with form inputs. Using only one triggers `RIV1100`. On MVC, `Name =` or `[Bind(Prefix = …)]` on the parameter prefixes all members except headers.
 
 Bad: `[JsonPropertyName("file_name")] public string FileName { get; init; }` on a form record.
 Good:
@@ -332,9 +332,9 @@ Links: [RIV diagnostics reference](https://maxanstey-meridian.github.io/rivet/re
 <!-- rule: rivet/use-init-properties-for-form-inputs.md -->
 ## Use init properties for form inputs
 
-**Tooling:** Write a form input as a type with `{ get; init; }` properties, and put a part that is really optional in an init property, not a constructor parameter.
+**Tooling:** Model form inputs with `{ get; init; }` properties, keeping optional parts as init properties rather than constructor parameters.
 
-**When:** Rivet routes (Rivet reads C# and emits the OpenAPI document and typed terminals for each declared response) with form inputs. The minimal-API form mapper refuses a positional record that is missing any constructor parameter, so every constructor-bound part is emitted `required`, nullable and `[RivetOptional]` ones included.
+**When:** Rivet routes with form inputs — the minimal-API form mapper rejects missing constructor parameters, making every constructor-bound part `required` (even nullable or `[RivetOptional]`).
 
 Bad: `record UploadForm(IFormFile File, string? Note)`
 Good:
@@ -348,66 +348,66 @@ public class UploadForm
 <!-- rule: rivet/declare-default-security-in-source.md -->
 ## Declare default security in source
 
-**Tooling:** Declare the document's default security in source with the assembly attributes, not only with `--security`, and mark the endpoints anyone may call as anonymous.
+**Tooling:** Declare default OpenAPI security via assembly attributes in source (not only `--security`), and mark public endpoints anonymous.
 
-**When:** .NET APIs that use Rivet, which reads C# and emits the OpenAPI document and typed terminals for each declared response. Anonymous is `.Anonymous()`, or on a `[RivetEndpoint]` action `[AllowAnonymous]` or `[RivetAnonymous]`. Generation and `--check` then read the same document, and `--check` reports a document and a handler that disagree as `RIV4008`.
+**When:** .NET Rivet APIs. Mark public routes `.Anonymous()` (or `[AllowAnonymous]`/`[RivetAnonymous]` on `[RivetEndpoint]`). Generation and `--check` then share one document, catching mismatches as `RIV4008`.
 
-Bad: security passed only as `--security bearer` in the build script.
+Bad: Passing `--security bearer` only in the build script.
 Good:
 ```csharp
 [assembly: RivetSecurityScheme(...)]
 [assembly: RivetGlobalSecurity(0)]
 [assembly: RivetGlobalSecurityScheme(0, "bearer", new string[0])]
-// and .Anonymous() on a route anyone may call, such as sign-in
+// and .Anonymous() on public routes such as sign-in
 ```
 
 Links: [endpoint builder reference](https://github.com/maxanstey-meridian/rivet/blob/main/docs/reference/endpoint-builder.md), [RIV diagnostics reference](https://maxanstey-meridian.github.io/rivet/reference/diagnostics)
 <!-- rule: rivet/give-every-route-token-a-typed-declaration.md -->
 ## Give every route token a typed declaration
 
-**Tooling:** Every route token has a typed declaration: an input property, `.Parameter<T>(name, "path", ...)`, or a type constraint.
+**Tooling:** Declare every route token with an input property, `.Parameter<T>(name, "path", ...)`, or a type constraint.
 
-**When:** Rivet routes (Rivet reads C# and emits the OpenAPI document and typed terminals for each declared response) with `{token}` segments; an undeclared token is `RIV1019`.
+**When:** Rivet routes with `{token}` segments (undeclared tokens fail with `RIV1019`).
 
-Bad: the route `"/api/forms/{id}"` with no `id` on the input.
-Good: the same route with an input record that has `Guid Id`.
+Bad: Route `"/api/forms/{id}"` with no `id` on the input.
+Good: The same route with `Guid Id` on the input record.
 
 Links: [endpoint builder reference](https://github.com/maxanstey-meridian/rivet/blob/main/docs/reference/endpoint-builder.md), [RIV diagnostics reference](https://maxanstey-meridian.github.io/rivet/reference/diagnostics)
 <!-- rule: rivet/publish-actions-one-by-one-with-rivetendpoint.md -->
 ## Publish actions one by one with RivetEndpoint
 
-**Tooling:** Mark each published controller action with `[RivetEndpoint]` rather than putting `[RivetClient]` on the controller, which publishes every HTTP action in it.
+**Tooling:** Mark each published controller action with `[RivetEndpoint]` rather than putting `[RivetClient]` on the controller (which publishes every HTTP action).
 
-**When:** .NET controllers published through Rivet, which reads C# and emits the OpenAPI document and typed terminals for each declared response.
+**When:** .NET controllers published through Rivet.
 
-Bad: `[RivetClient]` on `FormsController`, which also publishes an internal debug action.
-Good: `[RivetEndpoint]` on each of the three public actions only.
+Bad: `[RivetClient]` on `FormsController`, accidentally publishing an internal debug action.
+Good: `[RivetEndpoint]` on only the three public actions.
 <!-- rule: rivet/keep-wire-changing-settings-out-of-host-json-options.md -->
 ## Keep wire-changing settings out of host JSON options
 
-**Tooling:** Do not register converters, a naming policy, a `DefaultIgnoreCondition`, or any other wire-changing setting in the host's JSON options, because Rivet's response writers throw.
+**Tooling:** Never register converters, naming policies, `DefaultIgnoreCondition`, or other wire-changing settings in host JSON options — Rivet's response writers throw.
 
-**When:** .NET hosts that serve Rivet routes (Rivet reads C# and emits the OpenAPI document and typed terminals for each declared response).
+**When:** .NET hosts serving Rivet routes.
 
 Bad: `options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;`
-Good: the host's JSON options with no wire-changing setting.
+Good: Host JSON options with no wire-changing settings.
 <!-- rule: rivet/pin-a-primitives-wire-type-with-rivetschematype.md -->
 ## Pin a primitive's wire type with RivetSchemaType
 
-**Tooling:** Fix how a primitive appears on the wire with `[RivetSchemaType]`, not with `[JsonConverter]` on a property or a converter Rivet cannot model on a type.
+**Tooling:** Pin a primitive's wire type with `[RivetSchemaType]`, never with `[JsonConverter]` on a property or a converter Rivet cannot model.
 
-**When:** Transport contract types (the request and response records in `Contracts/<Feature>/`) for Rivet, which reads C# and emits the OpenAPI document and typed terminals for each declared response; `[JsonConverter]` on a property, or a converter Rivet cannot model, is `RIV1111`.
+**When:** Rivet transport contract types (`Contracts/<Feature>/`); property `[JsonConverter]` or unmodelled converters trigger `RIV1111`.
 
 Bad: `[JsonConverter(typeof(DateOnlyConverter))] DateOnly Due`
-Good: `Due` carries `[RivetSchemaType]` with the wire type, not a `[JsonConverter]`.
+Good: `[RivetSchemaType]` on `Due` specifying the wire type.
 
 Links: [RIV diagnostics reference](https://maxanstey-meridian.github.io/rivet/reference/diagnostics)
 <!-- rule: rivet/tag-polymorphic-types-with-string-discriminators.md -->
 ## Tag polymorphic types with string discriminators
 
-**Tooling:** Every `[JsonDerivedType]` carries a string tag, never an integer tag and never none.
+**Tooling:** Give every `[JsonDerivedType]` a string tag — never an integer or omitted tag.
 
-**When:** Polymorphic transport contract types (the request and response records in `Contracts/<Feature>/`) for Rivet, which reads C# and emits the OpenAPI document and typed terminals for each declared response; an integer or missing tag is `RIV1014`.
+**When:** Polymorphic Rivet contract types (`Contracts/<Feature>/`); integer or missing tags fail with `RIV1014`.
 
 Bad: `[JsonDerivedType(typeof(TextAnswer), 1)]`
 Good: `[JsonDerivedType(typeof(TextAnswer), "text")]`
@@ -416,60 +416,60 @@ Links: [RIV diagnostics reference](https://maxanstey-meridian.github.io/rivet/re
 <!-- rule: rivet/never-declare-transport-headers-as-inputs.md -->
 ## Never declare transport headers as inputs
 
-**Tooling:** Do not declare `Authorization`, `Accept`, or `Content-Type` as a header input, or `Content-Type` as a response header; set a response's media type with `.ProducesContentType(...)`.
+**Tooling:** Never declare `Authorization`, `Accept`, or `Content-Type` as a header input, or `Content-Type` as a response header; set response media types with `.ProducesContentType(...)`.
 
-**When:** Rivet route definitions (Rivet reads C# and emits the OpenAPI document and typed terminals for each declared response); declaring one is `RIV2009`.
+**When:** Rivet route definitions (declaring one triggers `RIV2009`).
 
-Bad: a route that declares `Authorization` as a header input.
-Good: the route declares no `Authorization` input, and the security scheme carries it.
+Bad: Declaring `Authorization` as a header input.
+Good: Omitting `Authorization` from inputs and letting the security scheme carry it.
 
 Links: [endpoint builder reference](https://github.com/maxanstey-meridian/rivet/blob/main/docs/reference/endpoint-builder.md), [RIV diagnostics reference](https://maxanstey-meridian.github.io/rivet/reference/diagnostics)
 <!-- rule: rivet/call-only-apis-the-pinned-rivet-version-has.md -->
 ## Call only APIs the pinned Rivet version has
 
-**Tooling:** Use only the Rivet APIs the project's pinned package version provides; raise the pin before calling a newer source-only API.
+**Tooling:** Call only Rivet APIs present in the pinned package version; bump the pin before using newer source-only APIs.
 
-**When:** .NET APIs that use Rivet, which reads C# and emits the OpenAPI document and typed terminals for each declared response.
+**When:** .NET APIs using Rivet.
 
-Bad: calling `.AcceptsBinary()` while the project pins a Rivet package version that lacks it.
-Good: the package reference raised to a version that has `.AcceptsBinary()`, in the same change that calls it.
+Bad: Calling `.AcceptsBinary()` while pinned to a Rivet version that lacks it.
+Good: Raising the Rivet package pin to a version with `.AcceptsBinary()` in the same change.
 <!-- rule: rivet/run-the-coverage-and-drift-gates.md -->
 ## Run the coverage and drift gates
 
-**Tooling:** Run both Rivet checks in CI (checks that fail the build): coverage (`--check` without `--output`) and drift of the generated output (`--verify`).
+**Tooling:** Run both Rivet CI gates: coverage (`--check` without `--output`) and generated-output drift (`--verify`).
 
-**When:** Repos that use Rivet, which reads C# and emits the OpenAPI document and typed terminals for each declared response. Generation, coverage, and real HTTP behaviour are three separate checks, and none stands in for another.
+**When:** Repos using Rivet. Generation, coverage, and real HTTP behaviour are separate checks; none replaces another.
 
 Bad: CI that only regenerates the client.
-Good: CI that runs `--check` and `--verify` and fails on either.
+Good: CI running `--check` and `--verify` and failing on either.
 <!-- rule: rivet/run-real-host-tests-for-transport-changes.md -->
 ## Run real-host tests for transport changes
 
-**Tooling:** When a change touches routing, serialisation, or exception handling at the host, prove it with HTTP tests against the real host, because Rivet's static coverage does not.
+**Tooling:** Prove routing, serialisation, or host exception-handling changes with real-host HTTP tests, since Rivet's static coverage cannot.
 
-**When:** .NET APIs that use Rivet, which reads C# and emits the OpenAPI document and typed terminals for each declared response, Azure Functions hosts included. Rivet does not enforce serialised JSON shape, member validation, request parsing, optional headers, authorisation policies, or file bytes at run time, and a handler that returns a native result bypasses its checks.
+**When:** .NET Rivet APIs (including Azure Functions). Rivet does not verify runtime JSON shape, validation, request parsing, optional headers, auth policies, or file bytes, and native results bypass its checks.
 
-Bad: a route-prefix change shipped on a green `--check`.
-Good: the same change with an HTTP test that calls the running host on the new route.
+Bad: Shipping a route-prefix change on a green `--check` alone.
+Good: Adding an HTTP test against the running host on the new route.
 <!-- rule: rivet/run-azure-functions-on-the-isolated-worker.md -->
 ## Run Azure Functions on the isolated worker
 
-**Tooling:** An Azure Functions host for Rivet routes uses the isolated worker with ASP.NET integration (`ConfigureFunctionsWebApplication`), `HttpRequest`, `IActionResult`, and Rivet's `.ToActionResult()`.
+**Tooling:** Run Azure Functions Rivet routes on the isolated worker with ASP.NET integration (`ConfigureFunctionsWebApplication`), `HttpRequest`, `IActionResult`, and `.ToActionResult()`.
 
-**When:** Rivet routes (Rivet reads C# and emits the OpenAPI document and typed terminals for each declared response) served from Azure Functions.
+**When:** Rivet routes served from Azure Functions.
 
-Bad: a function that takes `HttpRequestData` and writes the response by hand.
-Good: a function that takes `HttpRequest` and returns `.ToActionResult()`, on a host built with `ConfigureFunctionsWebApplication`.
+Bad: A function taking `HttpRequestData` and writing the response by hand.
+Good: A function taking `HttpRequest` and returning `.ToActionResult()` under `ConfigureFunctionsWebApplication`.
 
 Links: [Functions sample](https://github.com/maxanstey-meridian/rivet/tree/main/samples/FunctionsApi), [Azure Functions guide](https://github.com/maxanstey-meridian/rivet/blob/main/docs/guides/azure-functions.md)
 <!-- rule: rivet/keep-trigger-and-public-routes-in-the-contract.md -->
 ## Keep trigger and public routes in the contract
 
-**Tooling:** The transport contract (the `[RivetContract]` class in top-level `Contracts/<Feature>/`) owns two constants for each Functions route: `TriggerRoute`, with no leading slash, for the trigger attribute, and `PublicRoute`, the full public path including the host's route prefix, for `Define`.
+**Tooling:** For each Functions route, define two constants in `Contracts/<Feature>/`: `TriggerRoute` (no leading slash) for `[HttpTrigger]` and `PublicRoute` (full public path including route prefix) for `Define`.
 
-**When:** Rivet routes (Rivet reads C# and emits the OpenAPI document and typed terminals for each declared response) served from Azure Functions. `host.json` defaults the prefix to `api`; with `extensions.http.routePrefix: ""`, `PublicRoute = "/" + TriggerRoute`; a custom prefix appears in the contract the same way. Run the check with the same prefix setting as the deployment.
+**When:** Rivet routes on Azure Functions. `host.json` defaults the prefix to `api` (with `routePrefix: ""`, `PublicRoute = "/" + TriggerRoute`); run `--check` with the deployment prefix.
 
-Bad: `[HttpTrigger(…, Route = "/images/{format}")]` and `Define` given that same string.
+Bad: Passing `"/images/{format}"` to both `[HttpTrigger]` and `Define`.
 Good:
 ```csharp
 public const string TriggerRoute = "images/{format}";
@@ -480,23 +480,23 @@ Links: [Functions sample](https://github.com/maxanstey-meridian/rivet/tree/main/
 <!-- rule: rivet/name-unbound-function-parameters-after-contract-inputs.md -->
 ## Name unbound function parameters after contract inputs
 
-**Tooling:** Name each function parameter that has no binding attribute after a route token, a declared query parameter, or a top-level property of the contract's JSON body.
+**Tooling:** Name every unbound function parameter after a route token, declared query parameter, or top-level JSON body property in the contract.
 
-**When:** Azure Functions handlers for Rivet routes (Rivet reads C# and emits the OpenAPI document and typed terminals for each declared response). Such a parameter is filled by name, ignoring case, from a route value, else a query parameter, else a top-level JSON body property; never a header, cookie, or form field. A name nothing carries is `null`, and a value type fails the call; `--check` reports a parameter the contract does not declare as `RIV4006`.
+**When:** Azure Functions Rivet handlers. Parameters bind case-insensitively from route, then query, then top-level JSON body (never headers, cookies, or forms); unmatched names bind `null` (failing value types) and trigger `RIV4006` in `--check`.
 
-Bad: `Run(HttpRequest req, string fmt)` on the route `images/{format}`.
-Good: `Run(HttpRequest req, string format)` on the route `images/{format}`.
+Bad: `Run(HttpRequest req, string fmt)` on route `images/{format}`.
+Good: `Run(HttpRequest req, string format)` on route `images/{format}`.
 
 Links: [Azure Functions guide](https://github.com/maxanstey-meridian/rivet/blob/main/docs/guides/azure-functions.md), [RIV diagnostics reference](https://maxanstey-meridian.github.io/rivet/reference/diagnostics)
 <!-- rule: rivet/wire-exception-handling-into-the-functions-host.md -->
 ## Wire exception handling into the Functions host
 
-**Tooling:** Under Azure Functions, wire the API's exception handling into that host.
+**Tooling:** Under Azure Functions, register the API's exception handling directly on the Functions host.
 
-**When:** Rivet routes (Rivet reads C# and emits the OpenAPI document and typed terminals for each declared response) served from Azure Functions.
+**When:** Rivet routes served from Azure Functions.
 
-Bad: the ASP.NET exception middleware assumed to run under Functions.
-Good: the handler registered on the Functions host.
+Bad: Assuming ASP.NET exception middleware runs under Functions.
+Good: Registering the exception handler on the Functions host.
 
 Links: [Functions sample](https://github.com/maxanstey-meridian/rivet/tree/main/samples/FunctionsApi), [Azure Functions guide](https://github.com/maxanstey-meridian/rivet/blob/main/docs/guides/azure-functions.md)
 <!-- end of spec/references/rules-backend-tooling.md -->

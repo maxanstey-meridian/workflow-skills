@@ -1,8 +1,8 @@
 ## Call the generated client in the implementing composable
 
-**Default:** Call the generated client (the typed API client generated from the transport contract) inside the composable or adapter that implements the capability, not in a component.
+**Default:** Call the generated API client inside the composable or adapter that implements the capability, never in a component.
 
-**When:** Vue and Nuxt frontends that call a generated API client (a Rivet client, for example).
+**When:** Vue and Nuxt frontends using a generated client (e.g., Rivet).
 
 Bad: `client.GET("/api/session")` called in a component.
-Good: the same call inside `useRivetAuth`.
+Good: The same call inside `useRivetAuth`.

@@ -1,8 +1,8 @@
 ## Inject dependencies through the constructor
 
-**Default:** Domain and Application receive their dependencies as explicit constructor parameters and never take the service provider, and on a TypeScript backend no class fetches a dependency from a locator inside a method.
+**Default:** Pass Domain and Application dependencies as explicit constructor parameters — never inject `IServiceProvider` or pull dependencies from a locator inside a method.
 
-**When:** .NET (`System.IServiceProvider`) and TypeScript backends. Only the code that assembles the application resolves dependencies.
+**When:** .NET and TypeScript backends (only the composition root resolves dependencies).
 
-Bad: A use case taking `IServiceProvider` and calling `GetRequiredService<FormRepository>()`.
+Bad: A use case injecting `IServiceProvider` and calling `GetRequiredService<FormRepository>()`.
 Good: A use case taking `FormRepository` in its constructor.

@@ -1,8 +1,8 @@
 ## Give each read shape a named query
 
-**Default:** A repository loads and saves the state a mutation needs; list rows, dropdown options, exports, dashboards, and API read models (the objects the server returns for a screen) each belong to a named query (a type for one read, whose name ends `Query`), not to the write repository.
+**Default:** Repositories load and save state for mutations; list rows, dropdowns, exports, dashboards, and API read models each belong to a named `*Query`, not the write repository.
 
-**When:** Read paths on .NET or TypeScript. A trivial query may load through the repository and map locally; when the read grows wider, slower, or UI-specific, replace the query's implementation and leave the repository alone.
+**When:** Read paths on .NET or TypeScript. Trivial queries may load via the repository and map locally, then swap implementations when reads grow wider, slower, or UI-specific.
 
 Bad: `FormRepository.GetDashboardRowsAsync()`.
 Good: `ListFormDashboardRowsQuery`.

@@ -1,8 +1,8 @@
 ## Never stretch a transaction across an HTTP call
 
-**Law:** Never claim that a database change and an HTTP call are atomic by holding a transaction or a lock open across the call; accept explicit reconciliation, or, when the invariant needs retries, compensation, or reconciliation across systems that share no transaction, use a durable workflow with idempotent external steps.
+**Law:** Never hold a DB transaction or lock across an HTTP call to fake atomicity; use explicit reconciliation, or a durable workflow with idempotent external steps when retries or compensation are needed.
 
-**When:** A use case that writes to the database and calls an external API.
+**When:** Any use case that writes to the database and calls an external API.
 
 Bad: `BEGIN; insert order; await payments.charge(); COMMIT`.
-Good: The order saved as pending, the charge made with an idempotency key, and a reconciliation step that settles the order.
+Good: Saving the order pending, charging with an idempotency key, and settling via reconciliation.

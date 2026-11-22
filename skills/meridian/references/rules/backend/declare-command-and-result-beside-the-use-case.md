@@ -1,6 +1,6 @@
 ## Declare Command and Result beside the use case
 
-**Default:** A use case (the Application code for one operation) declares its Command and Result records (its input and output) as siblings of the use case class in the same file, never nested inside it.
+**Default:** Declare a use case's Command and Result records as sibling top-level types in the same file, never nested inside the use case class.
 
 **When:** .NET use cases.
 

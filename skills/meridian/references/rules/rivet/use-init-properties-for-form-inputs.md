@@ -1,8 +1,8 @@
 ## Use init properties for form inputs
 
-**Tooling:** Write a form input as a type with `{ get; init; }` properties, and put a part that is really optional in an init property, not a constructor parameter.
+**Tooling:** Model form inputs with `{ get; init; }` properties, keeping optional parts as init properties rather than constructor parameters.
 
-**When:** Rivet routes (Rivet reads C# and emits the OpenAPI document and typed terminals for each declared response) with form inputs. The minimal-API form mapper refuses a positional record that is missing any constructor parameter, so every constructor-bound part is emitted `required`, nullable and `[RivetOptional]` ones included.
+**When:** Rivet routes with form inputs — the minimal-API form mapper rejects missing constructor parameters, making every constructor-bound part `required` (even nullable or `[RivetOptional]`).
 
 Bad: `record UploadForm(IFormFile File, string? Note)`
 Good:

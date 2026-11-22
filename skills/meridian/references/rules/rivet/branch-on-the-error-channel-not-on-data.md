@@ -1,8 +1,8 @@
 ## Branch on the error channel, not on data
 
-**Tooling:** Capture the client's `{ data, error, response }` result and branch on `error` or `response.status`; never on whether `data` is truthy, since a valid payload may be `false`, `0`, an empty string, or `null`.
+**Tooling:** Branch on `error` or `response.status` from `{ data, error, response }` — never on `data` truthiness, since valid payloads include `false`, `0`, `""`, and `null`.
 
-**When:** Calls to the generated `openapi-fetch` client of a Rivet API (Rivet reads C# and emits the OpenAPI document).
+**When:** Calls to a generated Rivet `openapi-fetch` client.
 
 Bad: `if (!result.data) return null`
 Good:

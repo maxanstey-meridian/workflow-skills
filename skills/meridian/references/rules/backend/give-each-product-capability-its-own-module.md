@@ -1,8 +1,8 @@
 ## Give each product capability its own module
 
-**Default:** Make a module for each real product capability that has its own language, workflow, or lifecycle; an infrastructure concern, a helper, or a detail of another module is not a module.
+**Default:** Create a module for each real product capability with its own language, workflow, or lifecycle — never for an infrastructure concern, helper, or detail of another module.
 
-**When:** Deciding whether code becomes a new module (one feature's folder under `Modules/` or `src/modules/`) on a .NET or TypeScript backend.
+**When:** Deciding whether code deserves a new module (`Modules/` or `src/modules/`).
 
-Bad: a `Modules/Email/` that every module calls and that owns no product behaviour.
-Good: an email port (the Application-owned type that names a capability) in each module that sends, with one adapter (the implementation of the port) in the host.
+Bad: `Modules/Email/` called by every module with no product behaviour.
+Good: An email port in each sending module backed by one host adapter.

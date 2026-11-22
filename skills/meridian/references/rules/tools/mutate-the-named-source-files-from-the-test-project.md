@@ -1,10 +1,10 @@
 ## Mutate the named source files from the test project
 
-**Tooling:** Run Stryker.NET behind one repo command that starts in the test project's folder and mutates exactly the source files it is given (`-m <file>` for each); never start it in the folder that holds the solution, and never pick its mutants with `--since`.
+**Tooling:** Run Stryker.NET via one repo command from the test project's folder, mutating only named source files (`-m <file>`); never run from the solution folder or select mutants with `--since`.
 
-**When:** A .NET repo's mutation command. Started beside a solution file, Stryker counts every changed file as a test file, so with `--since` one changed Markdown or JSON file retests every mutant, and a changed test file retests everything its tests cover. A `since.ignore-changes-in` pattern that starts with `!` is not a way round it: on Stryker 5.1 it can ignore the C# files too, and the run then passes having tested nothing.
+**When:** Any .NET repo's mutation command. From a solution folder, Stryker treats every changed file as a test file, so `--since` retests all mutants on a README/JSON edit. Avoid `!` patterns in `since.ignore-changes-in` (Stryker 5.1 can ignore C# files and pass vacuously).
 
-Bad: `dotnet stryker --since:<commit>` in the repo root, which retests all 877 mutants because a README changed.
-Good: `tools/mutate.sh Cohort/CohortColumns.cs`, which changes to the test project's folder and runs `dotnet stryker -f stryker-config.json -m CohortColumns.cs`.
+Bad: `dotnet stryker --since:<commit>` from repo root retesting all 877 mutants after a README edit.
+Good: `tools/mutate.sh Cohort/CohortColumns.cs` changing into the test project folder and running `dotnet stryker -f stryker-config.json -m CohortColumns.cs`.
 
 Links: [stryker-net issue 3331](https://github.com/stryker-mutator/stryker-net/issues/3331)

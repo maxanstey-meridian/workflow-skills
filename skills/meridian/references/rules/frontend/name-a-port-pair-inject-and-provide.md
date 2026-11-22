@@ -1,8 +1,8 @@
 ## Name a port pair inject and provide
 
-**Preference:** Use `injectX` and `provideX`, in that order, for a port's exported pair, and keep `useX` for concrete composables.
+**Preference:** Name a port's exported pair `[injectX, provideX]` in that order, keeping `useX` for concrete composables.
 
-**When:** Port files in a Vue or Nuxt frontend. `injectX` shows a consumer depends on an already-wired capability, `provideX(usePlatformRecorder())` shows a root wiring one, and `useX` is the implementation.
+**When:** Port files in Vue/Nuxt frontends: `injectX` signals an injected capability, `provideX(usePlatformRecorder())` signals root wiring, and `useX` is the implementation.
 
 Bad: `export const [useRecorder, provideRecorder] = useProvideInject<Recorder>("Recorder");`
-Good: `export const [injectRecorder, provideRecorder] = useProvideInject<Recorder>("Recorder");`, with `usePlatformRecorder()` as the implementation.
+Good: `export const [injectRecorder, provideRecorder] = useProvideInject<Recorder>("Recorder");` with `usePlatformRecorder()`.

@@ -1,8 +1,8 @@
 ## Write every rule in the five-part format
 
-**Preference:** A rule file holds five fields, in this order: a `##` title that states the rule as an imperative, a strength line (`**Law:**`, `**Default:**`, `**Preference:**`, or `**Tooling:**`) that says the rule in one sentence, a `**When:**` line that says where it applies, a `Bad:` example and a `Good:` of the same case done right, and, last and optional, a `Links:` line, the only place a rule holds a URL.
+**Preference:** Every rule file has five fields in order: a `##` imperative title, a one-sentence strength line (`**Law:**`, `**Default:**`, `**Preference:**`, or `**Tooling:**`), a `**When:**` line, `Bad:` and `Good:` examples of the same case, and an optional final `Links:` line (the only place URLs go).
 
-**When:** Writing, editing, or checking a rule in the house rule library, or a rule-shaped file the house build format-checks.
+**When:** Writing, editing, or checking any rule in the library or format-checked rule file.
 
-Bad: A rule stated in prose paragraphs, a URL in the middle of the text, and its example under a second heading.
-Good: The same rule as one `##` imperative, one strength sentence, one `**When:**` line, one `Bad:` line, one `Good:` line, and the URL on a final `Links:` line.
+Bad: Prose paragraphs, an inline URL, and examples under a second heading.
+Good: One `##` imperative, one strength sentence, one `**When:**`, one `Bad:`, one `Good:`, and a final `Links:` line.

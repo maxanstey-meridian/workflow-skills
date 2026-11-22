@@ -1,8 +1,8 @@
 ## Regenerate and commit output with the contract change
 
-**Tooling:** Regenerate through the repo's task and commit the regenerated output in the same change as the contract change that caused it.
+**Tooling:** Regenerate via the repo's task (`task generate`, `pnpm rivet`, or `dotnet rivet …`) and commit the output in the same change as the contract edit.
 
-**When:** Any change to a Rivet contract (Rivet reads C# and emits the OpenAPI document). The task is the repo's own: `task generate`, `pnpm rivet`, or `dotnet rivet --project … --output …`.
+**When:** Any Rivet contract change.
 
-Bad: a contract change committed alongside last week's `schema.d.ts`.
-Good: the contract change and the regenerated files in one commit.
+Bad: Committing a contract change alongside stale `schema.d.ts`.
+Good: Committing the contract change and regenerated files together.

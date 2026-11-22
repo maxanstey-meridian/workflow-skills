@@ -1,6 +1,6 @@
 ## Treat disabled states as explanations
 
-**Default:** A disabled control shows why it is disabled and how to enable it: hide an irrelevant control until its prerequisite is chosen, show the prerequisite beside it, or say in plain words what the user must do.
+**Default:** A disabled control must explain why it is disabled and how to enable it: hide it until its prerequisite is chosen, show the prerequisite beside it, or state in plain words what to do.
 
 **When:** Any control that can be disabled.
 

@@ -1,10 +1,10 @@
 ## Keep a port file to its type and pair
 
-**Default:** A port file holds only the port's type and its `[injectX, provideX]` pair from the `useProvideInject` helper; it imports types and that helper, never `provide`, `inject`, or a value from `vue`, and declares nothing else.
+**Default:** A port file holds only the port type and its `[injectX, provideX]` pair from `useProvideInject`; it imports only types and that helper, never `provide`, `inject`, or values from `vue`.
 
-**When:** Files in `ports/` in a Vue or Nuxt frontend. A port is the type that names one capability a subtree needs.
+**When:** Files in `ports/` in Vue and Nuxt frontends.
 
-Bad: a port file that also exports a default implementation object.
+Bad: A port file that also exports a default implementation object.
 Good:
 ```ts
 export interface Recorder { /* members */ }

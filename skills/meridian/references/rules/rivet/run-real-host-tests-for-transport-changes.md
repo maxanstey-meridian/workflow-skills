@@ -1,8 +1,8 @@
 ## Run real-host tests for transport changes
 
-**Tooling:** When a change touches routing, serialisation, or exception handling at the host, prove it with HTTP tests against the real host, because Rivet's static coverage does not.
+**Tooling:** Prove routing, serialisation, or host exception-handling changes with real-host HTTP tests, since Rivet's static coverage cannot.
 
-**When:** .NET APIs that use Rivet, which reads C# and emits the OpenAPI document and typed terminals for each declared response, Azure Functions hosts included. Rivet does not enforce serialised JSON shape, member validation, request parsing, optional headers, authorisation policies, or file bytes at run time, and a handler that returns a native result bypasses its checks.
+**When:** .NET Rivet APIs (including Azure Functions). Rivet does not verify runtime JSON shape, validation, request parsing, optional headers, auth policies, or file bytes, and native results bypass its checks.
 
-Bad: a route-prefix change shipped on a green `--check`.
-Good: the same change with an HTTP test that calls the running host on the new route.
+Bad: Shipping a route-prefix change on a green `--check` alone.
+Good: Adding an HTTP test against the running host on the new route.

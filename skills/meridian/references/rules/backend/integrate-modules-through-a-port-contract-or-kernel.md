@@ -1,8 +1,8 @@
 ## Integrate modules through a port, contract, or kernel
 
-**Law:** Two modules (feature folders under `Modules/` or `src/modules/`) work together in one of three ways only: a required port (the consumer's own type naming the capability it needs) bridged to the provider by a host adapter (an implementation in the host, which may depend on both sides); a published contract (the commands, queries, and types the provider deliberately exposes to other modules); or a shared kernel (a small concept both own and change only by agreement).
+**Law:** Modules (`Modules/` or `src/modules/`) interact only via: a consumer-owned required port bridged by a host adapter, a provider-owned published contract, or a co-owned shared kernel.
 
-**When:** Any dependency between modules. Choose the provider's published contract only when the consumer couldn't keep its own rules if the provider had never been built, the consumer's port when the consumer could (the consumer then doesn't name the provider) or when the consuming use case should set the shape, and the shared kernel (in `Common`) only for a concept the modules really co-own. A required port does not move to `Common` because its adapter calls another module; each module depends only on the contract relevant to its own side.
+**When:** Any cross-module dependency. Use the provider's published contract only when the consumer could not keep its own rules without the provider; use a consumer port when it could (hiding the provider) or when the consumer should set the shape; use a shared kernel (in `Common`) only for a genuinely co-owned concept. Never move a required port to `Common` just because its adapter calls another module; each module depends only on its own side's contract.
 
 Bad: Forms' use case importing `Submissions.Application.SubmissionService`.
-Good: forms declaring a `SubmissionCounts` port that a host adapter implements by calling submissions' published query.
+Good: Forms declaring a `SubmissionCounts` port that a host adapter implements via Submissions' published query.

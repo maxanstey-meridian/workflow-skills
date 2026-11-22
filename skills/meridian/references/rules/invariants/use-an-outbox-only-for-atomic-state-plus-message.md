@@ -1,8 +1,8 @@
 ## Use an outbox only for atomic state plus message
 
-**Law:** Use a transactional outbox only when a committed database change must reliably produce a message; it is not a stronger form of database concurrency control.
+**Law:** Use a transactional outbox only when a committed DB change must reliably emit a message; it is not a stronger DB concurrency control.
 
-**When:** Backend code considering an outbox, a table of messages written in the same transaction as the state change and published afterwards.
+**When:** Backend code considering a transactional outbox.
 
-Bad: An outbox added so two writers don't overwrite each other.
-Good: A version column for the writers, and no outbox.
+Bad: Adding an outbox so two writers don't overwrite each other.
+Good: Using a version column for the writers and no outbox.

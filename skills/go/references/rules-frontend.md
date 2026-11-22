@@ -6,27 +6,27 @@
 
 Each line is one rule: its title, its one sentence, and the file that holds it.
 
-- **Provide capabilities only in composition roots.** Only composition roots (the app shell, a layout, or a page) call `provideX` to provide capabilities (typed things the code needs done for it); components and composables only inject them with `injectX`. [`frontend/provide-capabilities-only-in-composition-roots.md`]
-- **Provide the implementation, not a repacked object.** A composition root (the app shell, a layout, or a page) passes the implementation straight to `provideX`; it never unpacks a composable and repacks chosen members into a port-shaped object (a port is the type that names what a subtree needs), nor adds getters to hand out pieces, and a page that needs more of a capability widens the port. [`frontend/provide-the-implementation-not-a-repacked-object.md`]
-- **Read the server's answer, never re-derive its rule.** The UI never works out a rule the server decides (whether an action may happen, whether an entity is editable, whether a draft differs from what is published, which pages a role sees); it reads the server's answer from the read model (the object the server returns for a screen) as `availableActions`, a permission set, or a named flag, and if the DTO lacks it the DTO gains it. [`frontend/read-the-servers-answer-never-re-derive-its-rule.md`]
+- **Provide capabilities only in composition roots.** Only composition roots (`app.vue`, layouts, or pages) call `provideX`; components and composables only call `injectX`. [`frontend/provide-capabilities-only-in-composition-roots.md`]
+- **Provide the implementation, not a repacked object.** Pass the implementation straight to `provideX` in a composition root; never unpack a composable into a repacked port-shaped object or add getter wrappers — widen the port if a page needs more. [`frontend/provide-the-implementation-not-a-repacked-object.md`]
+- **Read the server's answer, never re-derive its rule.** The UI never works out a server-decided rule (allowed actions, editability, draft-vs-published diff, role visibility); it reads the server's read model (`availableActions`, permissions, or a named flag), adding it to the DTO if missing. [`frontend/read-the-servers-answer-never-re-derive-its-rule.md`]
 - **Take server-owned ids from the DTO.** A route, link, query value, request, or comparison takes a server-owned id from the DTO, never from a hand-written literal. [`frontend/take-server-owned-ids-from-the-dto.md`]
 - **Take validation limits from the DTO.** When the browser checks unsaved input for fast feedback, its limits and allowed choices come from the DTO (a `min`, a `max`, an allowed list), not from hand-copied constants or predicates; a constant that cannot travel on a DTO is held to the server's by a parity test. [`frontend/take-validation-limits-from-the-dto.md`]
-- **Follow the user's journey, not the API.** UI structure, wording, grouping, and order follow the user's journey and intended outcomes, never API call order, DTO (data transfer object) or database field order, configuration object shape, provider implementation boundaries, technical mechanism variants, or the order the backend validates or saves in. [`ui/follow-the-users-journey-not-the-api.md`]
+- **Follow the user's journey, not the API.** UI structure, wording, grouping, and order follow the user's journey and intended outcomes — never API call order, DTO or database field order, config object shape, provider boundaries, technical variants, or backend validation/save order. [`ui/follow-the-users-journey-not-the-api.md`]
 <!-- rule: frontend/provide-capabilities-only-in-composition-roots.md -->
 ## Provide capabilities only in composition roots
 
-**Law:** Only composition roots (the app shell, a layout, or a page) call `provideX` to provide capabilities (typed things the code needs done for it); components and composables only inject them with `injectX`.
+**Law:** Only composition roots (`app.vue`, layouts, or pages) call `provideX`; components and composables only call `injectX`.
 
-**When:** Vue and Nuxt frontends, where Vue cannot trace an inject back to its provider, so a few known places keep the wiring searchable. In Nuxt the roots are `app.vue` (application lifetime), layouts (session lifetime across pages), and pages (route lifetime); `provideX` is called nowhere else, and a feature folder never provides itself. A test may call `provideX` to stand in for the root, from a spec or test file under the top-level `tests/`, `test/`, or `e2e/` tree of the frontend or its package.
+**When:** Vue/Nuxt frontends — roots map to lifetimes (`app.vue` = app, layouts = session, pages = route), keeping wiring searchable; feature folders never provide themselves. Tests under top-level `tests/`, `test/`, or `e2e/` may call `provideX` as a test root.
 
 Bad: `provideAuth(useRivetAuth())` inside `app-sidebar.vue`.
-Good: the same line in `layouts/default.vue`, with the sidebar calling `injectAuth()`.
+Good: The same line in `layouts/default.vue`, with the sidebar calling `injectAuth()`.
 <!-- rule: frontend/provide-the-implementation-not-a-repacked-object.md -->
 ## Provide the implementation, not a repacked object
 
-**Law:** A composition root (the app shell, a layout, or a page) passes the implementation straight to `provideX`; it never unpacks a composable and repacks chosen members into a port-shaped object (a port is the type that names what a subtree needs), nor adds getters to hand out pieces, and a page that needs more of a capability widens the port.
+**Law:** Pass the implementation straight to `provideX` in a composition root; never unpack a composable into a repacked port-shaped object or add getter wrappers — widen the port if a page needs more.
 
-**When:** Vue and Nuxt composition roots. If direct provision is impossible because the page gathers state from several unrelated composables, treat that as a sign that ownership is unclear, that the port republishes what it does not own, or that a dependent composable should inject those capabilities itself.
+**When:** Vue/Nuxt composition roots. If direct provision fails because the page merges unrelated composables, ownership is unclear, the port republishes foreign state, or a composable should inject its own collaborators.
 
 Bad:
 ```ts
@@ -44,48 +44,48 @@ const effects = provideFieldEffects(useFormEffects());
 <!-- rule: frontend/inject-collaborators-instead-of-passing-an-options-bag.md -->
 ## Inject collaborators instead of passing an options bag
 
-**Default:** A composable gets its runtime collaborators by injecting their ports (the typed capabilities a root provides); its arguments are only identity and real per-instance configuration.
+**Default:** Inject runtime collaborators via their ports; pass only identity and per-instance config as arguments.
 
 **When:** Vue and Nuxt composables.
 
-Bad: `useFormEffects({ sections, discovery, auth })`, assembled by the page.
-Good: `useFormEffects(formId)`, which calls `injectSections()` and `injectDiscovery()` itself.
+Bad: `useFormEffects({ sections, discovery, auth })` assembled by the page.
+Good: `useFormEffects(formId)` calling `injectSections()` and `injectDiscovery()` itself.
 <!-- rule: frontend/pass-local-dependencies-as-props-and-events.md -->
 ## Pass local dependencies as props and events
 
-**Default:** A dependency between one component and its child is a prop and an event, not a port (a typed capability provided to a whole subtree).
+**Default:** Communicate between a parent component and its child via props and events, not a provided port.
 
-**When:** Vue components. A provided port is visible to a whole subtree, so it is for capabilities the subtree depends on.
+**When:** Vue components — a provided port is visible to the whole subtree, so reserve it for subtree-wide capabilities.
 
-Bad: `provideRowSelection(...)` so a table can talk to its own row.
+Bad: `provideRowSelection(...)` for a table talking to its own row.
 Good: `:selected` and `@select` on the row.
 <!-- rule: frontend/keep-composition-roots-free-of-business-logic.md -->
 ## Keep composition roots free of business logic
 
-**Default:** A composition root (the app shell, a layout, or a page) creates implementation composables, provides ports, and composes components; it holds no business logic and no inline pure transforms.
+**Default:** A composition root (`app.vue`, layout, or page) creates composables, provides ports, and composes components — no business logic or inline pure transforms.
 
-**When:** `app.vue`, layouts, and pages in a Vue or Nuxt frontend.
+**When:** `app.vue`, layouts, and pages in Vue/Nuxt frontends.
 
-Bad: a page's `<script setup>` that sorts and groups rows inline.
-Good: the page calls `groupRows` from `logic/`.
+Bad: A page's `<script setup>` sorting and grouping rows inline.
+Good: The page calling `groupRows` from `logic/`.
 <!-- rule: frontend/do-not-hide-composition-in-global-setup.md -->
 ## Do not hide composition in global setup
 
-**Default:** Do not put composition (creating implementation composables and providing ports) in the app shell, which is set up once for every page, unless the capability is genuinely app-wide.
+**Default:** Never wire page-scoped composables or ports in the app shell (`app.vue`); put composition there only for genuinely app-wide capabilities.
 
-**When:** Vue and Nuxt frontends; in Nuxt the app shell is `app.vue`.
+**When:** Vue and Nuxt frontends.
 
-Bad: `provideFormDraft(useFormDraft(id))`, for state one page uses, in `app.vue`.
-Good: the same line in that page.
+Bad: `provideFormDraft(useFormDraft(id))` in `app.vue` for state used by one page.
+Good: The same line in that page.
 <!-- rule: frontend/import-across-page-layers-in-one-direction.md -->
 ## Import across page layers in one direction
 
-**Default:** Imports between a page's folders point one way: `logic/` imports none of the others, `ports/` imports only `logic/`, `adapters/` imports only `logic/` and `ports/`, and a component never imports an adapter.
+**Default:** Imports between page folders point one way: `logic/` imports none of the others, `ports/` imports only `logic/` (plus `useProvideInject`), `adapters/` imports only `logic/` and `ports/`, and components never import `adapters/`.
 
-**When:** The `logic/`, `ports/`, `adapters/`, `composables/`, and `components/` folders of a Vue or Nuxt frontend. Composables and composition roots (the app shell, a layout, or a page) may import any of them, and a port file may import the `useProvideInject` helper.
+**When:** `logic/`, `ports/`, `adapters/`, `composables/`, and `components/` in Vue/Nuxt frontends; composables and composition roots may import any of them.
 
 Bad: `import { useSections } from "../composables/useSections"` in `logic/section-state.ts`.
-Good: `logic/section-state.ts` exports a plain function, and `composables/useSections.ts` imports it.
+Good: `logic/section-state.ts` exports a plain function that `composables/useSections.ts` imports.
 <!-- rule: frontend/keep-logic-free-of-framework-imports.md -->
 ## Keep logic free of framework imports
 
@@ -107,11 +107,11 @@ Good: `logic/status.ts` exporting `statusLabel`, which the component imports.
 <!-- rule: frontend/keep-a-port-file-to-its-type-and-pair.md -->
 ## Keep a port file to its type and pair
 
-**Default:** A port file holds only the port's type and its `[injectX, provideX]` pair from the `useProvideInject` helper; it imports types and that helper, never `provide`, `inject`, or a value from `vue`, and declares nothing else.
+**Default:** A port file holds only the port type and its `[injectX, provideX]` pair from `useProvideInject`; it imports only types and that helper, never `provide`, `inject`, or values from `vue`.
 
-**When:** Files in `ports/` in a Vue or Nuxt frontend. A port is the type that names one capability a subtree needs.
+**When:** Files in `ports/` in Vue and Nuxt frontends.
 
-Bad: a port file that also exports a default implementation object.
+Bad: A port file that also exports a default implementation object.
 Good:
 ```ts
 export interface Recorder { /* members */ }
@@ -120,36 +120,36 @@ export const [injectRecorder, provideRecorder] = useProvideInject<Recorder>("Rec
 <!-- rule: frontend/shape-a-port-around-operations-not-dtos.md -->
 ## Shape a port around operations, not DTOs
 
-**Default:** Give each feature concern one port (a type that names a capability the UI needs), shaped around the operations the UI needs from that boundary, not one port per function, per DTO, or per generated client.
+**Default:** Give each feature concern one port shaped around the UI's needed operations — not one port per function, DTO, or generated client.
 
-**When:** Declaring a port in a Vue or Nuxt frontend. A port is for a capability the subtree depends on, not for disguising an existing client.
+**When:** Declaring ports in Vue/Nuxt frontends (ports name subtree capabilities, not wrappers disguising a client).
 
-Bad: `CurrentUserDtoPort`, or `NotesApi` mirroring the generated methods.
+Bad: `CurrentUserDtoPort`, or `NotesApi` mirroring generated methods.
 Good: `Auth` with `currentSession` and `load()`.
 <!-- rule: frontend/expose-refs-only-from-a-provided-context.md -->
 ## Expose refs only from a provided context
 
-**Default:** A capability port exposes plain values and functions; only a provided context, the reactive view-model made for a Vue subtree, exposes `Ref` or `ComputedRef`, and it is not presented as framework-neutral.
+**Default:** A capability port exposes plain values and functions; only a provided context (a reactive view-model for a Vue subtree) exposes `Ref` or `ComputedRef`, and is not presented as framework-neutral.
 
-**When:** Declaring a port (a type that names a capability) in a Vue or Nuxt frontend.
+**When:** Declaring ports in Vue and Nuxt frontends.
 
-Bad: a `Storage` port, implemented by a pure adapter, whose methods return `Ref<string>`.
+Bad: A `Storage` port backed by a pure adapter whose methods return `Ref<string>`.
 Good: `Storage` returning `string`, and an `Auth` provided context exposing `currentSession: Ref<CurrentUserDto | null>`.
 <!-- rule: frontend/name-a-port-pair-inject-and-provide.md -->
 ## Name a port pair inject and provide
 
-**Preference:** Use `injectX` and `provideX`, in that order, for a port's exported pair, and keep `useX` for concrete composables.
+**Preference:** Name a port's exported pair `[injectX, provideX]` in that order, keeping `useX` for concrete composables.
 
-**When:** Port files in a Vue or Nuxt frontend. `injectX` shows a consumer depends on an already-wired capability, `provideX(usePlatformRecorder())` shows a root wiring one, and `useX` is the implementation.
+**When:** Port files in Vue/Nuxt frontends: `injectX` signals an injected capability, `provideX(usePlatformRecorder())` signals root wiring, and `useX` is the implementation.
 
 Bad: `export const [useRecorder, provideRecorder] = useProvideInject<Recorder>("Recorder");`
-Good: `export const [injectRecorder, provideRecorder] = useProvideInject<Recorder>("Recorder");`, with `usePlatformRecorder()` as the implementation.
+Good: `export const [injectRecorder, provideRecorder] = useProvideInject<Recorder>("Recorder");` with `usePlatformRecorder()`.
 <!-- rule: frontend/create-port-pairs-with-the-typed-helper.md -->
 ## Create port pairs with the typed helper
 
-**Default:** Create every port's `[injectX, provideX]` pair with the one `useProvideInject` helper: its inject throws when called outside a provider, and its provide returns the exact implementation it was given, not the narrowed port type.
+**Default:** Create every port's `[injectX, provideX]` pair with `useProvideInject`: `inject` throws outside a provider, and `provide` returns the concrete implementation rather than the narrowed port type.
 
-**When:** Vue and Nuxt frontends. The helper is built on Vue's `InjectionKey` and VueUse's `provideLocal` and `injectLocal`. Because provide returns the concrete type, the root keeps root-only members while injectors see only the port.
+**When:** Vue and Nuxt frontends (built on Vue `InjectionKey` and VueUse `provideLocal`/`injectLocal`), so roots keep root-only members while injectors see only the port.
 
 Bad: `provide("recorder", value)` and `inject("recorder")` with a string key, returning `undefined` when missing.
 Good:
@@ -168,20 +168,20 @@ export const useProvideInject = <T>(name: string) => {
 <!-- rule: frontend/inject-the-port-not-its-implementation.md -->
 ## Inject the port, not its implementation
 
-**Default:** A component or composable that depends on a provided capability imports `injectX` from `ports/`, not the implementation composable or the adapter (the implementation of a port).
+**Default:** Depend on a provided capability by importing `injectX` from `ports/`, never the implementation composable or adapter.
 
-**When:** Components and composables in a Vue or Nuxt frontend.
+**When:** Components and composables in Vue and Nuxt frontends.
 
 Bad: `import { useRivetAuth } from "../composables/useRivetAuth"` in a component.
 Good: `import { injectAuth } from "../ports/auth"`.
 <!-- rule: frontend/keep-adapters-free-of-vue-and-presentation-state.md -->
 ## Keep adapters free of Vue and presentation state
 
-**Default:** An adapter (the implementation of a port) translates between a port and HTTP, a generated client, storage, or a platform API; it holds no presentation state, and a pure adapter imports nothing from Vue or Nuxt.
+**Default:** An adapter translates between a port and HTTP, a generated client, storage, or a platform API; it holds no presentation state, and a pure adapter imports nothing from Vue or Nuxt.
 
-**When:** Files in `adapters/` in a Vue or Nuxt frontend. If building the adapter needs `ref`, `watch`, or lifecycle hooks, that reactive part lives in a composable and the protocol translation stays in the adapter. A pure adapter depends only on `logic/` and `ports/`.
+**When:** `adapters/` in Vue/Nuxt frontends. Keep reactive `ref`/`watch`/lifecycle wiring in a composable and protocol translation in the adapter; pure adapters depend only on `logic/` and `ports/`.
 
-Bad: an adapter that holds `const isLoading = ref(false)`.
+Bad: An adapter holding `const isLoading = ref(false)`.
 Good:
 ```ts
 export const sectionStateAdapter: SectionState = {
@@ -193,48 +193,48 @@ export const sectionStateAdapter: SectionState = {
 <!-- rule: frontend/let-a-stateful-composable-implement-the-port.md -->
 ## Let a stateful composable implement the port
 
-**Default:** When an implementation is already reactive and stateful, the composable returns the port-shaped capability and the root provides it directly; add a pure adapter only when there is pure logic worth separating.
+**Default:** When an implementation is already reactive and stateful, let the composable return the port shape and provide it directly; add a pure adapter only when pure logic is worth separating.
 
-**When:** Implementing a port (a type that names a capability) in a Vue or Nuxt frontend.
+**When:** Implementing a port in Vue/Nuxt frontends.
 
-Bad: an `authAdapter` that only forwards to `useRivetAuth()`.
+Bad: An `authAdapter` that only forwards to `useRivetAuth()`.
 Good: `provideAuth(useRivetAuth())`.
 <!-- rule: frontend/check-an-implementation-with-satisfies.md -->
 ## Check an implementation with satisfies
 
-**Default:** Check that a composable's result meets its port with `implementation satisfies Port`, not a `(): Port` return annotation, when it has members only the composition root needs.
+**Default:** Verify a composable meets its port with `implementation satisfies Port`, not a `(): Port` return annotation, when it exposes extra members only the composition root needs.
 
-**When:** Composables that implement a port (a type that names a capability) in a Vue or Nuxt frontend. The annotation erases the richer type, so the root cannot reach its extra members; `satisfies` keeps it.
+**When:** Port-implementing composables in Vue/Nuxt — return annotations erase root-only members; `satisfies` preserves them.
 
-Bad: `export const useRivetAuth = (): Auth => { … }`, which hides `clearLocalSession` from the root.
+Bad: `export const useRivetAuth = (): Auth => { … }`, hiding `clearLocalSession` from the root.
 Good: `implementation satisfies Auth; return implementation;`.
 <!-- rule: frontend/give-a-composable-one-capability.md -->
 ## Give a composable one capability
 
-**Default:** A composable may hold reactive state, client calls, side effects, and local UI orchestration, and it returns a surface for one capability (something the code needs done for it) rather than growing to cover several.
+**Default:** A composable may hold reactive state, client calls, side effects, and local UI orchestration, but returns a surface for one capability rather than several.
 
-**When:** Vue and Nuxt composables. A composable may depend on `logic/`, `ports/`, generated clients, Pinia, and VueUse.
+**When:** Vue and Nuxt composables (may depend on `logic/`, `ports/`, generated clients, Pinia, and VueUse).
 
 Bad: `usePage()` returning auth, recordings, toasts, and form state.
 Good: `useRecordings()` and `useFormDraft()`, each with one surface.
 <!-- rule: frontend/keep-components-presentational.md -->
 ## Keep components presentational
 
-**Default:** A component renders data, holds local UI interaction, emits events, and may inject an already-provided capability; it never calls a generated client, runs a workflow, constructs infrastructure, or reaches round its composition root (the app shell, a layout, or a page).
+**Default:** A component renders data, holds local UI state, emits events, and may inject a provided capability; it never calls a generated client, runs workflows, constructs infrastructure, or bypasses its composition root.
 
-**When:** Vue components. A feature-container component may consume a provided context to keep orchestration out of leaf components; name and place it so its role is obvious.
+**When:** Vue components. Feature-container components may consume a provided context to keep orchestration out of leaf components; name and place them clearly.
 
 Bad: `await client.POST("/api/notes", …)` in a component's click handler.
 Good: `const notes = injectNotes(); notes.add(text)`.
 <!-- rule: frontend/call-the-generated-client-in-the-implementing-composable.md -->
 ## Call the generated client in the implementing composable
 
-**Default:** Call the generated client (the typed API client generated from the transport contract) inside the composable or adapter that implements the capability, not in a component.
+**Default:** Call the generated API client inside the composable or adapter that implements the capability, never in a component.
 
-**When:** Vue and Nuxt frontends that call a generated API client (a Rivet client, for example).
+**When:** Vue and Nuxt frontends using a generated client (e.g., Rivet).
 
 Bad: `client.GET("/api/session")` called in a component.
-Good: the same call inside `useRivetAuth`.
+Good: The same call inside `useRivetAuth`.
 <!-- rule: frontend/colocate-page-code-with-its-page.md -->
 ## Colocate page code with its page
 
@@ -256,18 +256,18 @@ Good: the function is promoted to a feature and imported from there.
 <!-- rule: frontend/promote-shared-code-to-a-feature-or-shared.md -->
 ## Promote shared code to a feature or shared
 
-**Default:** When more than one subtree needs a product capability, its port and pure logic move to `app/features/<feature>/` (a feature is a product capability several pages or layouts use), and code no feature owns moves to `app/shared/`; an implementation only one root constructs stays beside that root, and one several roots construct may live in the feature.
+**Default:** When multiple subtrees need a product capability, move its port and pure logic to `app/features/<feature>/` (and ownerless code to `app/shared/`); keep single-root implementations beside that root, and move multi-root implementations into the feature.
 
-**When:** Nuxt frontends. A feature folder may hold `logic/`, `ports/`, `adapters/`, implementation composables, and public types.
+**When:** Nuxt frontends. Feature folders may hold `logic/`, `ports/`, `adapters/`, implementation composables, and public types.
 
-Bad: `useRivetAuth`, which only the default layout constructs, moved to `app/features/auth/` with the `Auth` port.
-Good: the `Auth` port moved to `app/features/auth/ports/auth.ts`, with `useRivetAuth` left under `app/layouts/default/composables/`.
+Bad: Moving `useRivetAuth` (constructed only by the default layout) into `app/features/auth/` with `Auth`.
+Good: Moving `Auth` to `app/features/auth/ports/auth.ts` and keeping `useRivetAuth` in `app/layouts/default/composables/`.
 <!-- rule: frontend/import-a-feature-only-through-its-index.md -->
 ## Import a feature only through its index
 
-**Default:** Consumers import a feature (a product capability several pages or layouts use) only through its public entry point, `app/features/<feature>/index.ts`, never its internal files.
+**Default:** Import a feature only through `app/features/<feature>/index.ts`, never its internal files.
 
-**When:** Nuxt frontends with `app/features/`. Another `index.ts` barrel is not a feature's public entry point by its file name alone.
+**When:** Nuxt frontends with `app/features/` (an arbitrary `index.ts` barrel elsewhere is not a feature entry point).
 
 Bad: `import { injectAuth } from "~/features/auth/ports/auth"`.
 Good: `import { injectAuth, getInitials } from "~/features/auth"`.
@@ -292,12 +292,12 @@ Good: `useAuth.ts` exporting `useAuth`.
 <!-- rule: frontend/call-usestate-only-inside-a-composable.md -->
 ## Call useState only inside a composable
 
-**Default:** Nuxt `useState(` appears only inside `composables/` files; the composable owns the key, and every other layer (components, pages, plugins, logic, adapters) calls the composable, never the string key.
+**Default:** Call Nuxt `useState(` only inside `composables/`; the composable owns the key, and all other layers (components, pages, plugins, logic, adapters) call the composable, never the string key.
 
-**When:** Nuxt frontends. There is no `state/` directory: composables are where state lives.
+**When:** Nuxt frontends (no `state/` directory; state lives in composables).
 
-Bad: `useState("app-booted")` in a component and again in a plugin.
-Good: `export const useAppBooted = () => useState("app-booted", () => false)`, with `useAppBooted()` called in both.
+Bad: `useState("app-booted")` in both a component and a plugin.
+Good: `export const useAppBooted = () => useState("app-booted", () => false)`, called in both.
 <!-- rule: frontend/build-frontends-as-single-page-apps.md -->
 ## Build frontends as single-page apps
 
@@ -310,9 +310,9 @@ Good: `ssr: false` and a composable that loads on mount.
 <!-- rule: frontend/read-the-servers-answer-never-re-derive-its-rule.md -->
 ## Read the server's answer, never re-derive its rule
 
-**Law:** The UI never works out a rule the server decides (whether an action may happen, whether an entity is editable, whether a draft differs from what is published, which pages a role sees); it reads the server's answer from the read model (the object the server returns for a screen) as `availableActions`, a permission set, or a named flag, and if the DTO lacks it the DTO gains it.
+**Law:** The UI never works out a server-decided rule (allowed actions, editability, draft-vs-published diff, role visibility); it reads the server's read model (`availableActions`, permissions, or a named flag), adding it to the DTO if missing.
 
-**When:** Any UI. Never work it out from status strings, timestamps, counters, version lists, or roles; a copy that agrees with the server today is still a copy and is removed; agreement sets how soon, not whether. Which pages, tabs, and buttons a user sees comes from permissions the server sends with the session, computed from the same named policies its endpoints enforce, not from comparing the user's role. The UI owns client state only (unsaved edits, requests in flight, the validity of input the server hasn't seen) and gates an action on the server's answer and client state. The test for rule against presentation: if the UI's copy were wrong, could the user attempt something the server refuses, or miss something it allows? If so, it is a rule, not presentation.
+**When:** Any UI. Never derive rules from status strings, timestamps, counters, version lists, or roles; a copy that agrees today is still removed (agreement sets urgency, not whether). Page, tab, and button visibility comes from session permissions computed from the same named policies the endpoints enforce, not role checks. The UI owns only client state (unsaved edits, in-flight requests, local input validity) and combines it with the server's answer. The test: if the UI's copy were wrong, could the user attempt something the server refuses or miss something it allows? If yes, it is a rule, not presentation.
 
 Bad: `const canPost = form.status === "draft" && user.role === "editor"`
 Good: `const canPost = form.availableActions.includes("post") && !isSaving`
@@ -337,39 +337,39 @@ Good: `:maxlength="form.limits.nameMax"`, with the limit read from the DTO.
 <!-- rule: rivet/keep-generated-rivet-output-in-a-contracts-package.md -->
 ## Keep generated Rivet output in a contracts package
 
-**Tooling:** Generated Rivet output lives in a workspace package, `packages/contracts`, consumed through its `exports` map, never in a directory inside an app.
+**Tooling:** Put generated Rivet output in `packages/contracts`, consumed via its `exports` map — never inside an app directory.
 
-**When:** Frontends that call a Rivet API (Rivet reads C# and emits the OpenAPI document). The package holds `generated/openapi.json` (OpenAPI 3.1 from the contract), `generated/schema.d.ts` (`openapi-typescript` output), and `src/index.ts` (the client facade); it is imported as `@<scope>/contracts` or a `./client` subpath.
+**When:** Frontends calling a Rivet API. Holds `generated/openapi.json`, `generated/schema.d.ts`, and `src/index.ts`, imported as `@<scope>/contracts` or `./client`.
 
 Bad: `apps/ui/app/generated/schema.d.ts`
 Good: `packages/contracts/generated/schema.d.ts`
 <!-- rule: rivet/regenerate-and-commit-output-with-the-contract-change.md -->
 ## Regenerate and commit output with the contract change
 
-**Tooling:** Regenerate through the repo's task and commit the regenerated output in the same change as the contract change that caused it.
+**Tooling:** Regenerate via the repo's task (`task generate`, `pnpm rivet`, or `dotnet rivet …`) and commit the output in the same change as the contract edit.
 
-**When:** Any change to a Rivet contract (Rivet reads C# and emits the OpenAPI document). The task is the repo's own: `task generate`, `pnpm rivet`, or `dotnet rivet --project … --output …`.
+**When:** Any Rivet contract change.
 
-Bad: a contract change committed alongside last week's `schema.d.ts`.
-Good: the contract change and the regenerated files in one commit.
+Bad: Committing a contract change alongside stale `schema.d.ts`.
+Good: Committing the contract change and regenerated files together.
 <!-- rule: rivet/import-the-client-and-types-from-the-contracts-package.md -->
 ## Import the client and types from the contracts package
 
-**Tooling:** UI code imports `client`, `createClient`, `configureRivet`, and DTO types from the contracts package (the workspace package that holds the generated Rivet client) and never creates an `openapi-fetch` client itself.
+**Tooling:** Import `client`, `createClient`, `configureRivet`, and DTO types from the contracts package; never instantiate `openapi-fetch` directly in UI code.
 
-**When:** Frontends that call a Rivet API (Rivet reads C# and emits the OpenAPI document).
+**When:** Frontends calling a Rivet API.
 
 Bad: `createOpenApiClient<paths>({ baseUrl })` in a composable.
 Good: `import { client } from "@<scope>/contracts"` in the composable.
 <!-- rule: rivet/own-the-client-facade-by-hand-after-scaffold.md -->
 ## Own the client facade by hand after scaffold
 
-**Tooling:** `src/index.ts` in the contracts package is the client facade, scaffolded in the standard shape and hand-owned from then on; regeneration updates only `generated/`.
+**Tooling:** Scaffold `src/index.ts` in the contracts package in the standard shape, then own it by hand; regeneration updates only `generated/`.
 
-**When:** The contracts package (the workspace package that holds the generated client) of a Rivet API; Rivet reads C# and emits the OpenAPI document. The standard shape is the emitter's output.
+**When:** The contracts package of a Rivet API. The standard shape is the emitter's output.
 
-Bad: a generator step that overwrites `src/index.ts` on every regeneration.
-Good: the facade below, edited by hand and left alone by generation:
+Bad: A generator step that overwrites `src/index.ts` on every regeneration.
+Good: The facade below, edited by hand and left untouched by generation:
 ```ts
 import createOpenApiClient, { type Client, type ClientOptions } from "openapi-fetch";
 import type { paths } from "../generated/schema.js";
@@ -397,18 +397,18 @@ Links: [the client package emitter](https://github.com/maxanstey-meridian/rivet-
 <!-- rule: rivet/configure-the-rivet-client-once-at-startup.md -->
 ## Configure the Rivet client once at startup
 
-**Tooling:** Configure the generated client once, where the app starts, with `configureRivet`.
+**Tooling:** Call `configureRivet` once at app startup.
 
-**When:** Frontends that call a Rivet API (Rivet reads C# and emits the OpenAPI document).
+**When:** Frontends calling a Rivet API.
 
-Bad: `configureRivet({ baseUrl })` called inside three composables.
-Good: `configureRivet({ baseUrl })` called once in the app's startup code.
+Bad: Calling `configureRivet({ baseUrl })` inside three composables.
+Good: Calling `configureRivet({ baseUrl })` once in app startup code.
 <!-- rule: rivet/branch-on-the-error-channel-not-on-data.md -->
 ## Branch on the error channel, not on data
 
-**Tooling:** Capture the client's `{ data, error, response }` result and branch on `error` or `response.status`; never on whether `data` is truthy, since a valid payload may be `false`, `0`, an empty string, or `null`.
+**Tooling:** Branch on `error` or `response.status` from `{ data, error, response }` — never on `data` truthiness, since valid payloads include `false`, `0`, `""`, and `null`.
 
-**When:** Calls to the generated `openapi-fetch` client of a Rivet API (Rivet reads C# and emits the OpenAPI document).
+**When:** Calls to a generated Rivet `openapi-fetch` client.
 
 Bad: `if (!result.data) return null`
 Good:
@@ -421,30 +421,30 @@ return { ok: true as const, data: result.data };
 <!-- rule: rivet/use-try-catch-only-for-transport-failure.md -->
 ## Use try-catch only for transport failure
 
-**Tooling:** Use `try`/`catch` around a client call only for network or transport failure, never to branch on an HTTP status.
+**Tooling:** Use `try`/`catch` around Rivet client calls only for network/transport failure, never to branch on HTTP status.
 
-**When:** Calls to the generated `openapi-fetch` client of a Rivet API (Rivet reads C# and emits the OpenAPI document).
+**When:** Calls to a generated Rivet `openapi-fetch` client.
 
 Bad: `try { … } catch (e) { if (e.status === 404) … }`
-Good: the status read from `result.response.status`, with `catch` only setting "could not reach the server".
+Good: Checking `result.response.status`, with `catch` handling only unreachable-server errors.
 <!-- rule: ui/follow-the-users-journey-not-the-api.md -->
 ## Follow the user's journey, not the API
 
-**Law:** UI structure, wording, grouping, and order follow the user's journey and intended outcomes, never API call order, DTO (data transfer object) or database field order, configuration object shape, provider implementation boundaries, technical mechanism variants, or the order the backend validates or saves in.
+**Law:** UI structure, wording, grouping, and order follow the user's journey and intended outcomes — never API call order, DTO or database field order, config object shape, provider boundaries, technical variants, or backend validation/save order.
 
-**When:** Any user interface; backend structure may limit what is possible, but it does not decide how the product explains it, so fix this structure before visual polish.
+**When:** Any UI. Backend limits what is possible, not how the product explains it; fix structure before visual polish.
 
-Bad: A settings page with one card per backend object, in DTO field order.
-Good: Cards in the order the user decides: what to send, where, what to call it, and what happens on a clash.
+Bad: A settings page with one card per backend object in DTO field order.
+Good: Cards in user decision order: what to send, where, what to call it, and what happens on a clash.
 <!-- rule: ui/state-the-users-job-before-designing-controls.md -->
 ## State the user's job before designing controls
 
-**Default:** Before designing controls, state who is doing this, the outcome they want, the decisions they must make, which of those depend on earlier ones, and what they must see to trust the result, then turn those answers into the page structure.
+**Default:** Before designing controls, state who is acting, their goal, the decisions required, which depend on earlier ones, and what they must see to trust the result, then derive page structure from that.
 
-**When:** Designing a new form, setup flow, or screen of controls.
+**When:** Designing a new form, setup flow, or control screen.
 
-Bad: Starting from the backend object and laying out a field for each of its properties, with the user's outcome never written down.
-Good: First writing "An administrator sets up an export that sends files to SharePoint; they must name it, choose where files go, and review the destination", then building the page from that.
+Bad: Laying out fields directly from a backend object without writing down the user's outcome.
+Good: Writing "An admin sets up a SharePoint export; they name it, choose where files go, and review the destination", then building the page from that.
 <!-- rule: ui/make-the-headings-read-as-the-users-journey.md -->
 ## Make the headings read as the user's journey
 
@@ -466,21 +466,21 @@ Good: Options "Save every file in the same folder", "Choose the folder using for
 <!-- rule: ui/collapse-technical-variants-into-one-user-action.md -->
 ## Collapse technical variants into one user action
 
-**Default:** When several technical variants implement one user intention, offer the intention as one action and let the editor it reveals cover the variants.
+**Default:** Offer one action for one user intention and let its editor handle technical variants.
 
-**When:** A control whose options are implementation modes.
+**When:** Controls whose options are implementation modes.
 
-Bad: A mode picker with "Fixed value", "Value from one field", and "Template with several fields", so the user must classify their configuration first.
-Good: One action, "Specify a value using text and form fields", whose editor accepts plain text, one inserted field, or several fields.
+Bad: A mode picker with "Fixed value", "Value from one field", and "Template with several fields".
+Good: One action, "Specify a value using text and form fields", whose editor accepts plain text, one field, or several.
 <!-- rule: ui/order-by-the-user-journey.md -->
 ## Order by the user journey
 
-**Default:** Order decisions as the user reasons about the task (establish context, make the primary choice, configure only what it requires, handle exceptional behaviour, review the result, confirm or save), and never ask a later question before the user has the context for it.
+**Default:** Order decisions as the user reasons about the task (context, primary choice, required config, edge cases, review, confirm); never ask a later question before its context is set.
 
-**When:** Any form or flow with more than one decision.
+**When:** Any multi-decision form or flow.
 
-Bad: "What should happen if the file already exists?" asked before the user has chosen where files go.
-Good: The same question asked after the destination is chosen.
+Bad: Asking "What should happen if the file already exists?" before choosing where files go.
+Good: Asking that after the destination is chosen.
 <!-- rule: ui/keep-dependent-controls-beside-their-choice.md -->
 ## Keep dependent controls beside their choice
 
@@ -493,11 +493,11 @@ Good: The folder builder appears directly under the "In a folder" choice.
 <!-- rule: ui/group-one-decision-at-a-time.md -->
 ## Group one decision at a time
 
-**Default:** Each visual section answers one user question; do not group controls because their values share a backend object, and do not split one decision across cards because separate operations or models implement it.
+**Default:** Each visual section answers one user question: never group controls because they share a backend object, and never split one decision across cards because separate operations or models implement it.
 
-**When:** Sections, cards, and steps of any form; related questions may share a card if each has a clear label, a short explanation where needed, and a visible selected outcome, and the test is whether the user would describe the controls as separate decisions.
+**When:** Form sections, cards, and steps. Related questions may share a card if each has a clear label, brief explanation where needed, and visible selected outcome; the test is whether the user would describe the controls as separate decisions.
 
-Bad: A "Storage settings" card holding the library, the naming rule, and the clash rule as unlabelled fields in the order of the backend object.
+Bad: A "Storage settings" card holding the library, naming rule, and clash rule as unlabelled fields in backend-object order.
 Good: Sections "Where should files be saved?", "How should files be named?", and "What should happen if the file already exists?".
 <!-- rule: ui/present-the-same-decision-the-same-way-everywhere.md -->
 ## Present the same decision the same way everywhere
@@ -529,39 +529,39 @@ Good: "Do not overwrite the existing file" preselected.
 <!-- rule: ui/prefer-progressive-disclosure.md -->
 ## Prefer progressive disclosure
 
-**Default:** Make the common path understandable at once, and show an advanced option only when it is selected or needed, never showing every technical mode at once, empty advanced editors by default, or uncommon complexity competing with the recommended path; this presents information where it becomes relevant, it does not hide what is necessary.
+**Default:** Keep the common path immediately clear and reveal advanced options only when selected or needed; never show every technical mode or empty advanced editor on load.
 
-**When:** Any screen with uncommon or advanced choices.
+**When:** Screens with uncommon or advanced choices (reveal information when relevant without hiding what is necessary).
 
 Bad: Fixed-folder, data-derived-folder, and template editors all visible on load.
-Good: `(o) At the top of the document library` and `( ) In a folder`, with the folder builder shown only for the second.
+Good: `(o) At the top of the document library` and `( ) In a folder`, revealing the folder builder only for the second.
 <!-- rule: ui/hide-a-choice-that-has-only-one-option.md -->
 ## Hide a choice that has only one option
 
-**Default:** A dropdown whose only option is the default it already holds is hidden but kept mounted until a second option exists, with the default's outcome stated as text in its place where that is not obvious.
+**Default:** Hide a dropdown whose only option is its current default, keep it mounted until a second option exists, and state the default as text if not obvious.
 
-**When:** Dropdowns, except a control that chooses what a setting points at (a stage, list, or column) and a lone stale "(unavailable)" option, which stay visible; in Vue use `v-show`, not `v-if`, so the control keeps its state.
+**When:** Dropdowns, except target pickers (stage, list, column) and lone stale "(unavailable)" options, which stay visible; in Vue use `v-show`, not `v-if`, to preserve state.
 
 Bad: A "Date format" dropdown listing only "Day, month, year".
-Good: The text "Dates are shown as day, month, year", with the dropdown shown once a second format exists.
+Good: Text "Dates are shown as day, month, year", revealing the dropdown once a second format exists.
 <!-- rule: ui/pick-a-required-choice-that-has-one-candidate.md -->
 ## Pick a required choice that has one candidate
 
-**Default:** A required choice with one candidate is picked for the user.
+**Default:** Pre-select a required choice that has only one candidate.
 
-**When:** Required choices, including a target picker (a control that chooses what a setting points at), that offer only one candidate.
+**When:** Required choices, including target pickers, with one candidate.
 
-Bad: A required "Library" dropdown with one library, left empty until the user selects it.
-Good: The one library selected already.
+Bad: A required "Library" dropdown with one library left empty.
+Good: That one library already selected.
 <!-- rule: ui/keep-a-target-picker-visible-with-one-candidate.md -->
 ## Keep a target picker visible with one candidate
 
-**Default:** A target picker (which stage, which list, which column) stays visible even with one candidate, and so does a lone stale "(unavailable)" option.
+**Default:** Keep a target picker (stage, list, column) visible even with one candidate, and keep a lone stale "(unavailable)" option visible too.
 
-**When:** Controls that choose what a setting points at; the picker shows the target, and the stale option shows the setting is broken.
+**When:** Controls choosing what a setting points at: the picker shows the target, and the stale option exposes a broken setting.
 
-Bad: A column picker hidden because the list has one column, leaving the user unsure where data goes.
-Good: The picker shown with its one column selected.
+Bad: Hiding a column picker because the list has one column, leaving the target unclear.
+Good: Showing the picker with its one column selected.
 <!-- rule: ui/use-domain-language.md -->
 ## Use domain language
 
@@ -619,7 +619,7 @@ Good: A summary built from the same configuration that runs, so it names the sub
 <!-- rule: ui/treat-disabled-states-as-explanations.md -->
 ## Treat disabled states as explanations
 
-**Default:** A disabled control shows why it is disabled and how to enable it: hide an irrelevant control until its prerequisite is chosen, show the prerequisite beside it, or say in plain words what the user must do.
+**Default:** A disabled control must explain why it is disabled and how to enable it: hide it until its prerequisite is chosen, show the prerequisite beside it, or state in plain words what to do.
 
 **When:** Any control that can be disabled.
 
@@ -637,12 +637,12 @@ Good: "First add a Text field under Data to export."
 <!-- rule: ui/follow-the-govuk-design-system-for-open-details.md -->
 ## Follow the GOV.UK Design System for open details
 
-**Default:** Where the spec or design leaves accessibility, formatting, display, or validation open, find the matching component or pattern in the GOV.UK Design System and style guide, follow it, and name it in the spec or in your summary of the work.
+**Default:** Where accessibility, formatting, display, or validation is unspecified, follow the matching GOV.UK Design System component or pattern and name it in the spec or summary.
 
-**When:** Any UI detail the spec does not settle, such as how a date or amount is shown, what an error says and where, how a required field is marked, or what a screen reader announces; the repo's own UI skill wins where it already decides the case.
+**When:** Any UI detail left open by the spec (dates, amounts, errors, required markers, screen-reader announcements); the repo's own UI skill wins where it already decides.
 
 Bad: An invented inline red error under each field with no summary.
-Good: The GOV.UK error summary and error message patterns, named in the summary of the work.
+Good: The GOV.UK error summary and error message patterns, named in the summary.
 <!-- rule: tools/use-the-default-nuxt-frontend-stack.md -->
 ## Use the default Nuxt frontend stack
 
