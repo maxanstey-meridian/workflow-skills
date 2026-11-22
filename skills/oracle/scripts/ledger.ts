@@ -776,6 +776,17 @@ const collectCandidateFiles = (paths: string[]): string[] => {
   return [...new Set(files)].sort();
 };
 
+const escapeRegExp = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const containsToken = (haystack: string, needle: string): boolean => {
+  if (needle.length === 0) return false;
+  const pattern = new RegExp(
+    `(?<![A-Za-z0-9_-])${escapeRegExp(needle)}(?![A-Za-z0-9_-])`,
+  );
+  return pattern.test(haystack);
+};
+
 const resolveTestFile = (
   caseDir: string,
   tc: JUnitTestCase,
@@ -802,9 +813,11 @@ const resolveTestFile = (
     return text;
   };
 
-  let matches = candidateFiles.filter((f) => readCached(f).includes(tc.name));
+  let matches = candidateFiles.filter((f) =>
+    containsToken(readCached(f), tc.name),
+  );
   if (matches.length === 0 && rowId !== tc.name) {
-    matches = candidateFiles.filter((f) => readCached(f).includes(rowId));
+    matches = candidateFiles.filter((f) => containsToken(readCached(f), rowId));
   }
 
   if (matches.length === 1 && matches[0] !== undefined) {
@@ -889,6 +902,13 @@ const cmdResults = (
   for (const tc of junitRes.cases) {
     const entry = normToRow.get(normaliseId(tc.name));
     if (!entry) continue;
+
+    if (matched.has(entry.row.id)) {
+      console.error(
+        `results: duplicate JUnit testcase for row "${entry.row.id}" (test "${tc.name}")`,
+      );
+      return 2;
+    }
 
     const resolved = resolveTestFile(
       caseDir,
@@ -1045,6 +1065,12 @@ const cmdVerify = (caseArg: string, claimsArg: string): number => {
   }
 
   const updatedRows: Record<string, RunRowState> = { ...runStateRes.data.rows };
+  const clearClaim = (rowId: string): void => {
+    const existing = updatedRows[rowId];
+    if (!existing) return;
+    const { redCondition: _rc, verifiedFileHash: _vh, ...rest } = existing;
+    updatedRows[rowId] = { ...rest, claimed: false };
+  };
   const failures: string[] = [];
 
   for (const file of filesRes.files) {
@@ -1053,6 +1079,7 @@ const cmdVerify = (caseArg: string, claimsArg: string): number => {
 
       const redCondition = claimById.get(row.id);
       if (redCondition === undefined || redCondition.trim().length === 0) {
+        clearClaim(row.id);
         failures.push(`[${row.id}]: missing claim with non-empty redCondition`);
         continue;
       }
@@ -1065,6 +1092,7 @@ const cmdVerify = (caseArg: string, claimsArg: string): number => {
 
       const expectedColour: RunColour = row.status === "active" ? "green" : "red";
       if (runRow.colour !== expectedColour) {
+        clearClaim(row.id);
         failures.push(
           `[${row.id}] (${row.status}): expected ${expectedColour}, got ${runRow.colour}`,
         );
@@ -1072,6 +1100,7 @@ const cmdVerify = (caseArg: string, claimsArg: string): number => {
       }
 
       if (runRow.lintFindings.length > 0) {
+        clearClaim(row.id);
         failures.push(
           `[${row.id}]: has ${runRow.lintFindings.length} cheat-lint finding(s)`,
         );
@@ -1080,12 +1109,14 @@ const cmdVerify = (caseArg: string, claimsArg: string): number => {
 
       const absTestFile = path.resolve(caseDir, runRow.testFile);
       if (!fs.existsSync(absTestFile)) {
+        clearClaim(row.id);
         failures.push(`[${row.id}]: test file missing on disk: ${absTestFile}`);
         continue;
       }
 
       const diskHash = sha256File(absTestFile);
       if (diskHash !== runRow.fileHash) {
+        clearClaim(row.id);
         failures.push(
           `[${row.id}]: test file changed on disk since results (${runRow.testFile})`,
         );

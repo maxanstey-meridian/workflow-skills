@@ -66,8 +66,11 @@ const isTestCallNode = (node: ts.Node): string | null => {
   let isTestCall = false;
   if (ts.isIdentifier(callee) && (callee.text === "test" || callee.text === "it")) {
     isTestCall = true;
-  } else if (ts.isPropertyAccessExpression(callee)) {
-    const root = rootIdentifierName(callee);
+  } else if (
+    ts.isPropertyAccessExpression(callee) &&
+    ts.isIdentifier(callee.expression)
+  ) {
+    const root = callee.expression.text;
     if (
       (root === "test" || root === "it") &&
       (callee.name.text === "skip" ||

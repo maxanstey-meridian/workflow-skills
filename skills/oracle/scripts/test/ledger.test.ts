@@ -515,6 +515,36 @@ describe("lint.ts", () => {
     assert.equal(csFindings[0]?.rule, "xunit-skip");
     assert.equal(csFindings[0]?.line, 1);
   });
+
+  it("flags suite-level test.describe.skip and test.describe.fixme when testName is set", () => {
+    const skipCode = [
+      'test.describe.skip("suite", () => {',
+      '  test("row_one", async () => {});',
+      "});",
+    ].join("\n");
+    const skipFindings = lintTestFile("suite.spec.ts", skipCode, {
+      kind: "browser",
+      testName: "row_one",
+    });
+    assert.ok(
+      skipFindings.some((f) => f.rule === "no-skip"),
+      `Expected test.describe.skip to trigger no-skip, got: ${JSON.stringify(skipFindings)}`,
+    );
+
+    const fixmeCode = [
+      'test.describe.fixme("suite", () => {',
+      '  test("row_one", async () => {});',
+      "});",
+    ].join("\n");
+    const fixmeFindings = lintTestFile("suite.spec.ts", fixmeCode, {
+      kind: "browser",
+      testName: "row_one",
+    });
+    assert.ok(
+      fixmeFindings.some((f) => f.rule === "no-fixme"),
+      `Expected test.describe.fixme to trigger no-fixme, got: ${JSON.stringify(fixmeFindings)}`,
+    );
+  });
 });
 
 describe("results, verify, and open", () => {
@@ -966,6 +996,200 @@ describe("results, verify, and open", () => {
       verifyRes.stderr,
       /\[row_cheat_lint\]: has 1 cheat-lint finding/,
     );
+  });
+
+  it("resolves prefix-overlapping row IDs in separate test files without ambiguity", () => {
+    const dir = makeTempDir("prefix-overlap");
+    const testsDir = path.join(dir, "tests");
+    fs.mkdirSync(testsDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(testsDir, "users.test.ts"),
+      'test("create_user", () => {});\n',
+    );
+    fs.writeFileSync(
+      path.join(testsDir, "admin.test.ts"),
+      'test("create_user_admin", () => {});\n',
+    );
+
+    writeJson(path.join(dir, "oracle.conf.json"), {
+      kind: "cli",
+      rows: ["node", "rows.mjs"],
+    });
+    writeYaml(path.join(dir, "users.oracle.yaml"), {
+      kind: "cli",
+      slice: "users",
+      rows: [
+        {
+          id: "create_user",
+          status: "active",
+          when: "Create standard user",
+          expect: "Exits 0",
+          source: "written",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+        {
+          id: "create_user_admin",
+          status: "active",
+          when: "Create admin user",
+          expect: "Exits 0",
+          source: "written",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+      ],
+    });
+    assert.equal(runLedger(["lock", dir]).status, 0);
+
+    const junitPath = path.join(dir, "res.xml");
+    fs.writeFileSync(
+      junitPath,
+      makeJUnitXml([
+        { name: "create_user", outcome: "green" },
+        { name: "create_user_admin", outcome: "green" },
+      ]),
+    );
+
+    const res = runLedger(["results", dir, junitPath, "--tests", testsDir]);
+    assert.equal(res.status, 0, res.stderr);
+
+    const runState = JSON.parse(
+      fs.readFileSync(path.join(dir, "run-state.json"), "utf8"),
+    );
+    assert.equal(runState.rows.create_user.testFile, "tests/users.test.ts");
+    assert.equal(runState.rows.create_user_admin.testFile, "tests/admin.test.ts");
+  });
+
+  it("refuses duplicate JUnit testcase matches for the same row ID with exit 2", () => {
+    const dir = makeTempDir("dup-junit");
+    const testsDir = path.join(dir, "tests");
+    fs.mkdirSync(testsDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(testsDir, "a.test.ts"),
+      'test("dup_row", () => {});\n',
+    );
+
+    writeJson(path.join(dir, "oracle.conf.json"), {
+      kind: "cli",
+      rows: ["node", "rows.mjs"],
+    });
+    writeYaml(path.join(dir, "s.oracle.yaml"), {
+      kind: "cli",
+      slice: "s",
+      rows: [
+        {
+          id: "dup_row",
+          status: "active",
+          when: "Run once",
+          expect: "Passes",
+          source: "written",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+      ],
+    });
+    assert.equal(runLedger(["lock", dir]).status, 0);
+
+    const junitPath = path.join(dir, "dup.xml");
+    fs.writeFileSync(
+      junitPath,
+      makeJUnitXml([
+        { name: "dup_row", outcome: "red" },
+        { name: "dup_row", outcome: "green" },
+      ]),
+    );
+
+    const res = runLedger(["results", dir, junitPath, "--tests", testsDir]);
+    assert.equal(res.status, 2);
+    assert.match(res.stderr, /duplicate JUnit testcase.*dup_row/);
+  });
+
+  it("verify clears prior claim state when a previously claimed row later fails verification", () => {
+    const dir = makeTempDir("verify-clear-claim");
+    const testsDir = path.join(dir, "tests");
+    fs.mkdirSync(testsDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(testsDir, "a.test.ts"),
+      'test("row_a", () => {});\ntest("row_b", () => {});\n',
+    );
+
+    writeJson(path.join(dir, "oracle.conf.json"), {
+      kind: "cli",
+      rows: ["node", "rows.mjs"],
+    });
+    writeYaml(path.join(dir, "s.oracle.yaml"), {
+      kind: "cli",
+      slice: "s",
+      rows: [
+        {
+          id: "row_a",
+          status: "active",
+          when: "Run a",
+          expect: "Passes",
+          source: "written",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+        {
+          id: "row_b",
+          status: "active",
+          when: "Run b",
+          expect: "Passes",
+          source: "written",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+      ],
+    });
+    assert.equal(runLedger(["lock", dir]).status, 0);
+
+    const junitPath = path.join(dir, "res.xml");
+    fs.writeFileSync(
+      junitPath,
+      makeJUnitXml([
+        { name: "row_a", outcome: "green" },
+        { name: "row_b", outcome: "green" },
+      ]),
+    );
+    assert.equal(
+      runLedger(["results", dir, junitPath, "--tests", testsDir]).status,
+      0,
+    );
+
+    const claimsPath = path.join(dir, "claims.yaml");
+    writeYaml(claimsPath, {
+      claims: [
+        { id: "row_a", redCondition: "Break a" },
+        { id: "row_b", redCondition: "Break b" },
+      ],
+    });
+    assert.equal(runLedger(["verify", dir, claimsPath]).status, 0);
+    assert.equal(runLedger(["open", dir]).status, 0);
+
+    // Remove row_b from claims.yaml -> verify exits 1, clears row_b claim, and open exits 1
+    writeYaml(claimsPath, {
+      claims: [{ id: "row_a", redCondition: "Break a" }],
+    });
+    assert.equal(runLedger(["verify", dir, claimsPath]).status, 1);
+
+    const runState = JSON.parse(
+      fs.readFileSync(path.join(dir, "run-state.json"), "utf8"),
+    );
+    assert.equal(runState.rows.row_b.claimed, false);
+    assert.equal(runState.rows.row_b.redCondition, undefined);
+    assert.equal(runState.rows.row_b.verifiedFileHash, undefined);
+
+    const openRes = runLedger(["open", dir]);
+    assert.equal(openRes.status, 1);
+    assert.match(openRes.stdout, /row_b.*unclaimed/);
   });
 });
 
