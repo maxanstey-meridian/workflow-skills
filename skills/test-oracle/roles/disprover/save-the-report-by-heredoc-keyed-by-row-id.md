@@ -1,6 +1,6 @@
 ## Save the report by heredoc, keyed by row id
 
-**Preference:** Save your report with a shell heredoc to `<absolute report path>`, under the case's `reports/`, not a file-writing tool, key every bullet by row id at line start, so `grep -rn <id> reports/` is the join, and reply with only the report path; the sections are Counts; WRONG; PARTLY; CAN'T TELL; Missed; Confirmed (one line each, by the report's own row id or item number); and Not checked.
+**Preference:** Save your report with a shell heredoc to the report path your brief gives, under the case's `reports/`, not a file-writing tool, key every bullet by row id at line start, so `grep -rn <id> reports/` is the join, and reply with only the report path; the sections are Counts; WRONG; PARTLY; CAN'T TELL; Missed; Confirmed (one line each, by the report's own row id or item number); and Not checked.
 
 **When:** The end of your grading.
 

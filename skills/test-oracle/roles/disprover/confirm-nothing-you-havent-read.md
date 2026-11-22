@@ -1,6 +1,6 @@
 ## Confirm nothing you haven't read
 
-**Law:** Don't confirm a gap, or an intent, you haven't read for yourself, and never confirm a `today` value without having looked for the rule or the obvious wrong that would override it.
+**Law:** Confirm no gap, and no intent, you haven't read for yourself, and confirm no `today` value without having looked for the rule or the obvious wrong that would override it.
 
 **When:** Every CONFIRMED you write.
 

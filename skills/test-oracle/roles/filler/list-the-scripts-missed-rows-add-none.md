@@ -5,4 +5,4 @@
 **When:** Your read of what the rows are read from, for your slice.
 
 Bad: A new row the filler wrote for the miss, so the table grows by hand.
-Good: The miss in the report's "Defects in the script" list, with the file and the quote, and the table untouched.
+Good: The miss in the report's Defects in the script list, with the file and the quote, and the table untouched.

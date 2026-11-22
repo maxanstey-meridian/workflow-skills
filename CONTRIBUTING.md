@@ -35,6 +35,8 @@ A part is shared only inside one routine, and only when every role takes it unch
 
 Role files and rule files are generated from colocated `.list` files by `sh scripts/build-roles.sh`: the mechanism is the house rule `core/build-every-generated-file-from-its-list.md`. Generation is what lets a role share a part and still be one file to read. Never edit `references/` by hand. `Taskfile.yml` names the commands: `task build` runs the script, and `task gate`, which CI and `/cycle` run, also fails when a generated file was out of date. A routine's `references/` gets only the rule files its roles read. The build refuses orphans too: a rule in no list, a part no role uses, and a generated file no line builds, which is what a rule file is once the routine's roles stop reading it.
 
+Kind files are generated the same way, from a routine's `skills/<routine>/kinds/kinds.list` — test-oracle is the routine that has kinds. A `kind <name> <parts>` line concatenates the parts, in order, into the generated and tracked `skills/<routine>/kinds/<name>.md`, which is never edited by hand; the parts are the files under `skills/<routine>/kinds/<name>/`. A part is a rule in the five-part format, and the part named `head` is exempt from the format check, as the index files are. The build refuses a kind part no line uses, and a kind line naming a part that is missing.
+
 ## The rule library
 
 `skills/meridian/references/rules/` holds one rule per file, granular by single responsibility. Routines, and a reader of the `meridian` skill itself, read it as generated rule files, one per `rules-<name>.list`, each small enough to come back whole in one file read.
