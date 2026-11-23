@@ -197,38 +197,9 @@ export const loadRunReports = (runDir: string): Map<string, RawReportEntry> => {
 export const loadReviewFindingsForAudit = (
   runDir: string,
   missedReports: ReadonlyArray<string>,
-  reports: ReadonlyMap<string, RawReportEntry>,
 ): CycleAuditReviewFindingRef[] => {
-  const hasMissedReview = missedReports.some(
-    (name) => name.startsWith("review-") && name.endsWith(".yaml"),
-  );
-  if (!hasMissedReview) {
-    const res = loadRunReviewFindings(runDir);
-    if (res.ok) {
-      return res.findings;
-    }
-  }
-
-  const missedSet = new Set(missedReports);
-  const findings: CycleAuditReviewFindingRef[] = [];
-  const names = [...reports.keys()]
-    .filter((name) => name.startsWith("review-") && name.endsWith(".yaml") && !missedSet.has(name))
-    .sort();
-
-  for (const name of names) {
-    const entry = reports.get(name);
-    if (entry === undefined || !entry.exists || "parseError" in entry) {
-      continue;
-    }
-    const parsed = ReviewReportSchema.safeParse(entry.raw);
-    if (!parsed.success) {
-      continue;
-    }
-    for (const finding of parsed.data.findings) {
-      findings.push({ report: name, id: finding.id, do: finding.do });
-    }
-  }
-  return findings;
+  const res = loadRunReviewFindings(runDir, new Set(missedReports));
+  return res.ok ? res.findings : [];
 };
 
 export const collectExistingFindingPaths = (
@@ -274,18 +245,30 @@ const formatTimestamp = (now: Date): string => {
   return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
 };
 
+const isNodeErrorWithCode = (err: unknown, code: string): boolean =>
+  err instanceof Error && "code" in err && err.code === code;
+
 export const createRunDir = (mainDir: string): string => {
   const scratchDir = path.join(mainDir, ".plans", "scratch");
   fs.mkdirSync(scratchDir, { recursive: true });
   const baseName = `cycle-${formatTimestamp(new Date())}`;
-  let candidate = path.join(scratchDir, baseName);
-  let suffix = 1;
-  while (fs.existsSync(candidate)) {
-    candidate = path.join(scratchDir, `${baseName}-${suffix}`);
-    suffix += 1;
+  let suffix = 0;
+  for (;;) {
+    const candidate =
+      suffix === 0
+        ? path.join(scratchDir, baseName)
+        : path.join(scratchDir, `${baseName}-${suffix}`);
+    try {
+      fs.mkdirSync(candidate);
+      return candidate;
+    } catch (err) {
+      if (isNodeErrorWithCode(err, "EEXIST")) {
+        suffix += 1;
+        continue;
+      }
+      throw err;
+    }
   }
-  fs.mkdirSync(candidate, { recursive: true });
-  return candidate;
 };
 
 export const writeStackLists = (

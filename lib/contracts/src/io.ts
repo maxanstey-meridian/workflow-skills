@@ -137,12 +137,35 @@ export const validateOracleCaseOnDisk = (oracleCase: OracleCaseRef): ValidationI
   return issues;
 };
 
+const StateMissedReportsSchema = z.object({
+  missedReports: z.array(z.string()).optional(),
+});
+
+const readMissedReportsFromState = (runDir: string): ReadonlySet<string> => {
+  const statePath = path.join(runDir, "state.json");
+  if (!fs.existsSync(statePath)) {
+    return new Set();
+  }
+  try {
+    const raw: unknown = JSON.parse(fs.readFileSync(statePath, "utf8"));
+    const parsed = StateMissedReportsSchema.safeParse(raw);
+    if (!parsed.success || parsed.data.missedReports === undefined) {
+      return new Set();
+    }
+    return new Set(parsed.data.missedReports);
+  } catch {
+    return new Set();
+  }
+};
+
 export const loadRunReviewFindings = (
   runDir: string,
+  missedReports?: ReadonlySet<string>,
 ):
   | { ok: true; findings: Array<{ report: string; id: string; do: string }> }
   | { ok: false; error: string } => {
   const resolvedDir = path.resolve(runDir);
+  const missedSet = missedReports ?? readMissedReportsFromState(resolvedDir);
 
   let entries: fs.Dirent[];
   try {
@@ -154,7 +177,11 @@ export const loadRunReviewFindings = (
 
   const reviewFiles = entries
     .filter(
-      (entry) => entry.isFile() && entry.name.startsWith("review-") && entry.name.endsWith(".yaml"),
+      (entry) =>
+        entry.isFile() &&
+        entry.name.startsWith("review-") &&
+        entry.name.endsWith(".yaml") &&
+        !missedSet.has(entry.name),
     )
     .map((entry) => entry.name)
     .sort();

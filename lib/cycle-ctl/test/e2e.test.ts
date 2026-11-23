@@ -446,4 +446,76 @@ describe("cycle-ctl e2e: full cycle with real git commits", () => {
     assert.equal(renderRes.status, 0, renderRes.stderr);
     assert.match(renderRes.stdout, /^## TLDR/m);
   });
+
+  it("validate cycle-audit --run skips invalid review reports listed in state.json missedReports", () => {
+    const repo = makeTempRepo("missed-review");
+    const runDir = path.join(repo, ".plans", "scratch", "cycle-missed-test");
+    fs.mkdirSync(runDir, { recursive: true });
+
+    const specPath = path.join(repo, ".plans", "spec-demo.yaml");
+    writeYaml(specPath, makeSpec("building"));
+
+    // Write a valid review report and a malformed review report listed in state.json missedReports.
+    writeYaml(path.join(runDir, "review-1-slice-1.yaml"), {
+      findings: [],
+      filesRead: [{ path: "src/a.ts", mode: "full" }],
+    });
+    fs.writeFileSync(path.join(runDir, "review-1-backend-1.yaml"), "not: [valid: yaml\n", "utf8");
+    fs.writeFileSync(
+      path.join(runDir, "state.json"),
+      `${JSON.stringify({ missedReports: ["review-1-backend-1.yaml"] }, null, 2)}\n`,
+      "utf8",
+    );
+
+    const headSha = spawnSync("git", ["rev-parse", "--short", "HEAD"], {
+      cwd: repo,
+      encoding: "utf8",
+    }).stdout.trim();
+    const auditPath = path.join(runDir, "audit.yaml");
+    writeYaml(auditPath, {
+      tldr: "Validated audit with a missed review report.",
+      pieces: [{ id: "P1", status: "done" }],
+      decisions: [{ id: "D1", status: "honoured" }],
+      checked: [{ cmd: "node -e 'process.exit(0)'", exit: 0, pieces: ["P1"] }],
+      builtPieces: ["P1"],
+      commits: [{ sha: headSha, subject: "chore: initial commit", bullets: [] }],
+      fixed: [],
+      gate: "green",
+      specStatus: { status: "built" },
+    });
+
+    const validateRes = runCtl(
+      ["validate", "cycle-audit", auditPath, "--spec", specPath, "--run", runDir],
+      repo,
+    );
+    assert.equal(validateRes.status, 0, validateRes.stderr);
+    assert.equal(validateRes.stdout.trim(), "OK");
+
+    // Without missedReports listing it, validation must still fail (proves the check is not vacuous).
+    fs.writeFileSync(
+      path.join(runDir, "state.json"),
+      `${JSON.stringify({ missedReports: [] }, null, 2)}\n`,
+      "utf8",
+    );
+    const failRes = runCtl(
+      ["validate", "cycle-audit", auditPath, "--spec", specPath, "--run", runDir],
+      repo,
+    );
+    assert.equal(failRes.status, 2);
+  });
+
+  it("assigns distinct run directories when cycle-ctl init runs repeatedly in the same second", () => {
+    const repo = makeTempRepo("distinct-run-dirs");
+    fs.mkdirSync(path.join(repo, "src"), { recursive: true });
+    fs.writeFileSync(path.join(repo, "src/a.ts"), "export const a = 1;\n", "utf8");
+
+    const first = runCtl(["init"], repo);
+    assert.equal(first.status, 0, first.stderr);
+    const second = runCtl(["init"], repo);
+    assert.equal(second.status, 0, second.stderr);
+
+    const firstRun = InitRunSchema.parse(YAML.parse(first.stdout)).run;
+    const secondRun = InitRunSchema.parse(YAML.parse(second.stdout)).run;
+    assert.notEqual(firstRun, secondRun);
+  });
 });

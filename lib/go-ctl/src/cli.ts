@@ -81,7 +81,7 @@ const cmdInit = (rawSpec: string, opts: { skill?: string }): number => {
     return 2;
   }
 
-  const statusResult = captureGitStatus(mainDir);
+  const statusResult = captureGitStatus(process.cwd());
   if (!statusResult.ok) {
     console.error(statusResult.error);
     return 2;

@@ -16,11 +16,16 @@ jobs:
       - uses: go-task/setup-task@v2
         with:
           version: 3.x
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
       - uses: actions/setup-node@v4
         with:
           node-version: 26
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - name: Install lib dependencies
+        run: pnpm -C lib install --frozen-lockfile
       - name: Build the rule files and role files, and fail when a committed one is out of date
         run: task gate

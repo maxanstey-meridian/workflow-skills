@@ -167,6 +167,38 @@ describe("go-ctl init", () => {
     assert.equal(fs.existsSync(path.join(repo, ".plans", "scratch", "spec-draft", "go")), false);
   });
 
+  it("captures status-before.txt from the active linked worktree rather than the main checkout", () => {
+    const mainRepo = makeTempGitRepo("wt-main");
+    const git = (args: string[], cwd: string): void => {
+      const res = spawnSync("git", args, { cwd, encoding: "utf8" });
+      assert.equal(res.status, 0, `git ${args.join(" ")} failed: ${res.stderr}`);
+    };
+
+    git(["config", "user.email", "test@example.com"], mainRepo);
+    git(["config", "user.name", "Test User"], mainRepo);
+    fs.writeFileSync(path.join(mainRepo, "README.md"), "# Demo\n", "utf8");
+    git(["add", "README.md"], mainRepo);
+    git(["commit", "-q", "-m", "chore: init"], mainRepo);
+
+    const wtDir = fs.mkdtempSync(path.join(os.tmpdir(), "go-ctl-e2e-wt-linked-"));
+    tmpDirs.push(wtDir);
+    fs.rmSync(wtDir, { recursive: true, force: true });
+    git(["worktree", "add", "-q", "-b", "feat/wt", wtDir], mainRepo);
+
+    fs.writeFileSync(path.join(mainRepo, "main-only.txt"), "main dirty\n", "utf8");
+    fs.writeFileSync(path.join(wtDir, "worktree-only.txt"), "wt dirty\n", "utf8");
+
+    const specPath = path.join(mainRepo, ".plans", "spec-wt.yaml");
+    writeYaml(specPath, makeSpecData({ status: "agreed" }));
+
+    const res = runGoCtl(["init", ".plans/spec-wt.yaml"], wtDir);
+    assert.equal(res.status, 0, res.stderr);
+    const initOut = InitOutputSchema.parse(YAML.parse(res.stdout));
+    const statusBefore = fs.readFileSync(path.join(initOut.run, "status-before.txt"), "utf8");
+    assert.match(statusBefore, /worktree-only\.txt/);
+    assert.doesNotMatch(statusBefore, /main-only\.txt/);
+  });
+
   it("stops without modifying spec or creating run dir when spec is built", () => {
     const repo = makeTempGitRepo("built");
     const specPath = path.join(repo, ".plans", "spec-built.yaml");

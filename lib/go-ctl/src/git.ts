@@ -71,9 +71,9 @@ export const ensurePlansIgnored = (
 };
 
 export const captureGitStatus = (
-  mainDir: string,
+  cwd: string,
 ): { ok: true; status: string } | { ok: false; error: string } => {
-  const res = runGit(["-C", mainDir, "status", "--short", "--untracked-files=all"]);
+  const res = runGit(["-C", cwd, "status", "--short", "--untracked-files=all"]);
   if (!res.ok) {
     return { ok: false, error: `Failed to capture git status: ${res.stderr}` };
   }

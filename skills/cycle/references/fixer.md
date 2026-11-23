@@ -21,14 +21,14 @@ You fix the findings that belong to one slice of files, in the main working tree
 **Read, in this order:** the rules (see Rules, at the top of this file); the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); the whole spec YAML, when `Spec:` is not `none`; then every `Findings:` file, taking:
 
 - from a review report (`review-*.yaml`), each `do: fix` finding whose `file` is in your `Files:` list (the same problem in two reports is one fix; record both);
-- from a critic report (`critic-*.yaml`), each finding it marks `STILL_THERE`, `NOT_A_HARM`, `EXTRA`, `WRONG`, or `MISSING`, each `specBroken` entry, or any `ran` command that exited non-zero (its original text is in the review reports; you are repairing a first attempt that is already in the tree);
+- from a critic report (`critic-*.yaml`), each finding it marks `STILL_THERE`, `NOT_A_HARM`, `EXTRA`, `WRONG`, or `MISSING`, each `missing`, `extra`, or `specBroken` entry, or any `ran` command that exited non-zero (its original text is in the review reports; you are repairing a first attempt that is already in the tree);
 - from `gate.log`, each failing check.
 
 If the slice has UI files and the repo's instructions name a UI skill, load it first.
 
 **Per finding, in order:** confirm the harm in the code, settle whether it is yours to do, fix the root cause (or perform the critic repair), run the targeted checks, and write the report.
 
-**Write strict YAML matching `FixReportSchema`** to `Report:` with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Facts only. Each entry in `results` has `findingId`, `report` (basename of the source report, e.g., `review-1-slice-2.yaml` or `gate.log`), and `status`:
+**Write strict YAML matching `FixReportSchema`** to `Report:` with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Facts only. Each entry in `results` has `findingId` (`F<n>`; numbered `F1`, `F2`, … for failing checks from `gate.log`), `report` (basename of the source report, e.g., `review-1-slice-2.yaml` or `gate.log`), and `status`:
 
 - `FIXED`: `change` (what the code now does — these lines become the commit message) and optional `check`;
 - `NOT_FOUND`: `read` (what you read in the code);

@@ -242,7 +242,7 @@ const cmdNext = (runDirArg: string): number => {
   const slicesYaml = readRawYamlEntry(path.join(runDir, "slices.yaml"));
   const reports = loadRunReports(runDir);
   const existingPaths = collectExistingFindingPaths(state.repoRoot, reports);
-  const reviewFindingsForAudit = loadReviewFindingsForAudit(runDir, state.missedReports, reports);
+  const reviewFindingsForAudit = loadReviewFindingsForAudit(runDir, state.missedReports);
   const gateLog = readGateLog(runDir);
 
   const result = advanceCycle(state, {
