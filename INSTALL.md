@@ -4,7 +4,7 @@ The [README](README.md#install) has the prerequisites and the two commands: clon
 
 The install never replaces a file, a folder, or a link of yours, and never edits a config file. It replaces a broken link only when it pointed into this clone. It says what it skipped and why, and exits non-zero when it skipped something you asked for. A link of yours that already leads to this repo, through another link, say, counts as installed. Rerunning it is safe. A copy run from outside the clone changes nothing.
 
-If a folder the install links into, or one an agent reads beside it, already holds a skill called `spec`, `go`, `cycle`, `waypoint`, `slop-hunt`, `readme`, `test-oracle`, or `meridian`, the install skips that one and names the folder; rename yours and rerun.
+If a folder the install links into, or one an agent reads beside it, already holds a skill called `spec`, `go`, `cycle`, `waypoint`, `slop-hunt`, `readme`, `oracle`, or `meridian`, the install skips that one and names the folder; rename yours and rerun.
 
 ## Claude Code
 
