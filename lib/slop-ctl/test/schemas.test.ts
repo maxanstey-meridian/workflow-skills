@@ -7,6 +7,7 @@ import {
   HunterReportSchema,
   SlopActionSchema,
   SlopAuditSchema,
+  SlopAuditWeightMapItemSchema,
   SlopStateSchema,
   VerifyReportSchema,
   WeightMapItemSchema,
@@ -122,6 +123,96 @@ describe("WeightMapItemSchema", () => {
         status: "finding",
         findingId: "D1",
         extra: "nope",
+      }).success,
+      false,
+    );
+  });
+
+  it("enforces earnedWhy/findingId discriminated pairing on WeightMapItemSchema and SlopAuditWeightMapItemSchema", () => {
+    // Missing earnedWhy or unexpected findingId on status "earned"
+    assert.equal(
+      WeightMapItemSchema.safeParse({
+        capability: "Core",
+        files: "src/core.ts",
+        lines: 100,
+        sharePct: 50,
+        status: "earned",
+      }).success,
+      false,
+    );
+    assert.equal(
+      WeightMapItemSchema.safeParse({
+        capability: "Core",
+        files: "src/core.ts",
+        lines: 100,
+        sharePct: 50,
+        status: "earned",
+        earnedWhy: "Core domain",
+        findingId: "D1",
+      }).success,
+      false,
+    );
+    // Missing findingId or unexpected earnedWhy on status "finding"
+    assert.equal(
+      WeightMapItemSchema.safeParse({
+        capability: "Jobs",
+        files: "src/jobs.ts",
+        lines: 100,
+        sharePct: 50,
+        status: "finding",
+      }).success,
+      false,
+    );
+    assert.equal(
+      WeightMapItemSchema.safeParse({
+        capability: "Jobs",
+        files: "src/jobs.ts",
+        lines: 100,
+        sharePct: 50,
+        status: "finding",
+        findingId: "D1",
+        earnedWhy: "Wrong field",
+      }).success,
+      false,
+    );
+
+    assert.equal(
+      SlopAuditWeightMapItemSchema.safeParse({
+        capability: "Core",
+        lines: 100,
+        sharePct: 50,
+        status: "earned",
+      }).success,
+      false,
+    );
+    assert.equal(
+      SlopAuditWeightMapItemSchema.safeParse({
+        capability: "Core",
+        lines: 100,
+        sharePct: 50,
+        status: "earned",
+        earnedWhy: "Core domain",
+        findingId: "D1",
+      }).success,
+      false,
+    );
+    assert.equal(
+      SlopAuditWeightMapItemSchema.safeParse({
+        capability: "Jobs",
+        lines: 100,
+        sharePct: 50,
+        status: "finding",
+      }).success,
+      false,
+    );
+    assert.equal(
+      SlopAuditWeightMapItemSchema.safeParse({
+        capability: "Jobs",
+        lines: 100,
+        sharePct: 50,
+        status: "finding",
+        findingId: "D1",
+        earnedWhy: "Wrong field",
       }).success,
       false,
     );
@@ -396,6 +487,47 @@ describe("SlopAuditSchema, SlopStateSchema, and SlopActionSchema", () => {
       SlopStateSchema.safeParse({
         ...state,
         phase: "unknown-phase",
+      }).success,
+      false,
+    );
+  });
+
+  it("rejects judgement findings without against and proven findings with against in SlopAuditSchema", () => {
+    const base = {
+      tldr: "Summary.",
+      needsFromYou: [{ item: "Review." }],
+      weightMap: [
+        {
+          capability: "Core",
+          lines: 100,
+          sharePct: 100,
+          status: "earned",
+          earnedWhy: "Core",
+        },
+      ],
+      hunted: { repo: "cases", head: "801310e" },
+    };
+
+    assert.equal(
+      SlopAuditSchema.safeParse({
+        ...base,
+        design: [{ id: "D1", ...makeFindingBody({ kind: "judgement" }) }],
+      }).success,
+      false,
+    );
+
+    assert.equal(
+      SlopAuditSchema.safeParse({
+        ...base,
+        code: [{ id: "#1", ...makeFindingBody({ kind: "judgement" }) }],
+      }).success,
+      false,
+    );
+
+    assert.equal(
+      SlopAuditSchema.safeParse({
+        ...base,
+        code: [{ id: "#1", ...makeFindingBody({ kind: "proven", against: "Unexpected" }) }],
       }).success,
       false,
     );

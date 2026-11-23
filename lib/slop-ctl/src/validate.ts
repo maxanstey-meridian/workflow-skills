@@ -28,49 +28,6 @@ const isRelativePath = (value: string): boolean => {
   return !segments.includes("..");
 };
 
-const validateWeightMapItems = (
-  items: ReadonlyArray<{
-    status: "earned" | "finding";
-    earnedWhy?: string;
-    findingId?: string;
-  }>,
-  issues: ValidationIssue[],
-): void => {
-  for (let i = 0; i < items.length; i += 1) {
-    const item = items[i];
-    if (item === undefined) {
-      continue;
-    }
-    if (item.status === "earned") {
-      if (item.earnedWhy === undefined || item.earnedWhy.trim().length === 0) {
-        issues.push({
-          path: `weightMap[${i}].earnedWhy`,
-          message: 'earnedWhy is required when status is "earned"',
-        });
-      }
-      if (item.findingId !== undefined) {
-        issues.push({
-          path: `weightMap[${i}].findingId`,
-          message: 'findingId must be omitted when status is "earned"',
-        });
-      }
-    } else {
-      if (item.findingId === undefined || item.findingId.trim().length === 0) {
-        issues.push({
-          path: `weightMap[${i}].findingId`,
-          message: 'findingId is required when status is "finding"',
-        });
-      }
-      if (item.earnedWhy !== undefined) {
-        issues.push({
-          path: `weightMap[${i}].earnedWhy`,
-          message: 'earnedWhy must be omitted when status is "finding"',
-        });
-      }
-    }
-  }
-};
-
 const validateUniqueFindingIds = (
   findings: ReadonlyArray<{ id: string }>,
   section: string,
@@ -244,7 +201,6 @@ export const validateAreasAgainstScope = (
 export const validateDesignReport = (report: DesignReport): ValidationIssue[] => {
   const issues: ValidationIssue[] = [];
   validateUniqueFindingIds(report.findings, "findings", new Set<string>(), issues);
-  validateWeightMapItems(report.weightMap, issues);
   return issues;
 };
 
@@ -254,7 +210,6 @@ export const validateHunterReport = (
 ): ValidationIssue[] => {
   const issues: ValidationIssue[] = [];
   validateUniqueFindingIds(report.findings, "findings", new Set<string>(), issues);
-  validateWeightMapItems(report.weightMap, issues);
 
   if (
     options.singleArea &&
@@ -410,8 +365,6 @@ export const validateSlopAudit = (audit: SlopAudit): ValidationIssue[] => {
     });
   }
 
-  validateWeightMapItems(audit.weightMap, issues);
-
   const seenFindingIds = new Set<string>();
   const sections: ReadonlyArray<{
     name: "design" | "code";
@@ -423,27 +376,6 @@ export const validateSlopAudit = (audit: SlopAudit): ValidationIssue[] => {
 
   for (const { name, items } of sections) {
     validateUniqueFindingIds(items, name, seenFindingIds, issues);
-    for (let i = 0; i < items.length; i += 1) {
-      const finding = items[i];
-      if (finding === undefined) {
-        continue;
-      }
-      if (
-        finding.kind === "judgement" &&
-        (finding.against === undefined || finding.against.trim().length === 0)
-      ) {
-        issues.push({
-          path: `${name}[${i}].against`,
-          message: 'against is required and must be non-empty when kind is "judgement"',
-        });
-      }
-      if (finding.kind === "proven" && finding.against !== undefined) {
-        issues.push({
-          path: `${name}[${i}].against`,
-          message: 'against must be omitted when kind is "proven"',
-        });
-      }
-    }
   }
 
   return issues;

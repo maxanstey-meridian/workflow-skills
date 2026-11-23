@@ -128,7 +128,7 @@ describe("validateAreasAgainstScope", () => {
 });
 
 describe("validateDesignReport and validateHunterReport", () => {
-  it("validates unique finding IDs and weightMap earnedWhy/findingId pairing on design reports", () => {
+  it("validates unique finding IDs on design reports", () => {
     const valid = DesignReportSchema.parse({
       houseShape: "Clean CLI.",
       weightMap: [
@@ -160,17 +160,9 @@ describe("validateDesignReport and validateHunterReport", () => {
           capability: "Core",
           files: "src/core.ts",
           lines: 100,
-          sharePct: 50,
+          sharePct: 100,
           status: "earned",
-          findingId: "D1",
-        },
-        {
-          capability: "Jobs",
-          files: "src/jobs.ts",
-          lines: 100,
-          sharePct: 50,
-          status: "finding",
-          earnedWhy: "Wrong field",
+          earnedWhy: "Core domain",
         },
       ],
       findings: [makeFinding("D1"), makeFinding("D1")],
@@ -178,10 +170,6 @@ describe("validateDesignReport and validateHunterReport", () => {
 
     const issues = validateDesignReport(invalid);
     assert.ok(issues.some((i) => i.path === "findings[1].id"));
-    assert.ok(issues.some((i) => i.path === "weightMap[0].earnedWhy"));
-    assert.ok(issues.some((i) => i.path === "weightMap[0].findingId"));
-    assert.ok(issues.some((i) => i.path === "weightMap[1].findingId"));
-    assert.ok(issues.some((i) => i.path === "weightMap[1].earnedWhy"));
   });
 
   it("enforces singleArea houseShape and relative notReadInFull paths on hunter reports", () => {
@@ -339,16 +327,13 @@ describe("validateSlopAudit", () => {
     assert.deepEqual(validateSlopAudit(baseAudit()), []);
   });
 
-  it("rejects empty tldr/weightMap/needsFromYou, duplicate IDs across design and code, and missing against on judgement", () => {
+  it("rejects empty tldr/weightMap/needsFromYou and duplicate IDs across design and code", () => {
     const audit = SlopAuditSchema.parse({
       tldr: "   ",
       needsFromYou: [],
       weightMap: [],
-      design: [makeFinding("D1", { kind: "judgement" })],
-      code: [
-        makeFinding("D1", { kind: "proven", against: "Unexpected" }),
-        makeFinding("#1", { kind: "judgement" }),
-      ],
+      design: [makeFinding("D1", { kind: "judgement", against: "Tradeoff noted." })],
+      code: [makeFinding("D1", { kind: "proven" })],
       hunted: {
         repo: "cases",
         head: "801310e",
@@ -359,22 +344,6 @@ describe("validateSlopAudit", () => {
     assert.ok(issues.some((i) => i.path === "tldr"));
     assert.ok(issues.some((i) => i.path === "weightMap"));
     assert.ok(issues.some((i) => i.path === "needsFromYou"));
-    assert.ok(issues.some((i) => i.path === "design[0].against"));
     assert.ok(issues.some((i) => i.path === "code[0].id"));
-    assert.ok(issues.some((i) => i.path === "code[0].against"));
-    assert.ok(issues.some((i) => i.path === "code[1].against"));
-
-    const badWeightMap = SlopAuditSchema.parse({
-      tldr: "Summary.",
-      needsFromYou: [{ item: "Review." }],
-      weightMap: [
-        { capability: "Core", lines: 100, sharePct: 50, status: "earned" },
-        { capability: "Jobs", lines: 100, sharePct: 50, status: "finding" },
-      ],
-      hunted: { repo: "cases", head: "801310e" },
-    });
-    const wmIssues = validateSlopAudit(badWeightMap);
-    assert.ok(wmIssues.some((i) => i.path === "weightMap[0].earnedWhy"));
-    assert.ok(wmIssues.some((i) => i.path === "weightMap[1].findingId"));
   });
 });

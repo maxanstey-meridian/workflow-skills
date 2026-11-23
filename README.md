@@ -102,7 +102,7 @@ What goes in git:
 |---|---|
 | `oracle.conf.json`, `frozen.json`, `locked.json`, `<slice>.oracle.yaml`, the row script, `.gitignore` | `run-state.json`, `claims.yaml`, `reports/`, `results.xml` |
 
-The ledger doesn't write the ignore list. Put `run-state.json`, `claims.yaml`, `reports/`, and `results.xml` in a `.gitignore` inside the case folder (the tracer's `.gitignore` also ignores `frozen.json`, `locked.json`, and `*.oracle.yaml` because its end-to-end test generates them in a temp directory).
+The ledger doesn't write the ignore list. Put `run-state.json`, `claims.yaml`, `reports/`, and `results.xml` in a `.gitignore` inside the case folder.
 
 A test matches its row by lowercase-alphanumeric equality with the row's `id`, so `open_pause` matches `openPause` and `open_pause`. `ledger.mjs results` resolves each matched test file, checks that `active` rows ran green and `shortfall` rows ran red, and runs the AST cheat-linter against the test source.
 

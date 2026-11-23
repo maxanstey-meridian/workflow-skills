@@ -103,7 +103,7 @@ const formatZodPath = (pathParts: ReadonlyArray<PropertyKey>): string => {
     .join("");
 };
 
-const formatZodIssues = (error: z.ZodError): string[] =>
+export const formatZodIssues = (error: z.ZodError): string[] =>
   error.issues.map((issue) => `${formatZodPath(issue.path)}: ${issue.message}`);
 
 const formatValidationIssues = (issues: ReadonlyArray<ValidationIssue>): string[] =>
@@ -160,7 +160,8 @@ const computeRestArea = (
   const seen = new Set<string>();
   let totalLines = 0;
 
-  for (const filePath of notReadInFull) {
+  for (const rawPath of notReadInFull) {
+    const filePath = rawPath.replace(/^(?:\.\/)+/, "");
     if (!baseFiles.has(filePath) || seen.has(filePath)) {
       continue;
     }

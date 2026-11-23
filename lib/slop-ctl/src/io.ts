@@ -5,27 +5,14 @@ import type { z } from "zod";
 import { readYamlFile } from "../../contracts/src/io.ts";
 import { AREAS_FILE_NAME, SCOPE_FILE_NAME, SIZES_FILE_NAME } from "./briefs.ts";
 import { type SlopState, SlopStateSchema } from "./schemas.ts";
-import type { RawYamlEntry, SlopEffects, SlopSnapshot } from "./transition.ts";
+import {
+  formatZodIssues,
+  type RawYamlEntry,
+  type SlopEffects,
+  type SlopSnapshot,
+} from "./transition.ts";
 
 const STATE_FILE_NAME = "state.json";
-
-const formatZodPath = (pathParts: ReadonlyArray<PropertyKey>): string => {
-  if (pathParts.length === 0) {
-    return "(root)";
-  }
-  return pathParts
-    .map((part, index) => {
-      if (typeof part === "number") {
-        return `[${part}]`;
-      }
-      const key = String(part);
-      return index === 0 ? key : `.${key}`;
-    })
-    .join("");
-};
-
-const formatZodIssues = (error: z.ZodError): string[] =>
-  error.issues.map((issue) => `${formatZodPath(issue.path)}: ${issue.message}`);
 
 const isNodeErrorWithCode = (err: unknown, code: string): boolean =>
   err instanceof Error && "code" in err && err.code === code;

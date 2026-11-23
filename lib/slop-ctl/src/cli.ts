@@ -37,6 +37,7 @@ import {
   getHeadShortSha,
   resolveMainDir,
   resolveRepoRoot,
+  runJscpd,
   runMechanicalFinders,
 } from "./scope.ts";
 import { advanceSlop } from "./transition.ts";
@@ -133,6 +134,7 @@ const cmdInit = (opts: { skill?: string; lintCmd?: string; skipFinders?: boolean
   runMechanicalFinders(root, runDir, scopeFiles, {
     lintCmd: opts.lintCmd,
     skipFinders: opts.skipFinders,
+    deferJscpd: sizes.oversized.length > 0,
   });
 
   const initialState: SlopState = {
@@ -210,6 +212,13 @@ const cmdExclude = (runDirArg: string, pathsArg: string[], opts: { done?: boolea
   writeTextAtomic(path.join(runDir, CHURN_FILE_NAME), churn);
 
   const scopeReviewed = state.scopeReviewed || opts.done === true || sizes.oversized.length === 0;
+  const jscpdLeadsPath = path.join(runDir, "leads-jscpd.txt");
+  const jscpdSkipped =
+    fs.existsSync(jscpdLeadsPath) &&
+    fs.readFileSync(jscpdLeadsPath, "utf8").trim() === "skipped: --skip-finders";
+  if (!jscpdSkipped && scopeReviewed && (!state.scopeReviewed || removed.length > 0)) {
+    runJscpd(state.root, runDir, nextScope);
+  }
   const nextState: SlopState = {
     ...state,
     scopeReviewed,

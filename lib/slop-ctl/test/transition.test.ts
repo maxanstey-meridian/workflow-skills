@@ -523,7 +523,7 @@ describe("advanceSlop", () => {
     }
   });
 
-  it("creates -rest areas from in-area notReadInFull, ignores out-of-area paths, and never recurses on -rest", () => {
+  it("creates -rest areas from in-area notReadInFull (normalizing leading ./), ignores out-of-area paths, and never recurses on -rest", () => {
     const scopeFiles = ["src/api/a.ts", "src/api/b.ts", "src/web/c.ts"];
     const sizesByFile = new Map([
       ["src/api/a.ts", 2000],
@@ -545,7 +545,13 @@ describe("advanceSlop", () => {
         "report-api.yaml",
         okEntry(
           makeHunterReport({
-            notReadInFull: ["src/api/b.ts", "src/api/b.ts", "src/web/c.ts", "src/unknown.ts"],
+            notReadInFull: [
+              "./src/api/b.ts",
+              "././src/api/b.ts",
+              "src/api/b.ts",
+              "src/web/c.ts",
+              "src/unknown.ts",
+            ],
           }),
         ),
       ],

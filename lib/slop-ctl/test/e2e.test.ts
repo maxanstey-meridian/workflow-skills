@@ -797,9 +797,55 @@ describe("slop-ctl e2e: plans ignore, mechanical finders, error exits, and run d
     );
   });
 
-  it("runs .NET finders (unrestored skip, restored dotnet format filtering, jb installed and missing)", () => {
+  it("defers jscpd when oversized files exist and excludes removed files from jscpd.json and leads-jscpd.txt", () => {
+    const repo = makeTempGitRepo("jscpd-exclude");
+    writeLines(repo, "src/app.ts", 20);
+    writeLines(repo, "data/seed.json", 2100);
+    git(["add", "."], repo);
+    git(["commit", "-q", "-m", "chore: seed"], repo);
+
+    const fakeBin = makeFakeBinDir("jscpd-exclude", {
+      npx: [
+        'cfg=""',
+        'prev=""',
+        'for arg in "$@"; do',
+        '  if [ "$prev" = "--config" ]; then cfg="$arg"; fi',
+        '  prev="$arg"',
+        "done",
+        'printf "FAKE_JSCPD %s\\n" "$(cat "$cfg")"',
+      ].join("\n"),
+    });
+
+    const initRes = runSlopCtl(["init"], repo, envWithBin(fakeBin));
+    assert.equal(initRes.status, 0, initRes.stderr);
+    const initOut = InitOutputSchema.parse(YAML.parse(initRes.stdout));
+    assert.equal(initOut.oversized.length, 1);
+    assert.equal(fs.existsSync(path.join(initOut.run, "jscpd.json")), false);
+    assert.equal(fs.existsSync(path.join(initOut.run, "leads-jscpd.txt")), false);
+
+    const exclRes = runSlopCtl(
+      ["exclude", initOut.run, "data/seed.json"],
+      repo,
+      envWithBin(fakeBin),
+    );
+    assert.equal(exclRes.status, 0, exclRes.stderr);
+    const exclOut = ExcludeOutputSchema.parse(YAML.parse(exclRes.stdout));
+    assert.equal(exclOut.scopeReviewed, true);
+
+    const jscpdConfigSchema = z.strictObject({ path: z.array(z.string()) });
+    const jscpdConfig = jscpdConfigSchema.parse(
+      JSON.parse(fs.readFileSync(path.join(initOut.run, "jscpd.json"), "utf8")),
+    );
+    assert.deepEqual(jscpdConfig.path, [path.join(repo, "src/app.ts")]);
+    const leadsJscpd = fs.readFileSync(path.join(initOut.run, "leads-jscpd.txt"), "utf8");
+    assert.match(leadsJscpd, /src\/app\.ts/);
+    assert.doesNotMatch(leadsJscpd, /data\/seed\.json/);
+  });
+
+  it("runs .NET finders (unrestored skip, restored multi-solution dotnet format and jb inspectcode, jb missing and non-zero exit)", () => {
     const repo = makeTempGitRepo("dotnet-finders");
     writeFile(repo, "App.sln", "Microsoft Visual Studio Solution File\n");
+    writeFile(repo, "Tools.slnx", "<Solution />\n");
     writeFile(repo, "Program.cs", "class Program { static void Main() {} }\n");
     git(["add", "."], repo);
     git(["commit", "-q", "-m", "chore: dotnet"], repo);
@@ -808,8 +854,8 @@ describe("slop-ctl e2e: plans ignore, mechanical finders, error exits, and run d
       npx: 'printf "FAKE_NPX %s\\n" "$*"',
       dotnet: [
         'echo "Formatting code files..."',
-        "echo \"Program.cs(4,10): info IDE0051: Private member 'Unused' is unused\"",
-        'echo "Program.cs(8,10): info IDE0060: Remove unused parameter"',
+        "echo \"$3: Program.cs(4,10): info IDE0051: Private member 'Unused' is unused\"",
+        'echo "$3: Program.cs(8,10): info IDE0060: Remove unused parameter"',
       ].join("\n"),
       jb: [
         'if [ "$1" = "--version" ]; then echo "jb 2026.1"; exit 0; fi',
@@ -831,7 +877,7 @@ describe("slop-ctl e2e: plans ignore, mechanical finders, error exits, and run d
     );
     assert.equal(fs.existsSync(path.join(unrestoredOut.run, "leads-inspectcode.txt")), false);
 
-    // 2. Restored solution with jb installed -> filtered IDE0051/IDE0060 + inspectcode report
+    // 2. Restored multi-solution repo with jb installed -> filtered IDE0051/IDE0060 + combined inspectcode report
     writeFile(repo, "obj/project.assets.json", "{}\n");
     const restoredRes = runSlopCtl(["init"], repo, envWithBin(fakeBinWithJb));
     assert.equal(restoredRes.status, 0, restoredRes.stderr);
@@ -844,14 +890,16 @@ describe("slop-ctl e2e: plans ignore, mechanical finders, error exits, and run d
     assert.equal(
       dotnetFormatOut,
       [
-        "Program.cs(4,10): info IDE0051: Private member 'Unused' is unused",
-        "Program.cs(8,10): info IDE0060: Remove unused parameter",
+        "App.sln: Program.cs(4,10): info IDE0051: Private member 'Unused' is unused",
+        "App.sln: Program.cs(8,10): info IDE0060: Remove unused parameter",
+        "Tools.slnx: Program.cs(4,10): info IDE0051: Private member 'Unused' is unused",
+        "Tools.slnx: Program.cs(8,10): info IDE0060: Remove unused parameter",
         "",
       ].join("\n"),
     );
     assert.equal(
       fs.readFileSync(path.join(restoredOut.run, "leads-inspectcode.txt"), "utf8"),
-      "INSPECTCODE_REPORT App.sln\n",
+      "INSPECTCODE_REPORT App.sln\nINSPECTCODE_REPORT Tools.slnx\n",
     );
 
     // 3. Restored solution with jb unavailable -> skipped marker
@@ -866,6 +914,24 @@ describe("slop-ctl e2e: plans ignore, mechanical finders, error exits, and run d
     assert.equal(
       fs.readFileSync(path.join(noJbOut.run, "leads-inspectcode.txt"), "utf8"),
       "skipped: jb not installed\n",
+    );
+
+    // 4. Restored solution where jb inspectcode exits non-zero without writing output -> skipped marker
+    const fakeBinFailJb = makeFakeBinDir("dotnet-fail-jb", {
+      npx: 'printf "FAKE_NPX %s\\n" "$*"',
+      dotnet: 'echo "Program.cs(1,1): info IDE0052: Unread field"',
+      jb: [
+        'if [ "$1" = "--version" ]; then echo "jb 2026.1"; exit 0; fi',
+        'echo "license check failed" >&2',
+        "exit 2",
+      ].join("\n"),
+    });
+    const failJbRes = runSlopCtl(["init"], repo, envWithBin(fakeBinFailJb));
+    assert.equal(failJbRes.status, 0, failJbRes.stderr);
+    const failJbOut = InitOutputSchema.parse(YAML.parse(failJbRes.stdout));
+    assert.match(
+      fs.readFileSync(path.join(failJbOut.run, "leads-inspectcode.txt"), "utf8"),
+      /^skipped: jb inspectcode exited 2: license check failed\n$/,
     );
   });
 

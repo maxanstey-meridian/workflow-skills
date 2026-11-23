@@ -33,13 +33,7 @@ const renderNeedsFromYouSection = (needs: ReadonlyArray<SlopAuditNeed>): string 
 const renderWeightMapSection = (items: ReadonlyArray<SlopAuditWeightMapItem>): string => {
   const lines = items.map((item) => {
     const statusText =
-      item.status === "earned"
-        ? item.earnedWhy !== undefined
-          ? `earned: ${item.earnedWhy}`
-          : "earned"
-        : item.findingId !== undefined
-          ? `**${item.findingId}**`
-          : "finding";
+      item.status === "earned" ? `earned: ${item.earnedWhy}` : `**${item.findingId}**`;
     return `- **${item.capability}** — ${formatLineCount(item.lines)} lines (${item.sharePct}%) — ${statusText}`;
   });
   return `## Weight map\n${lines.join("\n")}`;

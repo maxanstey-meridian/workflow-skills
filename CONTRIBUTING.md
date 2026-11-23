@@ -27,7 +27,7 @@ skills/<routine>/
   roles/              hand-written: the routine's roles under roles/<folder>/, and roles.list
   references/         generated: one file per role, and the rule files
   kinds/              oracle only: kinds.list, hand-written parts under kinds/<name>/, and generated kinds/<name>.md
-  tracer/             hand-written, oracle only: a 3×3 ticket lifecycle decider and, beside it, an `__oracle__` case with its derived row script and e2e test, for running the skill on
+  tracer/             hand-written, oracle only: a 3×3 ticket lifecycle decider and, beside it, an `__oracle__` case with its derived row script, for running the skill on
 
 skills/meridian/references/
   rules/              hand-written: the rule library

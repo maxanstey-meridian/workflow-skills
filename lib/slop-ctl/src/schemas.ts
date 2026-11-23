@@ -51,15 +51,25 @@ export const AreasInputSchema = z.strictObject({
 });
 export type AreasInput = z.infer<typeof AreasInputSchema>;
 
-export const WeightMapItemSchema = z.strictObject({
+const weightMapBaseFields = {
   capability: NonEmptyStringSchema,
   files: NonEmptyStringSchema,
   lines: z.number().int().min(0),
   sharePct: z.number().min(0).max(100),
-  status: z.enum(["earned", "finding"]),
-  earnedWhy: NonEmptyStringSchema.optional(),
-  findingId: NonEmptyStringSchema.optional(),
-});
+};
+
+export const WeightMapItemSchema = z.discriminatedUnion("status", [
+  z.strictObject({
+    ...weightMapBaseFields,
+    status: z.literal("earned"),
+    earnedWhy: NonEmptyStringSchema,
+  }),
+  z.strictObject({
+    ...weightMapBaseFields,
+    status: z.literal("finding"),
+    findingId: NonEmptyStringSchema,
+  }),
+]);
 export type WeightMapItem = z.infer<typeof WeightMapItemSchema>;
 
 const findingBodyFields = {
@@ -203,25 +213,27 @@ export const VerifyReportSchema = z.strictObject({
 });
 export type VerifyReport = z.infer<typeof VerifyReportSchema>;
 
-export const SlopAuditFindingSchema = z.strictObject({
-  id: NonEmptyStringSchema,
-  sign: SignNumberSchema,
-  kind: FindingKindSchema,
-  risk: FindingRiskSchema,
-  where: NonEmptyStringSchema,
-  what: NonEmptyStringSchema,
-  replaceWith: NonEmptyStringSchema,
-  removes: NonEmptyStringSchema,
-  usersLose: NonEmptyStringSchema,
-  proof: NonEmptyStringSchema,
-  against: NonEmptyStringSchema.optional(),
-  verifierAdds: NonEmptyStringSchema.optional(),
-  protectedBy: NonEmptyStringSchema,
-  hunterNotes: z.array(NonEmptyStringSchema).optional(),
-  unverified: z.boolean().optional(),
-  raisedByVerifier: z.boolean().optional(),
-  mootIf: NonEmptyStringSchema.optional(),
-});
+export const SlopAuditFindingSchema = z
+  .strictObject({
+    id: NonEmptyStringSchema,
+    sign: SignNumberSchema,
+    kind: FindingKindSchema,
+    risk: FindingRiskSchema,
+    where: NonEmptyStringSchema,
+    what: NonEmptyStringSchema,
+    replaceWith: NonEmptyStringSchema,
+    removes: NonEmptyStringSchema,
+    usersLose: NonEmptyStringSchema,
+    proof: NonEmptyStringSchema,
+    against: NonEmptyStringSchema.optional(),
+    verifierAdds: NonEmptyStringSchema.optional(),
+    protectedBy: NonEmptyStringSchema,
+    hunterNotes: z.array(NonEmptyStringSchema).optional(),
+    unverified: z.boolean().optional(),
+    raisedByVerifier: z.boolean().optional(),
+    mootIf: NonEmptyStringSchema.optional(),
+  })
+  .superRefine(refineJudgementAgainst);
 export type SlopAuditFinding = z.infer<typeof SlopAuditFindingSchema>;
 
 export const SlopAuditNeedSchema = z.strictObject({
@@ -230,14 +242,24 @@ export const SlopAuditNeedSchema = z.strictObject({
 });
 export type SlopAuditNeed = z.infer<typeof SlopAuditNeedSchema>;
 
-export const SlopAuditWeightMapItemSchema = z.strictObject({
+const slopAuditWeightMapBaseFields = {
   capability: NonEmptyStringSchema,
   lines: z.number().int().min(0),
   sharePct: z.number().min(0).max(100),
-  status: z.enum(["earned", "finding"]),
-  earnedWhy: NonEmptyStringSchema.optional(),
-  findingId: NonEmptyStringSchema.optional(),
-});
+};
+
+export const SlopAuditWeightMapItemSchema = z.discriminatedUnion("status", [
+  z.strictObject({
+    ...slopAuditWeightMapBaseFields,
+    status: z.literal("earned"),
+    earnedWhy: NonEmptyStringSchema,
+  }),
+  z.strictObject({
+    ...slopAuditWeightMapBaseFields,
+    status: z.literal("finding"),
+    findingId: NonEmptyStringSchema,
+  }),
+]);
 export type SlopAuditWeightMapItem = z.infer<typeof SlopAuditWeightMapItemSchema>;
 
 export const SlopAuditCleanupItemSchema = z.strictObject({

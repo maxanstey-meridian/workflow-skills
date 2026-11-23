@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { writeTextAtomic } from "./io.ts";
 import type { SizedFile } from "./schemas.ts";
 import { OVERSIZED_LINE_LIMIT, TOP_BIGGEST_LIMIT } from "./transition.ts";
 
@@ -270,19 +271,7 @@ export const computeChurn = (root: string, scopeFiles: ReadonlyArray<string>): s
 };
 
 const writeLeadFile = (runDir: string, fileName: string, content: string): void => {
-  fs.mkdirSync(runDir, { recursive: true });
-  const target = path.join(runDir, fileName);
-  const tmpPath = path.join(
-    runDir,
-    `.${fileName}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`,
-  );
-  fs.writeFileSync(tmpPath, content, "utf8");
-  try {
-    fs.renameSync(tmpPath, target);
-  } catch (err) {
-    fs.rmSync(tmpPath, { force: true });
-    throw err;
-  }
+  writeTextAtomic(path.join(runDir, fileName), content);
 };
 
 const hasNuxtConfig = (root: string): boolean => {
@@ -340,6 +329,34 @@ const combineOutput = (stdout: string, stderr: string): string => {
 export type MechanicalFinderOptions = {
   lintCmd?: string;
   skipFinders?: boolean;
+  deferJscpd?: boolean;
+};
+
+export const runJscpd = (root: string, runDir: string, scopeFiles: ReadonlyArray<string>): void => {
+  const jscpdConfigPath = path.join(runDir, "jscpd.json");
+  if (scopeFiles.length === 0) {
+    fs.rmSync(jscpdConfigPath, { force: true });
+    writeLeadFile(runDir, "leads-jscpd.txt", "");
+    return;
+  }
+  const jscpdConfig = {
+    path: scopeFiles.map((filePath) => path.join(root, filePath)),
+  };
+  writeLeadFile(runDir, "jscpd.json", `${JSON.stringify(jscpdConfig, null, 2)}\n`);
+  const res = spawnSync(
+    "npx",
+    ["--yes", "jscpd@5", "--config", jscpdConfigPath, "--reporters", "console"],
+    {
+      cwd: root,
+      encoding: "utf8",
+      maxBuffer: MAX_BUFFER_BYTES,
+    },
+  );
+  if (res.error !== undefined) {
+    writeLeadFile(runDir, "leads-jscpd.txt", `skipped: ${res.error.message}\n`);
+  } else {
+    writeLeadFile(runDir, "leads-jscpd.txt", combineOutput(res.stdout, res.stderr));
+  }
 };
 
 export const runMechanicalFinders = (
@@ -376,26 +393,8 @@ export const runMechanicalFinders = (
   }
 
   // 2. jscpd (any stack, restricted to scope.txt)
-  if (scopeFiles.length > 0) {
-    const jscpdConfigPath = path.join(runDir, "jscpd.json");
-    const jscpdConfig = {
-      path: scopeFiles.map((filePath) => path.join(root, filePath)),
-    };
-    writeLeadFile(runDir, "jscpd.json", `${JSON.stringify(jscpdConfig, null, 2)}\n`);
-    const res = spawnSync(
-      "npx",
-      ["--yes", "jscpd@5", "--config", jscpdConfigPath, "--reporters", "console"],
-      {
-        cwd: root,
-        encoding: "utf8",
-        maxBuffer: MAX_BUFFER_BYTES,
-      },
-    );
-    if (res.error !== undefined) {
-      writeLeadFile(runDir, "leads-jscpd.txt", `skipped: ${res.error.message}\n`);
-    } else {
-      writeLeadFile(runDir, "leads-jscpd.txt", combineOutput(res.stdout, res.stderr));
-    }
+  if (opts.deferJscpd !== true && scopeFiles.length > 0) {
+    runJscpd(root, runDir, scopeFiles);
   }
 
   // 3. .NET (only if solutions exist; requires obj/project.assets.json without restoring)
@@ -459,21 +458,50 @@ export const runMechanicalFinders = (
       if (jbCheck.error !== undefined || jbCheck.status !== 0) {
         writeLeadFile(runDir, "leads-inspectcode.txt", "skipped: jb not installed\n");
       } else {
-        const firstSolution = dotnet.solutions[0];
-        if (firstSolution !== undefined) {
-          const outPath = path.join(runDir, "leads-inspectcode.txt");
-          const jbRes = spawnSync(
-            "jb",
-            ["inspectcode", firstSolution, "--no-build", "--swea", `-o=${outPath}`],
-            {
-              cwd: root,
-              encoding: "utf8",
-              maxBuffer: MAX_BUFFER_BYTES,
-            },
-          );
-          if (jbRes.error !== undefined) {
-            writeLeadFile(runDir, "leads-inspectcode.txt", `skipped: ${jbRes.error.message}\n`);
+        const inspectParts: string[] = [];
+        let inspectError: string | undefined;
+        for (let i = 0; i < dotnet.solutions.length; i += 1) {
+          const solution = dotnet.solutions[i];
+          if (solution === undefined) {
+            continue;
           }
+          const tmpOutPath = path.join(runDir, `.leads-inspectcode-${i}.tmp`);
+          try {
+            const jbRes = spawnSync(
+              "jb",
+              ["inspectcode", solution, "--no-build", "--swea", `-o=${tmpOutPath}`],
+              {
+                cwd: root,
+                encoding: "utf8",
+                maxBuffer: MAX_BUFFER_BYTES,
+              },
+            );
+            if (jbRes.error !== undefined) {
+              inspectError = jbRes.error.message;
+              break;
+            }
+            if (fs.existsSync(tmpOutPath)) {
+              const content = fs.readFileSync(tmpOutPath, "utf8");
+              if (content.length > 0) {
+                inspectParts.push(content.endsWith("\n") ? content : `${content}\n`);
+              }
+            } else if (jbRes.status !== 0) {
+              const detail = combineOutput(jbRes.stdout, jbRes.stderr).trim();
+              inspectError =
+                detail.length > 0
+                  ? `jb inspectcode exited ${jbRes.status ?? 1}: ${detail}`
+                  : `jb inspectcode exited ${jbRes.status ?? 1}`;
+            }
+          } finally {
+            fs.rmSync(tmpOutPath, { force: true });
+          }
+        }
+        if (inspectParts.length > 0) {
+          writeLeadFile(runDir, "leads-inspectcode.txt", inspectParts.join(""));
+        } else if (inspectError !== undefined) {
+          writeLeadFile(runDir, "leads-inspectcode.txt", `skipped: ${inspectError}\n`);
+        } else {
+          writeLeadFile(runDir, "leads-inspectcode.txt", "");
         }
       }
     }
