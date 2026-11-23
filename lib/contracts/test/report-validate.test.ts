@@ -322,6 +322,142 @@ describe("report schemas", () => {
       false,
     );
   });
+
+  it("parses valid structured decision needs under GoAuditReportSchema and CycleAuditReportSchema and rejects invalid shapes", () => {
+    const validDecisionNeed = {
+      item: "Empty export behaviour (F2)",
+      whatItIs: "Exporting an empty table currently writes a header-only CSV.",
+      options: [
+        {
+          label: "A",
+          summary: "Fail with a 422 error so callers see no rows matched.",
+          recommended: true,
+        },
+        { label: "B", summary: "Keep writing a header-only CSV." },
+        { label: "C", summary: "Return 204 No Content with an empty body.", recommended: false },
+      ],
+    };
+    const validSimpleNeed = {
+      item: "Run /cycle",
+      rec: "run /cycle",
+    };
+
+    assert.equal(
+      GoAuditReportSchema.safeParse({
+        ...makeGoAudit(),
+        needsFromYou: [validDecisionNeed, validSimpleNeed],
+      }).success,
+      true,
+    );
+    assert.equal(
+      CycleAuditReportSchema.safeParse({
+        ...makeCycleAudit(),
+        needsFromYou: [validDecisionNeed, validSimpleNeed],
+      }).success,
+      true,
+    );
+
+    const invalidNeeds = [
+      // fewer than 2 options
+      {
+        item: "Single option",
+        whatItIs: "Only one choice.",
+        options: [{ label: "A", summary: "Do A.", recommended: true }],
+      },
+      // duplicate option labels (case-insensitive and trimmed)
+      {
+        item: "Duplicate labels",
+        whatItIs: "Labels collide after trimming and lowercasing.",
+        options: [
+          { label: " A ", summary: "Do A.", recommended: true },
+          { label: "a", summary: "Do B." },
+        ],
+      },
+      // 0 recommended options (omitted)
+      {
+        item: "No recommendation",
+        whatItIs: "Neither option is recommended.",
+        options: [
+          { label: "A", summary: "Do A." },
+          { label: "B", summary: "Do B." },
+        ],
+      },
+      // 0 recommended options (explicit false)
+      {
+        item: "All false recommendation",
+        whatItIs: "Both options set recommended: false.",
+        options: [
+          { label: "A", summary: "Do A.", recommended: false },
+          { label: "B", summary: "Do B.", recommended: false },
+        ],
+      },
+      // 2 recommended options
+      {
+        item: "Two recommendations",
+        whatItIs: "Both options are marked recommended.",
+        options: [
+          { label: "A", summary: "Do A.", recommended: true },
+          { label: "B", summary: "Do B.", recommended: true },
+        ],
+      },
+      // missing whatItIs
+      {
+        item: "Missing context",
+        options: [
+          { label: "A", summary: "Do A.", recommended: true },
+          { label: "B", summary: "Do B." },
+        ],
+      },
+      // mixing rec with options
+      {
+        item: "Mixed fields",
+        rec: "A",
+        whatItIs: "Carries both rec and options.",
+        options: [
+          { label: "A", summary: "Do A.", recommended: true },
+          { label: "B", summary: "Do B." },
+        ],
+      },
+      // mixing detail with structured decision
+      {
+        item: "Decision with detail",
+        whatItIs: "Has extra detail key.",
+        detail: "Not allowed on decision items.",
+        options: [
+          { label: "A", summary: "Do A.", recommended: true },
+          { label: "B", summary: "Do B." },
+        ],
+      },
+      // unknown key on option
+      {
+        item: "Unknown option field",
+        whatItIs: "Option has extra key.",
+        options: [
+          { label: "A", summary: "Do A.", recommended: true, extra: "nope" },
+          { label: "B", summary: "Do B." },
+        ],
+      },
+    ];
+
+    for (const invalidNeed of invalidNeeds) {
+      assert.equal(
+        GoAuditReportSchema.safeParse({
+          ...makeGoAudit(),
+          needsFromYou: [invalidNeed],
+        }).success,
+        false,
+        `GoAuditReportSchema should reject: ${invalidNeed.item}`,
+      );
+      assert.equal(
+        CycleAuditReportSchema.safeParse({
+          ...makeCycleAudit(),
+          needsFromYou: [invalidNeed],
+        }).success,
+        false,
+        `CycleAuditReportSchema should reject: ${invalidNeed.item}`,
+      );
+    }
+  });
 });
 
 describe("countReviewFixes", () => {

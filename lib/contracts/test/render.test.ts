@@ -355,6 +355,79 @@ describe("renderGoAudit", () => {
     });
     assert.match(renderGoAudit(allNotBuilt), /- \*\*Decisions:\*\* D1 not built \(skipped\)\./);
   });
+
+  it("renders mixed simple action items and structured decision items under Needs from you", () => {
+    const audit = GoAuditReportSchema.parse({
+      tldr: "Built P1; P2 awaits a decision.",
+      needsFromYou: [
+        {
+          item: "Empty export behaviour (P2)",
+          whatItIs: "Exporting an empty table currently writes a header-only CSV.",
+          options: [
+            {
+              label: "A",
+              summary: "Fail with 422 so callers know no rows matched.",
+              recommended: true,
+            },
+            {
+              label: "B",
+              summary: "Keep writing a header-only CSV.",
+              recommended: false,
+            },
+            {
+              label: "C",
+              summary: "Return 204 No Content.",
+            },
+          ],
+        },
+        {
+          item: "Run /cycle",
+          rec: "run /cycle",
+        },
+        {
+          item: "Verify local install",
+          rec: "check symlinks",
+          detail: "Only you can inspect ~/.gemini/config/skills.",
+        },
+      ],
+      pieces: [
+        { id: "P1", status: "done" },
+        { id: "P2", status: "needs-user" },
+      ],
+      builtPieces: ["P1"],
+    });
+
+    const expected = [
+      "## TLDR",
+      "Built P1; P2 awaits a decision.",
+      "",
+      "## Needs from you",
+      "1. **Empty export behaviour (P2)**",
+      "   - **What it is:** Exporting an empty table currently writes a header-only CSV.",
+      "   - **Options:**",
+      "     - **A (Rec):** Fail with 422 so callers know no rows matched.",
+      "     - **B:** Keep writing a header-only CSV.",
+      "     - **C:** Return 204 No Content.",
+      "2. **Run /cycle** (rec: **run /cycle**)",
+      "3. **Verify local install** (rec: **check symlinks**)",
+      "   Only you can inspect ~/.gemini/config/skills.",
+      "",
+      "## What changed",
+      "- **P1** — done.",
+      "- **P2** — needs the user.",
+      "",
+      "## Verification",
+      "- **Decisions:** none",
+      "- **Checked:** none",
+      "- **Not checked:** none",
+      "",
+      "---",
+      "**Built pieces:** P1",
+      "",
+    ].join("\n");
+
+    assert.equal(renderGoAudit(audit), expected);
+  });
 });
 
 describe("renderCycleAudit", () => {
@@ -554,5 +627,67 @@ describe("renderCycleAudit", () => {
     });
 
     assert.match(renderCycleAudit(notedOnly), /- \*\*Pieces:\*\* P1 done \(attempt 2\)\./);
+  });
+
+  it("renders mixed simple action items and structured decision items under Needs from you", () => {
+    const audit = CycleAuditReportSchema.parse({
+      tldr: "Committed P1; F2 needs a product call.",
+      needsFromYou: [
+        {
+          item: "Fallback timeout policy (F2)",
+          whatItIs: "The adapter currently retries indefinitely when the upstream stalls.",
+          options: [
+            {
+              label: "A",
+              summary: "Cap retries at 3 with exponential backoff and return 503.",
+              recommended: true,
+            },
+            {
+              label: "B",
+              summary: "Fail immediately on the first timeout with no retry.",
+            },
+          ],
+        },
+        {
+          item: "Approve push to main",
+          rec: "push",
+        },
+      ],
+      pieces: [{ id: "P1", status: "done" }],
+      commits: [{ sha: "abc1234", subject: "feat(contracts): build P1", bullets: [] }],
+      gate: "green",
+      builtPieces: ["P1"],
+      specStatus: { status: "building", remaining: "Resolve F2." },
+    });
+
+    const expected = [
+      "## TLDR",
+      "Committed P1; F2 needs a product call.",
+      "",
+      "## Needs from you",
+      "1. **Fallback timeout policy (F2)**",
+      "   - **What it is:** The adapter currently retries indefinitely when the upstream stalls.",
+      "   - **Options:**",
+      "     - **A (Rec):** Cap retries at 3 with exponential backoff and return 503.",
+      "     - **B:** Fail immediately on the first timeout with no retry.",
+      "2. **Approve push to main** (rec: **push**)",
+      "",
+      "## What changed",
+      "- **`abc1234`** `feat(contracts): build P1`",
+      "",
+      "## Verification",
+      "- **Pieces:** P1 done.",
+      "- **Decisions:** none",
+      "- **Gate:** green",
+      "- **Checked:** none",
+      "- **Not checked:** none",
+      "",
+      "---",
+      "**Built pieces:** P1",
+      "**Spec:** building: Resolve F2.",
+      "",
+    ].join("\n");
+
+    assert.equal(renderCycleAudit(audit), expected);
   });
 });

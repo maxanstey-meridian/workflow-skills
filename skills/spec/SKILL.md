@@ -134,7 +134,7 @@ Done when every finding is fixed in `<spec>` (and validated), is an open ask, or
 
 ## 6. Report
 
-Run `node <skill>/scripts/spec-ctl.mjs render spec "<spec>"` when presenting the spec summary, and send the report with this exact 6-line header:
+Run `node <skill>/scripts/spec-ctl.mjs render spec "<spec>"` when presenting the spec summary, and send the report with these 6 fields:
 
 ```
 **TLDR:** <plain English: what the spec sets out to do>
@@ -142,8 +142,20 @@ Run `node <skill>/scripts/spec-ctl.mjs render spec "<spec>"` when presenting the
 **Spec:** <the spec's path> · status <status>
 **Cold read:** <done | skipped: why> · not taken: <1. finding: why it doesn't hold; or none>
 **Parked:** <1. item (rec: fold in | leave, why); or none>
-**Needs from you:** <1. open ask (rec: answer); or, when no ask is open, the one item: run /go and the spec's path>
+**Needs from you:** <when no ask is open, one line: Run /go <spec>; when asks are open, list each ask in the self-contained format below>
 ```
+
+When `openAsks` is non-empty, format each open ask under `**Needs from you:**` so the user can decide without opening `<spec>` or external docs:
+
+```markdown
+1. **<Plain-English title> (`<id>`)**
+   - **What it is:** <plain-English context with any cited ruling or code fact inline>
+   - **Options:**
+     - **A (Rec):** <concrete outcome — what the product or suite will or won't do>
+     - **B:** <concrete alternative outcome>
+```
+
+Keep the single-action item (`Run /go <spec>`) as one line when no asks are open.
 
 Done when the report is sent.
 

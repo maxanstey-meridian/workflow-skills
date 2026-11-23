@@ -85,8 +85,14 @@ Store filler reports under `<case>/reports/fill-<slice>.md`.
 
 1. Run `<ledger> open <case>` and present a concise scan for the user:
    - Row counts by status and slice.
-   - Every row with `source: today` (so the user can confirm it as `ruling`, rewrite `expect`, or mark it `shortfall`).
-   - Every open `question` (numbered with the filler's recommendation).
+   - Every row with `source: today` and every open `question`, numbered in the self-contained decision format below so the user has enough context inline to decide without opening `<slice>.oracle.yaml` (inlining the row's `when`, observed or proposed `expect`, and any cited ruling or code fact under **What it is**, and stating concrete product or suite outcomes per option — e.g., confirming a `today` row as `ruling`, rewriting `expect`, or marking it `shortfall`):
+     ```markdown
+     1. **<Plain-English title> (`<row id>`)**
+        - **What it is:** <plain-English context, including `when`, observed or proposed `expect`, and any cited ruling or code fact inline>
+        - **Options:**
+          - **A (Rec):** <concrete outcome — what the product or suite will or won't do>
+          - **B:** <concrete alternative outcome>
+     ```
    - Every `shortfall`, `cant-happen`, `gone`, or `unplaced` item.
    - Clickable file links to each `<slice>.oracle.yaml`.
 2. Apply any edits the user asks for (or let the user edit `<slice>.oracle.yaml` directly): resolve every `question` to `null`, flip confirmed `today` rows to `ruling`, mark covered rows `other-level` with `reason`, mark retired/unexpressible rows `struck` with `reason`, and record real unfixed defects as `shortfall`.

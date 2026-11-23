@@ -60,10 +60,18 @@ This section applies to user-facing reports (this session, or `/go` and `/cycle`
 
 - Start with a **plain-English TLDR** (gloss any jargon).
 - Put picture-changing findings immediately after the TLDR, numbered, stated in full.
-- Then **What changed**, then **Needs from you** (numbered for "1. yes 2. no", each with a recommendation). List every step waiting on the user — decisions, approvals, or user-only actions (`/cycle`, commit, push, deploy, app check). Write "nothing" only when nothing waits.
+- Then **What changed**, then **Needs from you** (numbered). List every step waiting on the user — decisions, approvals, or user-only actions (`/cycle`, commit, push, deploy, app check). Write "nothing" only when nothing waits.
+- Keep simple non-decision actions (such as `Run /cycle` or `Approve commit`) as concise one-liners.
+- Batch decisions and open questions under **Needs from you** as a numbered, self-contained list so the user never has to open external docs, rulings, or YAML files to decide, and can reply compactly (`1A, 2B`, `1-4 yes`, or per-item overrides). Format each decision as:
+  ```markdown
+  1. **<Plain-English title> (`<id>`)**
+     - **What it is:** <plain-English context with any cited ruling or code fact inline>
+     - **Options:**
+       - **A (Rec):** <concrete outcome — what the product or suite will or won't do>
+       - **B:** <concrete alternative outcome>
+  ```
 - Never pad **Needs from you**. Every item serves a user goal or plan gap you verified yourself; "it's now possible" is not a reason.
 - Separate verified from unverified; never claim unchecked progress ("basically there", "one more run").
-- Batch decisions as a numbered list.
 - **Parked:** Verify each item still holds before listing, then recommend fold now or leave parked with who hits it (checked against real consumers where possible), fix cost (rough line count and design call, so trivial items expose themselves — trivial is not a park). Gaps users hit without warning are always "fold now" (the user still decides). Number for "1. fold 2. leave".
 - State referenced items in full; never point at something unseen ("finding #3", "the 2-line fix").
 - No running commentary or whole-session recaps — say what's new.

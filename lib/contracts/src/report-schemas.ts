@@ -262,13 +262,58 @@ export const AuditFindingSchema = z
   .strict();
 export type AuditFinding = z.infer<typeof AuditFindingSchema>;
 
-export const AuditNeedSchema = z
+export const AuditNeedOptionSchema = z
+  .object({
+    label: z.string().min(1),
+    summary: z.string().min(1),
+    recommended: z.boolean().optional(),
+  })
+  .strict();
+export type AuditNeedOption = z.infer<typeof AuditNeedOptionSchema>;
+
+const AuditNeedActionSchema = z
   .object({
     item: z.string().min(1),
     rec: z.string().min(1),
     detail: z.string().min(1).optional(),
   })
   .strict();
+
+const AuditNeedDecisionSchema = z
+  .object({
+    item: z.string().min(1),
+    whatItIs: z.string().min(1),
+    options: z.array(AuditNeedOptionSchema).min(2),
+  })
+  .strict()
+  .superRefine((need, ctx) => {
+    const seenLabels = new Set<string>();
+    let recommendedCount = 0;
+    for (const [index, option] of need.options.entries()) {
+      const normalized = option.label.trim().toLowerCase();
+      if (seenLabels.has(normalized)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["options", index, "label"],
+          message: `Duplicate option label "${option.label}"`,
+        });
+      } else {
+        seenLabels.add(normalized);
+      }
+      if (option.recommended === true) {
+        recommendedCount += 1;
+      }
+    }
+    if (recommendedCount !== 1) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["options"],
+        message: `Expected exactly one recommended option, found ${recommendedCount}`,
+      });
+    }
+  });
+
+export const AuditNeedSchema = z.union([AuditNeedActionSchema, AuditNeedDecisionSchema]);
 export type AuditNeed = z.infer<typeof AuditNeedSchema>;
 
 export const AuditPieceSchema = z

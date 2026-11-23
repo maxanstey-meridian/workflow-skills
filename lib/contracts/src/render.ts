@@ -50,6 +50,19 @@ const renderNeedsFromYou = (needs: ReadonlyArray<AuditNeed>): string => {
     return "## Needs from you\nnone";
   }
   const lines = needs.map((need, index) => {
+    if ("options" in need) {
+      const optionLines = need.options.map((opt) =>
+        opt.recommended === true
+          ? `     - **${opt.label} (Rec):** ${opt.summary}`
+          : `     - **${opt.label}:** ${opt.summary}`,
+      );
+      return [
+        `${index + 1}. **${need.item}**`,
+        `   - **What it is:** ${need.whatItIs}`,
+        "   - **Options:**",
+        ...optionLines,
+      ].join("\n");
+    }
     const head = `${index + 1}. **${need.item}** (rec: **${need.rec}**)`;
     if (need.detail !== undefined) {
       return `${head}\n   ${need.detail}`;

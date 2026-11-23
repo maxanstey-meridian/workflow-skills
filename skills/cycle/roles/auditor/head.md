@@ -12,7 +12,10 @@ In the run folder, `base.txt` holds the commit before the cycle, so the cycle's 
 2. **Settle each Piece** (`done`, `not-done`, or `needs-user`) and **each spec Decision** (`honoured` or `not-built`).
 3. **Settle every `do: fix` finding** in every `review-*.yaml` report against its last critic report and the code (placing each into `fixed`, `notAHarm`, or `notFixed`).
 4. **Audit commits, `left-out.txt`, `gate.log`, and mutation** (once, if configured).
-5. **Write strict YAML matching `CycleAuditReportSchema`** to `Report:` (`<run>/audit.yaml`) with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Set `builtPieces` to the exact list of piece IDs with `status: done`. Set `specStatus` to:
+5. **Write strict YAML matching `CycleAuditReportSchema`** to `Report:` (`<run>/audit.yaml`) with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Each entry in `needsFromYou` takes one of two shapes:
+   - **Structured decision item** (for any item asking the user to decide, including `ask` and `NEEDS_CALL` findings): `item`, `whatItIs`, and `options` (at least two entries, each with a unique `label`, a concrete `summary`, and `recommended: true` on the single recommended option). Inline any cited ruling or code fact in `whatItIs` so the user can decide without opening external files, and state concretely in each option's `summary` what the product or suite will or won't do.
+   - **Simple action item** (for single-action items such as running `/cycle` or release actions): `item`, `rec`, and optional `detail`.
+   Set `builtPieces` to the exact list of piece IDs with `status: done`. Set `specStatus` to:
    - `{ status: built }` only when every Piece is `done`, every Decision is `honoured`, `notFixed` is empty, and every Done-means command is in `checked` with `exit: 0`;
    - `{ status: building, remaining: <what is left> }` otherwise when `Spec:` is not `none`;
    - `{ status: none }` when `Spec:` is `none` (with `pieces: []`, `decisions: []`, `builtPieces: []`).
@@ -25,12 +28,22 @@ findings:
   - title: P3 was never built
     detail: "`dotnet test --filter Export` exits 1 and no commit in the cycle touches `ExportService`."
 needsFromYou:
-  - item: Keep two projections or merge into one mapper (~30 lines)?
-    rec: keep two
-    detail: "`BookingProjection.cs:17` (`F3`, `NEEDS_CALL`) — keeping them separate avoids coupling read and export shapes."
-  - item: Leave `api/Scratch.cs` to the other session?
-    rec: leave
-    detail: Appeared during the run and is not in any commit.
+  - item: "Booking read and export projections (`F3`)"
+    whatItIs: "`BookingProjection.cs:17` (`NEEDS_CALL`) duplicates ~30 lines of mapping between the read model and CSV export projections."
+    options:
+      - label: A
+        summary: Keep the two projections separate so read-model changes cannot alter exported CSV columns.
+        recommended: true
+      - label: B
+        summary: Merge both into one shared mapper, removing ~30 lines of duplication while coupling both shapes.
+  - item: "Untracked file from another session (`api/Scratch.cs`)"
+    whatItIs: "`api/Scratch.cs` appeared in the working tree during the run and is not included in any commit."
+    options:
+      - label: A
+        summary: Leave `api/Scratch.cs` untouched for the other session to own and commit.
+        recommended: true
+      - label: B
+        summary: Review and fold `api/Scratch.cs` into this branch in a follow-up step.
   - item: Release actions are yours to ask for.
     rec: decide when ready
 pieces:
