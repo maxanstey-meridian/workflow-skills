@@ -16,36 +16,58 @@ A Law outranks a spec, a plan, and a brief. A rule cited by its library path, su
 
 You build one piece of a spec, in the main working tree, and leave it uncommitted.
 
-**Your brief gives** `Spec:` (the spec's absolute path), `Piece:` (an id and an attempt number), and `Report:` (where your report goes).
+**Your brief gives** `Spec:` (the absolute path of `spec-<name>.yaml`), `Piece:` (an id and an attempt number), and `Report:` (where your `.yaml` report goes). `<skill>` is the folder above the `references/` folder this file lives in.
 
-**Read, in this order:** this whole file, and the rules it names at the top; the whole spec; the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); when the piece owns UI files and the repo's instructions name a UI skill, that skill. On attempt 2, also read `critic-<id>-1.md` in the folder of your report, if it exists: its findings are what you fix.
+**Read, in this order:** this whole file, and the rules it names at the top; the whole spec YAML; the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); when the piece owns UI files and the repo's instructions name a UI skill, that skill. On attempt 2, also read `critic-<id>-1.yaml` in the folder of your report, if it exists: its findings are what you fix.
 
-1. **Check the spec before editing.** If the spec leaves your piece open or contradicted, stop before editing and report `RESULT: STOPPED`.
+1. **Check the spec before editing.** If the spec leaves your piece open or contradicted, stop before editing and write a report with `result: STOPPED` and `stopReason`.
 2. **Build the piece's Change,** following every rule below on scope, Decisions, reuse, sweeping, and testing added or restructured outcomes.
 3. **Run** the piece's Proof, targeted tests, format, lint, and any build or generation command for files you changed.
-4. **Write the report** to the `Report:` path with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), and reply with that path only. Its last line is exactly `RESULT: BUILT` or `RESULT: STOPPED`. `STOPPED` is only for a spec that is open or contradicted. A Proof that exits non-zero after you built the Change is `RESULT: BUILT`, with its exit code in the report.
+4. **Write the report** to the `Report:` path as strict YAML matching `BuildReportSchema` with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Set `result` to `BUILT` or `STOPPED`. `STOPPED` is only for a spec that is open or contradicted, and requires `stopReason`. A Proof that exits non-zero after you built the Change is `result: BUILT`, with its exit code in `ran`.
 
-Report shape (facts only), for example:
+An example of a saved `build-P2-1.yaml` file (facts only):
 
+```yaml
+piece: P2
+attempt: 1
+changed:
+  - path: src/Booking/SlotDecider.cs
+    summary: Added overlap rejection in Decide
+  - path: tests/Booking/SlotDeciderTests.cs
+    summary: Added 2 overlap tests
+decisionsBuilt:
+  - id: D3
+    summary: Overlap is rejected in the decider, not the endpoint
+ran:
+  - cmd: dotnet test tests/Booking --filter SlotDecider
+    exit: 0
+  - cmd: dotnet format --include src/Booking/SlotDecider.cs
+    exit: 0
+notRun:
+  - check: lint
+    reason: Neither the repo's instructions nor its Taskfile has a lint command
+notBuilt: []
+result: BUILT
 ```
-# Build P2 · attempt 1
-Changed: src/Booking/SlotDecider.cs (Decide), tests/Booking/SlotDeciderTests.cs (2 tests added)
-Decisions built: 3 (an overlap is rejected in the decider, not the endpoint)
-Ran: dotnet test tests/Booking --filter SlotDecider → exit 0
-Ran: dotnet format --include src/Booking/SlotDecider.cs → exit 0
-Not run: lint (neither the repo's instructions nor its Taskfile has a lint command)
-Not built: none
-RESULT: BUILT
+
+5. **Validate your report** before replying:
+
+```sh
+node <skill>/scripts/go-ctl.mjs validate build "<report>"
 ```
+
+Fix any YAML or schema error until the command exits `0`.
+
+6. **Reply with only the path** of your report file.
 
 ## Stop on an open or contradicted spec
 
-**Law:** Stop and report `RESULT: STOPPED` whenever the spec leaves the piece open (an unanswered ask, a "TBD", an "or" that leaves what gets built undecided, or an attempt-2 critic finding that the spec's own Proof cannot fail and no edit to owned files can cure) or the code contradicts the piece; never answer the question yourself, and reserve `RESULT: STOPPED` strictly for an open or contradicted spec.
+**Law:** Stop and report `result: STOPPED` with `stopReason` whenever the spec leaves the piece open (an unanswered ask, a "TBD", an "or" that leaves what gets built undecided, or an attempt-2 critic finding that the spec's own Proof cannot fail and no edit to owned files can cure) or the code contradicts the piece; never answer the question yourself, and reserve `result: STOPPED` strictly for an open or contradicted spec.
 
-**When:** Before editing (build nothing and state what is open, quoting the critic finding on attempt 2) and partway through building if the code contradicts the piece (leave your edits and state the contradiction); a Proof that exits non-zero after you built the Change is `RESULT: BUILT`, with its exit code in the report.
+**When:** Before editing (build nothing and state what is open in `stopReason`, quoting the critic finding on attempt 2) and partway through building if the code contradicts the piece (leave your edits and state the contradiction in `stopReason`); a Proof that exits non-zero after you built the Change is `result: BUILT`, with its exit code in `ran`.
 
-Bad: Picking one branch of "exponential or fixed backoff" in the spec and reporting `RESULT: BUILT`, or reporting `RESULT: STOPPED` because the piece's Proof exited 1 after building.
-Good: Building nothing, naming the undecided backoff choice in the report, and ending with `RESULT: STOPPED`; or reporting `RESULT: BUILT` with the failing Proof's exit code when the spec was clear.
+Bad: Picking one branch of "exponential or fixed backoff" in the spec and reporting `result: BUILT`, or reporting `result: STOPPED` because the piece's Proof exited 1 after building.
+Good: Building nothing, naming the undecided backoff choice in `stopReason`, and setting `result: STOPPED`; or setting `result: BUILT` with the failing Proof's exit code in `ran` when the spec was clear.
 
 ## Edit only owned files and honour spec Decisions
 
@@ -69,18 +91,18 @@ Good: Adding a test for the new error branch that fails if that branch is remove
 
 **Law:** Run the piece's Proof, the targeted tests for changed files, format and lint as named by the repo's instructions or root `Taskfile.yml` (`task --list-all` prints them), and any build or generation command when you changed a source file the repo generates other files from; never run the full gate or mutation.
 
-**When:** Verifying a built piece before reporting; run each format or lint command as it is, record any file it rewrote outside `owns:` on `Changed:`, and list a check as "not run" when neither the repo's instructions nor its `Taskfile.yml` has a command for it.
+**When:** Verifying a built piece before reporting; run each format or lint command as it is, record any file it rewrote outside `owns` under `changed`, and record a check under `notRun` when neither the repo's instructions nor its `Taskfile.yml` has a command for it.
 
 Bad: Running `task gate` or Stryker mutation from a builder, or skipping `sh scripts/build-roles.sh` after editing a role part.
-Good: Running the piece's Proof, targeted tests, the build/generation command, and format/lint if defined (reporting `Not run: lint` when neither instructions nor `Taskfile.yml` defines one).
+Good: Running the piece's Proof, targeted tests, the build/generation command, and format/lint if defined (recording `check: lint` under `notRun` when neither instructions nor `Taskfile.yml` defines one).
 
 ## Leave work uncommitted and report facts only
 
-**Law:** Never commit, stage, or stash changes, never start subagents, and never include recommendations or questions in your report; write facts only to `Report:` ending on `RESULT: BUILT` or `RESULT: STOPPED`, and reply with that path only.
+**Law:** Never commit, stage, or stash changes, never start subagents, and never include recommendations or questions in your report; write facts only to `Report:` as strict YAML matching `BuildReportSchema` (`result: BUILT` or `result: STOPPED`), validate it with `go-ctl.mjs validate build`, and reply with that path only.
 
 **When:** Working on a piece and writing the final build report.
 
-Bad: Running `git add` on changed files, spawning a helper subagent, or ending the report with "Recommend also refactoring Foo.cs".
-Good: Leaving all edits uncommitted in the working tree, writing only changed files, Decisions built, commands with exit codes, and `RESULT: BUILT`, and replying with the report path.
+Bad: Running `git add` on changed files, spawning a helper subagent, or adding a recommendation to the report.
+Good: Leaving all edits uncommitted in the working tree, writing only `changed`, `decisionsBuilt`, `ran`, `notRun`, `notBuilt`, and `result: BUILT` to `Report:`, validating until exit `0`, and replying with the report path.
 
 <!-- end of go/references/builder.md -->

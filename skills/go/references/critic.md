@@ -16,41 +16,56 @@ A Law outranks a spec, a plan, and a brief. A rule cited by its library path, su
 
 A builder has finished one piece of a spec. You check what is in the tree against the spec.
 
-**Your brief gives** `Spec:`, `Piece:` (an id and an attempt number), and `Report:` (where your report goes).
+**Your brief gives** `Spec:` (the absolute path of `spec-<name>.yaml`), `Piece:` (an id and an attempt number), and `Report:` (where your `.yaml` report goes). `<skill>` is the folder above the `references/` folder this file lives in.
 
-**Read:** this whole file, and the rules (see Rules, at the top of this file); the whole spec; the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); when the piece owns UI files and the repo's instructions name a UI skill, that skill; and the piece's diff, `git diff HEAD -- <the paths on the piece's owns:>`, plus any untracked file among them (`git status --short -- <those paths>`).
+**Read:** this whole file, and the rules (see Rules, at the top of this file); the whole spec YAML; the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); when the piece owns UI files and the repo's instructions name a UI skill, that skill; and the piece's diff, `git diff HEAD -- <the paths on the piece's owns>`, plus any untracked file among them (`git status --short -- <those paths>`).
 
-The source you check against is the piece in the spec (its Change, its Proof, and its `owns:`) and every Decision in the spec that bears on it.
+The source you check against is the piece in the spec (its `change`, its `proof`, and its `owns`) and every Decision in the spec that bears on it.
 
 `status-before.txt`, in the folder of your report, is `git status --short` from before any builder started. A path it lists was already changed before this run, so its diff holds earlier edits as well as the builder's: for that path, raise no Extra finding.
 
-1. **Run the proof yourself:** the command the piece's Proof names, the targeted tests for the changed files, and format and lint in check mode on them, recording each command and its exit code.
-2. **Compare the diff with the source** across every rule below (`Missing`, `Extra`, `Misunderstood`, `Shrunk check`, and `Unproven`).
-3. **Verdict:** `FAIL` if any command exits non-zero or any finding stands; else `PASS`. A check other than the Proof that could not run goes under `Not run` and does not change the verdict.
-4. **Write the report** to the `Report:` path with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), and reply with that path only. The verdict is the file's last line, exactly `VERDICT: PASS` or `VERDICT: FAIL`.
+1. **Run the proof yourself:** the command the piece's Proof names, the targeted tests for the changed files, and format and lint in check mode on them, recording each command and its exit code in `ran`.
+2. **Compare the diff with the source** across every rule below (`missing`, `extra`, `misunderstood`, `shrunkCheck`, and `unproven`).
+3. **Verdict:** `FAIL` if any command in `ran` exits non-zero or any finding stands; else `PASS`. A check other than the Proof that could not run goes under `notRun` and does not change the verdict.
+4. **Write the report** to the `Report:` path as strict YAML matching `GoCriticReportSchema` with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`).
 
-Report shape, for example:
+An example of a saved `critic-P2-1.yaml` file:
 
+```yaml
+piece: P2
+attempt: 1
+ran:
+  - cmd: dotnet test tests/Booking --filter SlotDecider
+    exit: 0
+  - cmd: dotnet format --verify-no-changes --include src/Booking/SlotDecider.cs
+    exit: 0
+notRun: []
+missing:
+  - 'Decision D3 says "an overlap returns Rejected(Overlap)"; SlotDecider.cs:41 throws InvalidOperationException'
+extra: []
+misunderstood: []
+shrunkCheck: []
+unproven: []
+verdict: FAIL
 ```
-# Critic P2 · attempt 1
-Ran: dotnet test tests/Booking --filter SlotDecider → exit 0
-Ran: dotnet format --verify-no-changes --include src/Booking/SlotDecider.cs → exit 0
-Not run: none
-Missing: Decision 3 says "an overlap returns Rejected(Overlap)"; SlotDecider.cs:41 throws InvalidOperationException
-Extra: none
-Misunderstood: none
-Shrunk check: none
-Unproven: none
-VERDICT: FAIL
+
+5. **Validate your report** before replying:
+
+```sh
+node <skill>/scripts/go-ctl.mjs validate go-critic "<report>"
 ```
+
+Fix any YAML, schema, or verdict-consistency error until the command exits `0`.
+
+6. **Reply with only the path** of your report file.
 
 ## Judge from the tree, never the builder's report
 
 **Law:** Use only the working tree, the spec, and your own command runs as evidence; never read the builder's report.
 
-**When:** Checking any built piece of a spec against its Change, Proof, `owns:`, and every Decision that bears on it.
+**When:** Checking any built piece of a spec against its Change, Proof, `owns`, and every Decision that bears on it.
 
-Bad: Opening `build-P2-1.md` to see which files the builder changed or whether the tests passed.
+Bad: Opening `build-P2-1.yaml` to see which files the builder changed or whether the tests passed.
 Good: Running `git diff HEAD -- <owns>` and `git status --short -- <owns>`, reading the spec and files directly, and running the checks yourself.
 
 ## Run Proof and read-only checks yourself
@@ -84,9 +99,9 @@ Good: Reading the test assertions for every added or restructured outcome and re
 
 **Law:** Never edit, format, or create any file other than your report, never break code by hand to test a check, never commit, stage, or start subagents, and never judge style or recommend a fix.
 
-**When:** Conducting a critic review and writing the critic report ending in `VERDICT: PASS` or `VERDICT: FAIL`.
+**When:** Conducting a critic review, writing the critic report matching `GoCriticReportSchema` (`verdict: PASS` or `verdict: FAIL`), and validating it with `go-ctl.mjs validate go-critic`.
 
 Bad: Temporarily deleting a line of source code to watch a test fail, commenting on variable naming, or writing "Fix by changing line 41 to return Rejected".
-Good: Reading code and tests without modifying the tree, reporting only objective findings against the spec and tests, and ending on `VERDICT: PASS` or `VERDICT: FAIL`.
+Good: Reading code and tests without modifying the tree, reporting only objective findings against the spec and tests with `verdict: PASS` or `verdict: FAIL`, validating until exit `0`, and replying with the report path.
 
 <!-- end of go/references/critic.md -->

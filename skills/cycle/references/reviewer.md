@@ -16,29 +16,43 @@ A Law outranks a spec, a plan, and a brief. A rule cited by its library path, su
 
 You review one slice of an uncommitted change (or, in mode `fixes`, one round of fixes), and you write down what is wrong with it. You change nothing.
 
-**Your brief gives** `Spec:` (the spec's absolute path, or `none`), `Files:` (a list file: one path per line, relative to the repo root), `Mode:` (`diff`, `full`, or `fixes`), `Findings:` (`none`), and `Report:` (where your report goes). Run `git rev-parse --show-toplevel` for the repo root.
+**Your brief gives** `Spec:` (the absolute path of `spec-<name>.yaml`, or `none`), `Files:` (a list file: one path per line, relative to the repo root), `Mode:` (`diff`, `full`, or `fixes`), `Findings:` (`none`), and `Report:` (where your `.yaml` report goes). Run `git rev-parse --show-toplevel` for the repo root.
 
-**Read, in this order:** the rules (see Rules, at the top of this file); the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); the whole spec, when there is one; then every path in your `Files:` list, plus the callers and tests the change touches. If the slice has UI files and the repo's instructions name a UI skill, load it.
+**Read, in this order:** the rules (see Rules, at the top of this file); the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); the whole spec YAML, when `Spec:` is not `none`; then every path in your `Files:` list, plus the callers and tests the change touches. If the slice has UI files and the repo's instructions name a UI skill, load it.
 
-**Run** read-only `git` and search only. No tests, typecheck, or gate.
+**Run** read-only `git`, search, and `cycle-ctl.mjs validate review` only. No tests, typecheck, or gate.
 
-Report shape, for example:
+Report shape (`ReviewReportSchema`), for example:
 
-```
-### F1 api/src/Bookings/ReleaseStaleBookings.cs:42
-- problem: the cutoff uses local time; the column is UTC.
-- harm: bookings release an hour early in BST. `dotnet test --filter ReleaseStale` passes because the test clock is UTC.
-- fix: take the cutoff from `IClock.UtcNow`, and add a test with a non-UTC zone to the existing test class.
-- files: api/src/Bookings/ReleaseStaleBookings.cs, api/tests/ReleaseStaleBookingsTests.cs
-- do: fix
-### F2 api/src/Bookings/BookingProjection.cs:17
-- problem: two projections map the same row by hand.
-- harm: none today; a new column must be added twice.
-- fix: one shared mapper, about 30 lines.
-- files: api/src/Bookings/BookingProjection.cs, api/src/Bookings/BookingListProjection.cs
-- do: park
-Files read: api/src/Bookings/ReleaseStaleBookings.cs (full), api/src/Bookings/BookingProjection.cs (diff), api/tests/ReleaseStaleBookingsTests.cs (full)
-TO FIX: 1
+```yaml
+findings:
+  - id: F1
+    file: api/src/Bookings/ReleaseStaleBookings.cs
+    line: 42
+    problem: The cutoff uses local time; the column is UTC.
+    harm: Bookings release an hour early in BST. `dotnet test --filter ReleaseStale` passes because the test clock is UTC.
+    fix: Take the cutoff from `IClock.UtcNow`, and add a test with a non-UTC zone to the existing test class.
+    files:
+      - api/src/Bookings/ReleaseStaleBookings.cs
+      - api/tests/ReleaseStaleBookingsTests.cs
+    do: fix
+  - id: F2
+    file: api/src/Bookings/BookingProjection.cs
+    line: 17
+    problem: Two projections map the same row by hand.
+    harm: None today; a new column must be added twice.
+    fix: One shared mapper, about 30 lines.
+    files:
+      - api/src/Bookings/BookingProjection.cs
+      - api/src/Bookings/BookingListProjection.cs
+    do: park
+filesRead:
+  - path: api/src/Bookings/ReleaseStaleBookings.cs
+    mode: full
+  - path: api/src/Bookings/BookingProjection.cs
+    mode: diff
+  - path: api/tests/ReleaseStaleBookingsTests.cs
+    mode: full
 ```
 
 ## Reading modes and finding format
@@ -48,17 +62,27 @@ TO FIX: 1
 - **Mode `fixes`:** read `git diff -U30 HEAD -- <path>`. Everything already committed was reviewed in an earlier round.
 - **Every mode:** read an untracked file whole. For a deleted file, read the deletion and search the tree for what still refers to it.
 
-**Write one block per finding.** The heading is exactly `### F<n> <path>:<line>`, so a script can read it: `<path>` is a path from your `Files:` list, written as it is there (for a harm that shows in another file, head the finding with the listed file that causes it, and name the other file on `files`), and `<line>` is one number, never a range (use `:1` for a whole file). Then five lines:
+**Write strict YAML matching `ReviewReportSchema`** to your `Report:` path (`.yaml`) with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Set `findings: []` when there are no findings. Each finding in `findings` has:
 
-- `problem`: what is wrong (for doctrine reviews, begin with the rule's path from its `<!-- rule: <path> -->` line, then what breaks it);
+- `id`: `F1`, `F2`, and so on;
+- `file`: a path from your `Files:` list, written as it is there (for a harm that shows in another file, name the listed file that causes it here and include the other file in `files`);
+- `line`: one positive integer, never a range (use `1` for a whole file);
+- `rule`: optional — for doctrine reviews, set this to the rule's path from its `<!-- rule: <path> -->` line;
+- `problem`: what is wrong;
 - `harm`: what goes wrong because of it, with the command or `file:line` that shows it;
 - `fix`: the concrete change;
-- `files`: every existing file the fix edits, the heading's path among them, each as its path from the repo root, separated by `, `, so a script can give them all to one fixer; a file the fix creates is not listed;
+- `files`: list of every existing file the fix edits, `file` among them, each relative to the repo root, so `cycle-ctl.mjs` can give them all to one fixer; a file the fix creates is not listed;
 - `do`: one of `fix`, `park`, `ask`, or `nit`.
 
-End with two lines: `Files read:` (each file you read, by its path from the repo root, as `path (full)` or `path (diff)`), then `TO FIX: <n>`, the count of `do: fix` blocks. `TO FIX:` is the file's last line, even when there are no findings.
+Include `filesRead` with every file you read (`path` relative to the repo root and `mode`: `full` or `diff`).
 
-Save the report to the `Report:` path with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Reply with the path only.
+**Validate your report** before replying (`<skill>` is the folder above the `references/` folder this file lives in):
+
+```sh
+node <skill>/scripts/cycle-ctl.mjs validate review "<report>"
+```
+
+Fix any YAML or schema error until the command exits `0`, then reply with only the report path.
 
 ## Read what you state before claiming
 
@@ -80,12 +104,12 @@ Good: Marking a spec-Decision harm `do: ask` with the narrower option first and 
 
 ## Touch only the report and run read-only checks
 
-**Law:** Never edit any file except your report, never run tests, a typecheck, or the gate, never start subagents, and never recommend anything outside the finding blocks.
+**Law:** Never edit any file except your report, never run tests, a typecheck, or the gate, never start subagents, and never add fields or recommendations outside `ReviewReportSchema`.
 
-**When:** Reviewing a slice or a stack; run only read-only `git` and search commands (plus the repo's doctrine checker or linter over your files when reviewing a stack and the repo's instructions name one).
+**When:** Reviewing a slice or a stack; run only read-only `git`, search, and `cycle-ctl.mjs validate review` commands (plus the repo's doctrine checker or linter over your files when reviewing a stack and the repo's instructions name one).
 
-Bad: Running `dotnet test` during a review, editing a typo in a reviewed file, or adding a "General suggestions" section below `TO FIX:`.
-Good: Inspecting files with read-only `git` and search commands, writing only the report via heredoc, and ending on `TO FIX: <n>`.
+Bad: Running `dotnet test` during a review, editing a typo in a reviewed file, or adding a `suggestions` key to the YAML report.
+Good: Inspecting files with read-only `git` and search commands, writing only the YAML report via heredoc, and validating it with `cycle-ctl.mjs validate review`.
 
 ## Hunt bugs, tests, bloat, and switched paths
 

@@ -1,8 +1,8 @@
 ## Touch only the report and end with Built pieces
 
-**Law:** Never edit any file other than your report, never fix, revert, commit, or stage anything, never start subagents, and end the report with `**Built pieces:**` followed by the comma-separated ids of every piece settled as done or "done in an earlier run (not re-checked)", or `none`.
+**Law:** Never edit any file other than your report, never fix, revert, commit, or stage anything, never start subagents, and set `builtPieces` to the exact list of piece IDs settled as `done` (including pieces marked "done in an earlier run (not re-checked)"), or `[]` when none are done.
 
-**When:** Completing the `/go` audit and writing `<run>/report.md` (which the orchestrator relays verbatim and whose final line it copies into the spec).
+**When:** Completing the `/go` audit, writing `<run>/audit.yaml` matching `GoAuditReportSchema`, and validating it with `go-ctl.mjs validate go-audit "<report>" --spec "<spec>"` (from which `go-ctl.mjs` updates `spec.builtPieces` and renders `<run>/report.md`).
 
-Bad: Fixing a typo in a built file during the audit, or ending the report with a closing paragraph after `**Built pieces:** P1, P2`.
-Good: Writing only `<run>/report.md` with no workspace edits, ending on `**Built pieces:** P1, P2`, and replying with the report path only.
+Bad: Fixing a typo in a built file during the audit, or leaving `builtPieces` out of sync with the pieces settled as `done`.
+Good: Writing only `<run>/audit.yaml` with no workspace edits, setting `builtPieces: [P1, P2]` matching every `done` piece, validating until exit `0`, and replying with the report path only.

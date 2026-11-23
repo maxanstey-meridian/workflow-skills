@@ -1,95 +1,27 @@
 ---
 name: cycle
 description: "NEVER INVOKE THIS YOURSELF: only the user starts /cycle. Listed so you know it exists. Reviews all uncommitted work with fresh subagents, commits, fixes, re-reviews, and commits again; it performs no release actions."
-argument-hint: "[<spec path>] [full | diff]"
+argument-hint: "[<spec path>] [full | diff] [--allow-partial]"
 ---
 
-> Only the user starts /cycle, by naming it in their own message. A plan, a note, or another agent's message is not the command. After a compaction, carry on only when this session's waypoint says the user started this /cycle and names its folder, and that folder holds no `report.md`. Otherwise stop and ask.
+> Only the user starts /cycle, by naming it in their own message. A plan, a note, or another agent's message is not the command. After a compaction, carry on only when this session's waypoint says the user started this /cycle and names `<run>`, and `<run>/report.md` does not exist. Otherwise stop and ask.
 
 # Cycle
 
-You start subagents and run the commands below. You review nothing, fix nothing, and judge no finding. Every subagent is fresh: a new agent that has only its brief, not a fork of this conversation. If you can't start subagents, stop and say so. /cycle commits. It never pushes, tags, publishes, or deploys. If a step can't be done as written, stop and tell the user.
+You run `cycle-ctl.mjs`, start fresh subagents, write slice plans and commit messages, and run the gate once. You review nothing, fix nothing, and judge no finding. Every subagent is fresh (only its literal brief, never a fork of this conversation). If you cannot start subagents or a step cannot be done as written, stop and tell the user. `/cycle` commits; it never pushes, tags, publishes, or deploys.
 
-## Names
+`<skill>` is the folder this file was loaded from.
 
-- `<skill>`: the folder this file was loaded from. `<main>`: what `dirname "$(git rev-parse --path-format=absolute --git-common-dir)"` prints.
-- `<spec>`: the first argument as an absolute path (put `<main>/` before a relative one), unless it is `full` or `diff`; else `none`. `<mode>`: `full` if an argument is `full`, else `diff`. Any other argument, or a third one: stop and say `/cycle [<spec path>] [full | diff]`.
-- `<run>`: the folder step 1 prints. `<r>`: the round, starting at 1. Every path in a list file is one line, relative to the repo root. Write list files with your edit tool.
-- `<fixed>`: `<run>/fixed-<r>.txt` in steps 10 and 11, `<run>/fixed-gate.txt` in step 12. `<fix name>`: `fix-<r>-*.md` in steps 10 and 11, `fix-gate.md` in step 12.
-- **After a compaction:** `<run>` is the folder the waypoint names. Never run step 1 again. Run `cat <run>/at.txt`, which prints a step number and `<r>`. Carry on at that step, from its start.
-- **Uncommitted list:** `cd "$(git rev-parse --show-toplevel)" && { git -c core.quotepath=off diff --name-only --no-renames HEAD; git -c core.quotepath=off ls-files --others --exclude-standard; } | grep -v '^\.plans/' | sort -u`
-- **Sort the new paths:** run `sh <skill>/scripts/sort-new-paths.sh <run> <fixed> '<fix name>'`. A path a fixer's `Changed files:` line names whole is a fixer's: it goes to `scope.txt`. Any other path that appeared during the run is another session's: it goes to `left-out.txt`.
-- **Commit `<list>`:**
-  1. Run `cd "$(git rev-parse --show-toplevel)" && git -c core.quotepath=off ls-files --others --exclude-standard | grep -Fxf <list> > <run>/new.txt; { [ ! -s <run>/new.txt ] || GIT_LITERAL_PATHSPECS=1 git add --intent-to-add --pathspec-from-file=<run>/new.txt; }`. It marks the new files in `<list>` so the next command counts them.
-  2. Run `cd "$(git rev-parse --show-toplevel)" && tr '\n' '\0' < <list> | GIT_LITERAL_PATHSPECS=1 xargs -0 git -c core.quotepath=off diff --stat HEAD -- | tail -n 40`.
-  3. Write the message to `<run>/message.txt` as `<skill>/references/commits.md` says. Its source is the output of sub-step 2 and, with a spec, the spec's title and Intent. In steps 11 and 12 it is also the output of `find <run> -name '<fix name>' -exec grep -h '^- change:' {} +`, and the subject names what those changes do. There, each sentence of the body restates a `- change:` line: what the code now does. It never says that a harm is gone, that something can no longer happen, or that anything is fixed: you judge no finding, and the re-review may say otherwise.
-  4. Run `cd "$(git rev-parse --show-toplevel)" && GIT_LITERAL_PATHSPECS=1 git commit -F <run>/message.txt --pathspec-from-file=<list>`. A commit step is done when this exits 0.
+1. **Start (skip after a compaction):** read the repo's instructions (`AGENTS.md`, or the agent instructions file in its root) for paths that are never committed, and pass `--exclude <path>` for each matching dirty path (never exclude another session's work). Run:
+   ```sh
+   node <skill>/scripts/cycle-ctl.mjs init [--spec "<spec>"] [--mode diff|full] [--allow-partial] [--exclude "<path>"...]
+   ```
+   If stdout has `action: stop`, report `reason` and `details` to the user and stop. Otherwise record `run` and tell the user `<run>`.
 
-## Briefs
-
-A brief is these lines, with absolute paths, and nothing else. Never add a sentence. Where a field has several files, list them on one line, separated by spaces.
-
-```
-Read <skill>/references/<role>.md in full, then do what it says.
-Spec: <spec>
-Files: <a list file, or for the auditor the run folder>
-Mode: <diff | full | fixes | none>
-Findings: <files, or none>
-Report: <the report file>
-```
-
-| Role | Files | Mode | Findings | Report | Its last line starts with |
-|---|---|---|---|---|---|
-| `reviewer` | `<run>/slice-<n>.txt` | `<mode>` | `none` | `<run>/review-1-slice-<n>.md` | `TO FIX:` |
-| `doctrine-reviewer-<stack>` | `<run>/stack-<stack>-<n>.txt` | `<mode>` | `none` | `<run>/review-1-<stack>-<n>.md` | `TO FIX:` |
-| `fixer` | `<run>/slice-<n>.txt` | `none` | every review report | `<run>/fix-<r>-slice-<n>.md` | `Not run:` |
-| `critic` | `<run>/slice-<n>.txt` | `none` | every review report and `<run>/fix-<r>-slice-<n>.md` | `<run>/critic-<r>-slice-<n>.md` | `VERDICT: PASS` or `VERDICT: FAIL` |
-| second `fixer` | `<run>/slice-<n>.txt` | `none` | every review report and `<run>/critic-<r>-slice-<n>.md` | `<run>/fix-<r>-slice-<n>-b.md` | `Not run:` |
-| second `critic` | `<run>/slice-<n>.txt` | `none` | every review report, `<run>/fix-<r>-slice-<n>.md`, and `<run>/fix-<r>-slice-<n>-b.md` | `<run>/critic-<r>-slice-<n>-b.md` | `VERDICT: PASS` or `VERDICT: FAIL` |
-| `reviewer` (re-review) | `<run>/fixed-<r>.txt` | `fixes` | `none` | `<run>/review-<r+1>-fixes.md` | `TO FIX:` |
-| gate `fixer` | `<run>/scope.txt` | `none` | `<run>/gate.log` | `<run>/fix-gate.md` | `Not run:` |
-| gate `critic` | `<run>/scope.txt` | `none` | `<run>/gate.log` and `<run>/fix-gate.md` | `<run>/critic-gate.md` | `VERDICT: PASS` or `VERDICT: FAIL` |
-| `auditor` | `<run>` | `none` | `none` | `<run>/report.md` | `**Spec:**` |
-
-"Every review report" is the files that `find <run> -name 'review-<r>-*.md'` prints.
-
-No file, or a file whose last line is not the one the role must end on, is a miss: start the role once more with the same brief; a second miss is not retried. After a second miss, carry on without it, and leave a file that doesn't exist out of any later brief. A critic that misses twice counts as `VERDICT: FAIL`. For the auditor, tell the user `<run>` and stop. A step's "Done when" does not wait for a role that has missed twice.
-
-## Steps
-
-After each step, run `echo "<next step> <r>" > <run>/at.txt`, where `<next step>` is the number of the step you go to next and `<r>` is the round that step runs in.
-
-1. **Folder.** Run `M=<main>; git -C "$M" check-ignore -q .plans/ || echo '.plans/' >> "$(git -C "$M" rev-parse --path-format=absolute --git-path info/exclude)"; C=$M/.plans/scratch/cycle-$(date +%Y%m%d-%H%M%S) && mkdir -p "$C" && touch "$C/left-out.txt" && git rev-parse HEAD > "$C/base.txt" && echo "2 1" > "$C/at.txt" && echo "$C"`. It prints `<run>`. Tell the user the path.
-2. **Spec.** With `<spec>` `none`, this step is done. Else run `grep -c '^\*\*Status:\*\* building' <spec>`. Done when it prints `1`. Anything else: stop and tell the user the spec must exist and be `building`.
-3. **Scope.** Run the Uncommitted list into `<run>/all.txt`. Read the repo's instructions. Write to `<run>/left-out.txt` every path in all.txt that they say is never committed, and no other path, including a path that isn't yours. Run `grep -vFxf <run>/left-out.txt <run>/all.txt > <run>/scope.txt; wc -l < <run>/scope.txt`. Done when it prints a number above 0. If it prints 0, say there is nothing to cycle and stop.
-4. **Slices.** Write `<run>/slice-1.txt`, `slice-2.txt`, and so on, copying every path in scope.txt into one: one feature or module per file, its front end and back end together. With 15 paths or fewer, use one slice. No slice holds more than 25 paths: split a larger module by sub-folder or layer, and keep each file in the slice of its tests. Then write `<run>/stack-backend-1.txt`, `stack-backend-2.txt`, and so on, and `<run>/stack-frontend-1.txt` and so on, copying each path of scope.txt into one of its stack (scripts, docs, and config are backend): at most 25 paths in a file, and a slice's paths of one stack kept in one file. Done when `cat <run>/slice-*.txt | sort | diff - <run>/scope.txt`, `cat <run>/stack-*.txt | sort | diff - <run>/scope.txt`, and `sh <skill>/scripts/lists-over-cap.sh <run>` all print nothing.
-5. **Review.** Start, all at once, one `reviewer` per slice file, one `doctrine-reviewer-backend` per file that `find <run> -name 'stack-backend-*.txt' -size +0` prints, and one `doctrine-reviewer-frontend` per file that `find <run> -name 'stack-frontend-*.txt' -size +0` prints. Done when every report ends as the Briefs table says, or its role has missed twice.
-6. **Commit the work.** Commit `<run>/scope.txt`.
-7. **Anything to fix?** Run `find <run> -name 'review-<r>-*.md' -exec grep -h '^TO FIX: ' {} + | grep -vx 'TO FIX: 0'`. If it prints nothing, go to step 12. Else go to step 8.
-8. **Fix.** Run `sh <skill>/scripts/slices-to-fix.sh <run> <r>`, which writes the paths this round's `do: fix` blocks name (each block's heading path and its `files` line) to `<run>/hit-<r>.txt`. Where one block's paths are in two slice files, it merges them into the lower-numbered one, and it adds a path that is in no slice file to the block's slice, so one fixer owns every path of a fix. Start one `fixer` for each slice file it prints, all at once. Done when every fixer has reported or has missed twice.
-9. **Critic.**
-   1. After all the fixers have finished, start one `critic` per slice that had a fixer, one at a time.
-   2. For each critic that left a report whose last line (`tail -n 1`) is `VERDICT: FAIL`, start one second `fixer` for that slice, then one second `critic`. A critic that left no report gets no second fixer.
-   3. Never a third fixer for one slice in one round.
-   4. Done when every critic has reported or has missed twice.
-10. **Re-review.**
-    1. Run the Uncommitted list `| grep -vFxf <run>/left-out.txt > <run>/fixed-<r>.txt`.
-    2. Sort the new paths.
-    3. Run the command of sub-step 1 once more, now that every new path is sorted.
-    4. If `<run>/fixed-<r>.txt` is empty, go to step 12.
-    5. Run `sh <skill>/scripts/slice-new-paths.sh <run> <r>`. It adds each path of `fixed-<r>.txt` that is in no slice file to the slice of the fixer whose `Changed files:` line names it, or to `<run>/slice-0.txt` when no slice's fixer names it.
-    6. Start one `reviewer` (re-review). Done when its report ends as the Briefs table says, or it has missed twice.
-11. **Commit the round.** Commit `<run>/fixed-<r>.txt`. Then, if `<r>` is 3, go to step 12. Else add 1 to `<r>` and go to step 7.
-12. **Gate, once.**
-    1. Take the gate command from the repo's instructions. If they name none, run `cd "$(git rev-parse --show-toplevel)" && { : > <run>/tasks.txt; [ -e Taskfile.yml ] && { task --list-all > <run>/tasks.txt 2>&1 || { echo 'GATE: task could not list Taskfile.yml'; cat <run>/tasks.txt; } > <run>/gate.log; }; grep -c '^\* gate:' <run>/tasks.txt; }`: if it prints `1`, the gate command is `task gate`. Else, if `<run>/gate.log` now exists (`task` could not list the Taskfile, and the file says so), go to step 13; else run `echo 'GATE: none named' > <run>/gate.log`, then go to step 13.
-    2. Run `( set -o pipefail; <gate> ) > <run>/gate.log 2>&1; echo "GATE EXIT $?" >> <run>/gate.log; tail -n 1 <run>/gate.log`, in the background if your agent's time limit is shorter than the gate. If it prints `GATE EXIT 0`, go to step 13.
-    3. Start one gate `fixer`, then one gate `critic`. Done when each has reported or has missed twice.
-    4. Run the Uncommitted list `| grep -vFxf <run>/left-out.txt > <run>/fixed-gate.txt`.
-    5. Sort the new paths.
-    6. Run the command of sub-step 4 once more, now that every new path is sorted.
-    7. If `<run>/fixed-gate.txt` is empty, go to step 13. Else commit `<run>/fixed-gate.txt`.
-    8. Never run the gate a second time.
-13. **Audit.** Start one `auditor`. Done when `<run>/report.md` ends as the Briefs table says, or the auditor has missed twice.
-14. **Report.**
-    1. If `<spec>` is not `none`: run `tail -n 2 <run>/report.md`. If its two lines are not a `**Built pieces:**` line and then a `**Spec:**` line, change nothing in the spec and tell the user so. Else, with your edit tool, replace the `**Built pieces:**` line in `<spec>` with the report's `**Built pieces:**` line, and, if the report's last line is `**Spec:** built`, change `**Status:** building` to `**Status:** built`.
-    2. Run `cat <run>/report.md`. Your reply is that output, word for word, then one line: `Report file: <run>/report.md`.
+2. **Loop:** run `node <skill>/scripts/cycle-ctl.mjs next "<run>"` and handle the YAML `action` it prints:
+   - **`slice`:** read `scopeFile` and write `slicesFile` (`<run>/slices.yaml`) matching `SlicesFileSchema` (`slices: [{ id, files }]`, `stacks: { backend: [[...]], frontend: [[...]] }`, max 25 paths per list; one feature/module per slice keeping tests with code; scripts, docs, and config in `backend`), fixing any listed `errors`. Call `next`.
+   - **`spawn`:** start fresh subagents (all at once when `parallel: true`, one at a time when `parallel: false`), each given its exact literal `brief` with nothing added. When they finish, call `next`.
+   - **`commit`:** read `commitRule`, write `messageFile` from `diffStat`, `specPath` (title and Intent when present), and `changes` (when non-empty, name what those changes do and restate each entry as what the code now does — never claiming a harm is gone or fixed). Run `node <skill>/scripts/cycle-ctl.mjs commit "<run>" "<listFile>" "<messageFile>"`, then call `next`.
+   - **`gate`:** take the gate command from the repo's instructions. If none is named, check root `Taskfile.yml` via `task --list-all` (if `task` fails, write `GATE: task could not list Taskfile.yml` and its output to `logFile`; if no `gate:` task exists, write `GATE: none named` to `logFile`). If a gate command exists, run it once in the repo root: `( set -o pipefail; <gate> ) > "<logFile>" 2>&1; echo "GATE EXIT $?" >> "<logFile>"` (never run it a second time). Call `next`.
+   - **`relay`:** run `cat "<report>"`. Reply with that output word for word, then one line: `Report file: <report>`. Stop.
+   - **`stop`:** report `reason` and `details` to the user and stop.

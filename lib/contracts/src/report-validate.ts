@@ -341,6 +341,16 @@ export const validateCycleAudit = (
         }
       }
 
+      for (let i = 0; i < report.decisions.length; i += 1) {
+        const decision = report.decisions[i];
+        if (decision !== undefined && decision.status === "not-built") {
+          issues.push({
+            path: `decisions[${i}].status`,
+            message: `specStatus cannot be "built" while decision "${decision.id}" has status "not-built"`,
+          });
+        }
+      }
+
       for (const doneMean of context.spec.doneMeans) {
         const matchingRuns = report.checked.filter((run) => run.cmd === doneMean.cmd);
         if (matchingRuns.length === 0) {

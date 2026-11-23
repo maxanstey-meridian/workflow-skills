@@ -5,14 +5,24 @@
 - **Mode `fixes`:** read `git diff -U30 HEAD -- <path>`. Everything already committed was reviewed in an earlier round.
 - **Every mode:** read an untracked file whole. For a deleted file, read the deletion and search the tree for what still refers to it.
 
-**Write one block per finding.** The heading is exactly `### F<n> <path>:<line>`, so a script can read it: `<path>` is a path from your `Files:` list, written as it is there (for a harm that shows in another file, head the finding with the listed file that causes it, and name the other file on `files`), and `<line>` is one number, never a range (use `:1` for a whole file). Then five lines:
+**Write strict YAML matching `ReviewReportSchema`** to your `Report:` path (`.yaml`) with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Set `findings: []` when there are no findings. Each finding in `findings` has:
 
-- `problem`: what is wrong (for doctrine reviews, begin with the rule's path from its `<!-- rule: <path> -->` line, then what breaks it);
+- `id`: `F1`, `F2`, and so on;
+- `file`: a path from your `Files:` list, written as it is there (for a harm that shows in another file, name the listed file that causes it here and include the other file in `files`);
+- `line`: one positive integer, never a range (use `1` for a whole file);
+- `rule`: optional — for doctrine reviews, set this to the rule's path from its `<!-- rule: <path> -->` line;
+- `problem`: what is wrong;
 - `harm`: what goes wrong because of it, with the command or `file:line` that shows it;
 - `fix`: the concrete change;
-- `files`: every existing file the fix edits, the heading's path among them, each as its path from the repo root, separated by `, `, so a script can give them all to one fixer; a file the fix creates is not listed;
+- `files`: list of every existing file the fix edits, `file` among them, each relative to the repo root, so `cycle-ctl.mjs` can give them all to one fixer; a file the fix creates is not listed;
 - `do`: one of `fix`, `park`, `ask`, or `nit`.
 
-End with two lines: `Files read:` (each file you read, by its path from the repo root, as `path (full)` or `path (diff)`), then `TO FIX: <n>`, the count of `do: fix` blocks. `TO FIX:` is the file's last line, even when there are no findings.
+Include `filesRead` with every file you read (`path` relative to the repo root and `mode`: `full` or `diff`).
 
-Save the report to the `Report:` path with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Reply with the path only.
+**Validate your report** before replying (`<skill>` is the folder above the `references/` folder this file lives in):
+
+```sh
+node <skill>/scripts/cycle-ctl.mjs validate review "<report>"
+```
+
+Fix any YAML or schema error until the command exits `0`, then reply with only the report path.

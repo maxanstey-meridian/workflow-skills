@@ -802,6 +802,34 @@ describe("validateCycleAudit", () => {
     );
   });
 
+  it("rejects specStatus built when a decision has status not-built and accepts building with a not-built decision", () => {
+    const spec = makeSpec();
+
+    const builtWithNotBuiltDecision = makeCycleAudit({
+      decisions: [
+        { id: "D1", status: "honoured" },
+        { id: "D2", status: "not-built", note: "Skipped pure validator split." },
+      ],
+      specStatus: { status: "built" },
+    });
+    const issues = validateCycleAudit(builtWithNotBuiltDecision, { spec, reviewFindings: [] });
+    assert.equal(issues.length, 1);
+    assert.equal(issues[0]?.path, "decisions[1].status");
+    assert.match(issues[0]?.message ?? "", /decision "D2" has status "not-built"/);
+
+    const buildingWithNotBuiltDecision = makeCycleAudit({
+      decisions: [
+        { id: "D1", status: "honoured" },
+        { id: "D2", status: "not-built", note: "Skipped pure validator split." },
+      ],
+      specStatus: { status: "building", remaining: "Implement D2." },
+    });
+    assert.deepEqual(
+      validateCycleAudit(buildingWithNotBuiltDecision, { spec, reviewFindings: [] }),
+      [],
+    );
+  });
+
   it("rejects missing do: fix findings and duplicate findings across fixed, notAHarm, and notFixed", () => {
     const spec = makeSpec();
 

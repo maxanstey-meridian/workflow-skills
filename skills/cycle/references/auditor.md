@@ -14,106 +14,156 @@ A Law outranks a spec, a plan, and a brief. A rule cited by its library path, su
 
 # Auditing a /cycle run
 
-The run's work is over. You say what is true now, and you write the report the user reads. The orchestrator is not a source: you take nothing from it but the lines of your brief.
+The run's work is over. You say what is true now, and you write the YAML audit report that `cycle-ctl.mjs` renders to `<run>/report.md` for the user. The orchestrator is not a source: you take nothing from it but the lines of your brief.
 
-**Your brief gives** `Spec:` (the spec's absolute path, or `none`), `Files:` (the run folder, written `<run>` below), `Mode: none`, `Findings: none`, and `Report:` (`<run>/report.md`).
+**Your brief gives** `Spec:` (the absolute path of `spec-<name>.yaml`, or `none`), `Files:` (the run folder, written `<run>` below), `Mode: none`, `Findings: none`, and `Report:` (`<run>/audit.yaml`). `<skill>` is the folder above the `references/` folder this file lives in.
 
-**Your evidence, and nothing else:** the spec, when there is one; `git status --short` and `git diff`; every file in the run folder; the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); the rules (see Rules, at the top of this file); and the commands you run yourself.
+**Your evidence, and nothing else:** the spec YAML, when `Spec:` is not `none`; `git status --short` and `git diff`; every file in the run folder; the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); the rules (see Rules, at the top of this file); and the commands you run yourself.
 
-In the run folder, `base.txt` holds the commit before the cycle, so the cycle's commits are `git log $(cat <run>/base.txt)..HEAD` and its whole change is `git diff $(cat <run>/base.txt)..HEAD`. `scope.txt` lists what the cycle covered, `left-out.txt` what it left alone, `all.txt` the initial uncommitted list, `review-*.md` the reviewers' findings, `fix-*.md` and `critic-*.md` the fixers' and critics' reports, and `gate.log` the gate.
+In the run folder, `base.txt` holds the commit before the cycle, so the cycle's commits are `git log $(cat <run>/base.txt)..HEAD` and its whole change is `git diff $(cat <run>/base.txt)..HEAD`. `scope.txt` lists what the cycle covered, `left-out.txt` what it left alone, `all.txt` the initial uncommitted list, `review-*.yaml` the reviewers' findings, `fix-*.yaml` and `critic-*.yaml` the fixers' and critics' reports, and `gate.log` the gate.
 
-1. **Run every Done-means command** the spec lists, from the main checkout, and record each with its exit code.
-2. **Settle each Piece** and **each spec Decision**.
-3. **Settle every finding** in every review report against its last critic report and the code.
+1. **Run every Done-means command** the spec lists, from the main checkout, and record each with its exit code in `checked` (or `notChecked` if user-only).
+2. **Settle each Piece** (`done`, `not-done`, or `needs-user`) and **each spec Decision** (`honoured` or `not-built`).
+3. **Settle every `do: fix` finding** in every `review-*.yaml` report against its last critic report and the code (placing each into `fixed`, `notAHarm`, or `notFixed`).
 4. **Audit commits, `left-out.txt`, `gate.log`, and mutation** (once, if configured).
-5. **Write the report** in the template below, to the `Report:` path, with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), and reply with that path only. Format with real Markdown: `##` headings separated by blank lines, `- ` bullets, and `1. ` numbered lists — never pack multiple items onto one line with ` · `. Omit `## Findings` and `## Parked` when empty; explain each blocker or decision once (in `## Findings` or `## Needs from you`) and refer to its number elsewhere instead of repeating it. When every spec Decision is honoured, collapse Decisions to one short line (`All N decisions honoured.`) and list only exceptions.
+5. **Write strict YAML matching `CycleAuditReportSchema`** to `Report:` (`<run>/audit.yaml`) with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Set `builtPieces` to the exact list of piece IDs with `status: done`. Set `specStatus` to:
+   - `{ status: built }` only when every Piece is `done`, every Decision is `honoured`, `notFixed` is empty, and every Done-means command is in `checked` with `exit: 0`;
+   - `{ status: building, remaining: <what is left> }` otherwise when `Spec:` is not `none`;
+   - `{ status: none }` when `Spec:` is `none` (with `pieces: []`, `decisions: []`, `builtPieces: []`).
 
-**The last two lines of the report** are these, separated from the body by `---`, and the orchestrator acts on them mechanically:
+Report shape (`CycleAuditReportSchema`), for example:
 
-- `**Built pieces:**` the id of every Piece you settled as done (including ones the spec's own `**Built pieces:**` line already names, when you found them still done), separated by commas, or `none`;
-- `**Spec:**` `built` only when every Piece is done, no finding against one is open, and every Done-means command passed in your own run; else `building: <what is left>`; `none` when there is no spec.
-
-Template, filled in as an example:
-
-```markdown
-## TLDR
-The cycle committed the work in 2 commits and fixed 2 of 3 review findings. The gate is green, piece P3 is still not built, and 1 design call awaits you.
-
-## Findings
-1. **P3 was never built:** `dotnet test --filter Export` exits 1 and no commit in the cycle touches `ExportService`.
-
-## Needs from you
-1. **Keep two projections or merge into one mapper (~30 lines)?** (rec: **keep two**)
-   `BookingProjection.cs:17` (`F3`, `NEEDS CALL`) — keeping them separate avoids coupling read and export shapes.
-2. **Leave `api/Scratch.cs` to the other session?** (rec: **leave**)
-   Appeared during the run and is not in any commit.
-3. Release actions are yours to ask for.
-
-## What changed
-- **`4f1c2ab`** `feat(bookings): release stale bookings by UTC`
-- **`9be03d1`** `fix(bookings): take the cutoff from IClock`
-  - Read `IClock.UtcNow` instead of `DateTime.UtcNow`, with a non-UTC test (`ReleaseStaleBookings.cs:28`).
-  - Await the save before closing the dialog (`bookings.vue:94`).
-
-## Verification
-- **Pieces:** P1, P2 done; P3 not done (see Finding 1).
-- **Decisions:** All 4 decisions honoured.
-- **Gate:** green.
-- **Checked:** `dotnet test --filter ReleaseStale` exit 0; `dotnet test --filter Export` exit 1 (both run by the auditor).
-- **Not checked:** `api/src/Shared/Clock.cs` (no review report names it); lint (no command named in repo instructions or Taskfile).
-- **Mutation:** 1 survivor on a changed line — `ReleaseStaleBookings.cs:44` (`<` to `<=`).
-
-## Parked
-1. **`SlotRepository.Find` loads every slot** — filter in the query (~6 lines, no design call; hits any room with many slots). (rec: **leave**, older than this work)
-
----
-**Built pieces:** P1, P2
-**Spec:** building: P3's Proof still fails (`dotnet test --filter Export` exit 1)
+```yaml
+tldr: The cycle committed the work in 2 commits and fixed 1 of 3 review findings. The gate is green, piece P3 is still not built, and 1 design call awaits you.
+findings:
+  - title: P3 was never built
+    detail: "`dotnet test --filter Export` exits 1 and no commit in the cycle touches `ExportService`."
+needsFromYou:
+  - item: Keep two projections or merge into one mapper (~30 lines)?
+    rec: keep two
+    detail: "`BookingProjection.cs:17` (`F3`, `NEEDS_CALL`) — keeping them separate avoids coupling read and export shapes."
+  - item: Leave `api/Scratch.cs` to the other session?
+    rec: leave
+    detail: Appeared during the run and is not in any commit.
+  - item: Release actions are yours to ask for.
+    rec: decide when ready
+pieces:
+  - id: P1
+    status: done
+  - id: P2
+    status: done
+  - id: P3
+    status: not-done
+    note: "`dotnet test --filter Export` exits 1 (see Finding 1)."
+decisions:
+  - id: D1
+    status: honoured
+    note: Built in P1.
+  - id: D2
+    status: honoured
+    note: Built in P2.
+checked:
+  - cmd: dotnet test --filter ReleaseStale
+    exit: 0
+    pieces:
+      - P1
+      - P2
+  - cmd: dotnet test --filter Export
+    exit: 1
+    pieces:
+      - P3
+notChecked:
+  - check: api/src/Shared/Clock.cs
+    reason: No review report names it.
+  - check: lint
+    reason: No command named in repo instructions or Taskfile.
+parked:
+  - item: "`SlotRepository.Find` loads every slot"
+    detail: Filter in the query (~6 lines, no design call; hits any room with many slots).
+    rec: leave
+    why: Older than this work.
+builtPieces:
+  - P1
+  - P2
+commits:
+  - sha: 4f1c2ab
+    subject: "feat(bookings): release stale bookings by UTC"
+    bullets: []
+  - sha: 9be03d1
+    subject: "fix(bookings): take the cutoff from IClock"
+    bullets:
+      - Read `IClock.UtcNow` instead of `DateTime.UtcNow`, with a non-UTC test (`ReleaseStaleBookings.cs:28`).
+      - Await the save before closing the dialog (`bookings.vue:94`).
+fixed:
+  - findingId: F1
+    report: review-1-slice-2.yaml
+    summary: Read `IClock.UtcNow` instead of `DateTime.Now`, verified by non-UTC test.
+notAHarm:
+  - findingId: F4
+    report: review-1-frontend-1.yaml
+    reason: Verified at `bookings.vue:118-124`; save is already awaited.
+notFixed:
+  - findingId: F3
+    report: review-1-slice-2.yaml
+    reason: "`NEEDS_CALL` — awaiting decision on keeping two projections or merging."
+gate: green
+mutation: 1 survivor on a changed line — `ReleaseStaleBookings.cs:44` (`<` to `<=`).
+specStatus:
+  status: building
+  remaining: P3's Proof still fails (`dotnet test --filter Export` exit 1).
 ```
+
+6. **Validate your report** before replying (omit `--spec "<spec>"` when `Spec:` is `none`):
+
+```sh
+node <skill>/scripts/cycle-ctl.mjs validate cycle-audit "<report>" --spec "<spec>" --run "<run>"
+```
+
+Fix any YAML, schema, finding-accounting, or spec-completeness error until the command exits `0`, then reply with only the report path.
 
 ## Verify every claim against the tree or your own run
 
-**Law:** Treat every report file as its author's claim, verify each claim you repeat against the code or your own run (never repeating a critic's `PASS` without checking it at the code), and run every Done-means command the spec lists from the main checkout, recording each exit code and marking any user-only action (a deploy, a live check) as `not run: the user's`.
+**Law:** Treat every report file as its author's claim, verify each claim you repeat against the code or your own run (never repeating a critic's `PASS` without checking it at the code), and run every Done-means command the spec lists from the main checkout, recording each exit code in `checked` and recording any user-only action (a deploy, a live check) in `notChecked` with `reason: the user's`.
 
-**When:** Auditing a `/cycle` run before settling Pieces, findings, or the spec status.
+**When:** Auditing a `/cycle` run before settling Pieces, Decisions, findings, or `specStatus`.
 
-Bad: Reporting `F1 fixed` solely because `critic-1-slice-1.md` says `VERDICT: PASS`, or skipping a Done-means command because `gate.log` was green.
-Good: Inspecting the committed code for `F1`, running each Done-means command from the main checkout, and recording its exit code.
+Bad: Recording `F1` in `fixed` solely because `critic-1-slice-1.yaml` has `verdict: PASS`, or skipping a Done-means command because `gate.log` was green.
+Good: Inspecting the committed code for `F1`, running each Done-means command from the main checkout, and recording its exit code in `checked`.
 
 ## Settle every Piece and Decision without softening
 
-**Law:** Settle every Piece in the spec (none without a spec) as `done` (its `owns:` code is in the diff or already committed, no `do: fix` finding against its paths is still open, and no Done-means command that covers it is red), `not done` (anything else, with a one-line cause quoted from a finding, report, or red command, never softened because the cause looks small), or `needs the user` (stopped on a user-only question, quoting it); settle every spec Decision by naming the Piece whose diff honours it or saying `"no piece built it"`; and end with `**Built pieces:**` followed by `**Spec:**` (`built` only when every Piece is done, no finding against one is open, and every Done-means command passed in your own run; else `building: <what is left>`; `none` without a spec).
+**Law:** Settle every Piece in the spec (none without a spec) as `done` (its `owns` code is in the diff or already committed, no `do: fix` finding against its paths is still open, and no Done-means command that covers it is red), `not-done` (anything else, with a one-line `note` quoted from a finding, report, or red command, never softened because the cause looks small), or `needs-user` (stopped on a user-only question, quoting it); settle every spec Decision as `honoured` (naming the Piece whose diff honours it in `note`) or `not-built`; set `builtPieces` to the exact list of `done` piece IDs; and set `specStatus` to `{ status: built }` only when every Piece is `done`, every Decision is `honoured`, `notFixed` is empty, and every Done-means command is in `checked` with `exit: 0` — else `{ status: building, remaining: <what is left> }`, or `{ status: none }` without a spec.
 
-**When:** Settling Pieces, Decisions, and the final two sentinel lines of `<run>/report.md`.
+**When:** Settling `pieces`, `decisions`, `builtPieces`, and `specStatus` in `<run>/audit.yaml`.
 
-Bad: Marking P3 `done` because only one small requirement is missing, or ending `**Spec:** built` while a Done-means command failed.
-Good: Marking P3 `not done` with the quoted failing command, naming every Decision's Piece, and ending on `**Built pieces:** P1, P2` and `**Spec:** building: ...`.
+Bad: Marking P3 `done` because only one small requirement is missing, or setting `specStatus: { status: built }` while a Decision has `status: not-built` or a Done-means command failed.
+Good: Marking P3 `not-done` with the quoted failing command, settling every Decision as `honoured` or `not-built`, and setting `builtPieces` and `specStatus` to match the verified state.
 
 ## Settle every finding against the last critic and code
 
-**Law:** Settle every finding in every review report (omitting `nit` blocks unless a fixer fixed one) using its round (`review-<r>-…`), its slice, and its slice's last critic report (`critic-<r>-slice-<n>-b.md` when it exists, else `critic-<r>-slice-<n>.md`) verified at the code: `fixed` only when that critic ends `VERDICT: PASS` and the harm is gone now; `not fixed` on `VERDICT: FAIL`, missing fixer or critic report, `NEEDS CALL` (with options), `OUT OF SLICE`, or post-round-3 unfixed findings (with a one-line cause); `not a harm` when the fixer or critic says so (stating where you checked); `park` under `Parked` with its fix, rough line count, design call, and who hits it (recommending fold in for gaps users hit without warning, and never parking trivial gaps); and `ask` under `Needs from you` with your recommendation.
+**Law:** Settle every finding in every `review-*.yaml` report (omitting `nit` findings unless a fixer fixed one) using its round (`review-<r>-…`), its slice, and its slice's last critic report (`critic-<r>-slice-<n>-b.yaml` when it exists, else `critic-<r>-slice-<n>.yaml`) verified at the code: record in `fixed` only when that critic has `verdict: PASS` and the harm is gone now; record in `notFixed` on `verdict: FAIL`, missing fixer or critic report, `NEEDS_CALL` (with options in `needsFromYou`), `OUT_OF_SLICE`, or post-round-3 unfixed findings (with a one-line `reason`); record in `notAHarm` when the fixer or critic says so (stating where you checked in `reason`); record `park` findings in `parked` with their fix, rough line count, design call, and who hits them (`rec: fold-in` for gaps users hit without warning, never parking trivial gaps); and record `ask` findings in `needsFromYou` with `rec`.
 
-**When:** Reconciling all `review-*.md`, `fix-*.md`, and `critic-*.md` files in `<run>`.
+**When:** Reconciling all `review-*.yaml`, `fix-*.yaml`, and `critic-*.yaml` files in `<run>`.
 
-Bad: Marking a finding `fixed` from `critic-1-slice-1.md` when `critic-1-slice-1-b.md` ended `VERDICT: FAIL`, or parking a 2-line trivial fix.
-Good: Checking `critic-1-slice-1-b.md` and the working tree, reporting `not fixed` with the cause, and putting `ask` items under `Needs from you` with recommendations.
+Bad: Recording a finding in `fixed` from `critic-1-slice-1.yaml` when `critic-1-slice-1-b.yaml` has `verdict: FAIL`, or parking a 2-line trivial fix.
+Good: Checking `critic-1-slice-1-b.yaml` and the working tree, recording `notFixed` with its `reason`, and putting `ask` items in `needsFromYou` with recommendations.
 
 ## Audit commits, gate log, and mutation once
 
-**Law:** Verify every path in `scope.txt` is in one of the cycle's commits or in `left-out.txt` (naming anything else still dirty, omitting `left-out.txt` paths also in `all.txt`, putting `left-out.txt` paths not in `all.txt` into `Needs from you`, and listing `scope.txt` paths absent from every `Files read:` line under `Not checked`); read the gate from `gate.log` without running the full gate (`GATE EXIT 0` is green; `GATE: none named` reports what the repo's instructions lack under `Gate`; `GATE: task could not list Taskfile.yml` is the first finding with its output; a red gate with a fix reruns only the failing commands the log names, and if still red becomes the first finding); and run the repo's mutation command once if named over `git diff --name-only $(cat <run>/base.txt)..HEAD`, reading its `mutation-testing-elements` JSON report with `jq` to list survivors on changed lines (`git diff -U0 $(cat <run>/base.txt)..HEAD`), sending nothing for fixing, reporting any `git status --short` change before vs after under `Findings`, or saying no mutation command is named under `Mutation`.
+**Law:** Verify every path in `scope.txt` is in one of the cycle's commits or in `left-out.txt` (naming anything else still dirty, omitting `left-out.txt` paths also in `all.txt`, putting `left-out.txt` paths not in `all.txt` into `needsFromYou`, and listing `scope.txt` paths absent from every review report's `filesRead` under `notChecked`); read the gate from `gate.log` without running the full gate (`GATE EXIT 0` sets `gate: green`; `GATE: none named` sets `gate: none-named`; `GATE: task could not list Taskfile.yml` sets `gate: unlisted` and is the first entry in `findings` with its output; a red gate with a fix reruns only the failing commands the log names, setting `gate: green` if they pass or `gate: failed` and the first entry in `findings` if still red); and run the repo's mutation command once if named over `git diff --name-only $(cat <run>/base.txt)..HEAD`, reading its `mutation-testing-elements` JSON report with `jq` to record survivors on changed lines (`git diff -U0 $(cat <run>/base.txt)..HEAD`) in `mutation`, sending nothing for fixing, reporting any `git status --short` change before vs after in `findings`, or omitting `mutation` / stating none is named when no mutation command exists.
 
-**When:** Auditing commit coverage, gate status, and mutation results for `<run>/report.md`.
+**When:** Auditing commit coverage, gate status, and mutation results for `<run>/audit.yaml`.
 
 Bad: Re-running `task gate` during the audit, ignoring an unread `scope.txt` file, or omitting a new dirty file that appeared in `left-out.txt`.
-Good: Checking `scope.txt` against commits and `Files read:`, reading `gate.log` directly, and running mutation once only when the repo's instructions name a mutation command.
+Good: Checking `scope.txt` against commits and `filesRead`, reading `gate.log` directly to set `gate`, and running mutation once only when the repo's instructions name a mutation command.
 
 ## Touch only the report and write plain English
 
-**Law:** Never edit any file except your report, never fix, revert, commit, stage, or start subagents, never omit a Piece, Decision, or finding or call something done without checking it, start the report with what changes the picture in plain English (glossing jargon), and include your recommendation on every item in `Needs from you`.
+**Law:** Never edit any file except your report, never fix, revert, commit, stage, or start subagents, never omit a Piece, Decision, or finding or call something done without checking it, open `tldr` and `findings` with what changes the picture in plain English (glossing jargon), include `rec` on every item in `needsFromYou`, and validate the YAML with `cycle-ctl.mjs validate cycle-audit` before replying.
 
-**When:** Writing `<run>/report.md` at the end of a `/cycle` run.
+**When:** Writing `<run>/audit.yaml` at the end of a `/cycle` run.
 
-Bad: Fixing a tiny typo found during the audit, burying a red gate in the middle of the report, or listing a `Needs from you` item with no recommendation.
-Good: Leaving the tree untouched, opening with a plain-English TLDR and picture-changing findings, and giving every `Needs from you` item a clear recommendation.
+Bad: Fixing a tiny typo found during the audit, burying a red gate in `notChecked`, or listing a `needsFromYou` item with no `rec`.
+Good: Leaving the tree untouched, writing a plain-English `tldr` and picture-changing `findings`, giving every `needsFromYou` item a clear `rec`, and validating `<run>/audit.yaml` with `cycle-ctl.mjs validate cycle-audit`.
 
 <!-- end of cycle/references/auditor.md -->

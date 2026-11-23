@@ -14,62 +14,100 @@ A Law outranks a spec, a plan, and a brief. A rule cited by its library path, su
 
 # Auditing a /go run
 
-The run's work is over. You say what is true now, and you write the report the user reads.
+The run's work is over. You say what is true now, and you write the YAML audit report `go-ctl.mjs` renders for the user.
 
-**Your brief gives** `Spec:`, `Piece: all`, and `Report:` (where your report goes).
+**Your brief gives** `Spec:` (the absolute path of `spec-<name>.yaml`), `Piece: all`, and `Report:` (where your `audit.yaml` report goes). `<skill>` is the folder above the `references/` folder this file lives in.
 
-**Your evidence, and nothing else:** the spec; `git status --short --untracked-files=all` and `git diff HEAD` (nothing here is committed); every untracked file on a piece's `owns:`, read whole, because it is part of the change; the report files the subagents wrote in the run folder (the folder of your report); the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); the rules (see Rules, at the top of this file); and the commands you run yourself.
+**Your evidence, and nothing else:** the spec YAML; `git status --short --untracked-files=all` and `git diff HEAD` (nothing here is committed); every untracked file on a piece's `owns`, read whole, because it is part of the change; the report files the subagents wrote in the run folder (the folder of your report); the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); the rules (see Rules, at the top of this file); and the commands you run yourself.
 
-The run folder holds `build-<id>-<n>.md`, `critic-<id>-<n>.md`, and `status-before.txt`: the tree's `git status --short` before any builder started. A path listed there was already dirty, so say so beside any piece that owns it.
+The run folder holds `build-<id>-<n>.yaml`, `critic-<id>-<n>.yaml`, and `status-before.txt`: the tree's `git status --short` before any builder started. A path listed there was already dirty, so say so in the note beside any piece that owns it.
 
-1. **Run every Done-means command** the spec lists, from the main checkout, skipping user-only commands, the full gate, and mutation.
-2. **Settle each Piece** in the spec as `done`, `not done`, or `needs the user`.
-3. **Settle each spec Decision:** name the piece whose diff honours it, or say "no piece built it".
-4. **Look for gaps, then park** what is real, non-trivial, and outside this work.
-5. **Write the report** in the template below, to the `Report:` path, with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), and reply with that path only. Start with what changes the picture. Plain English; gloss jargon. Every item in `## Needs from you` carries your recommendation. Format with real Markdown: `##` headings separated by blank lines, `- ` bullets, and `1. ` numbered lists — never pack multiple items onto one line with ` · `. Omit `## Findings` and `## Parked` when empty; explain each blocker or question once (in `## Findings` or `## Needs from you`) and refer to its number elsewhere instead of repeating it. When every spec Decision is honoured, collapse Decisions to one short line (`All N decisions honoured.`) and list only exceptions.
+1. **Run every Done-means command** the spec lists, from the main checkout, skipping user-only commands, the full gate, and mutation. Record every `doneMeans[].cmd` under `checked` (with `exit`, optional `note`, and optional `pieces`) or `notChecked` (with `check` matching `cmd` and `reason`).
+2. **Settle each Piece** in `spec.pieces` as `done`, `not-done`, or `needs-user`.
+3. **Settle each spec Decision** in `spec.decisions` as `honoured` (naming the piece whose diff honours it in `note`) or `not-built`.
+4. **Look for gaps, then park** what is real, non-trivial, and outside this work under `parked` (`rec: fold-in` or `rec: leave`).
+5. **Write the report** to the `Report:` path as strict YAML matching `GoAuditReportSchema` with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Write plain English and gloss jargon. Put picture-changing blockers in `findings`. Every item in `needsFromYou` carries your recommendation (`rec`). Set `builtPieces` to the exact list of piece IDs you settled as `done` (including pieces marked "done in an earlier run (not re-checked)"), or `[]` when none are done — `go-ctl.mjs` copies `builtPieces` into `spec.yaml` and renders `<run>/report.md` from your YAML.
 
-**The last line of the report** is `**Built pieces:**` followed by the id of every piece you settled as done, and of every piece you called "done in an earlier run (not re-checked)", separated by `, `, or `none`, separated from the body by `---`. The orchestrator copies it into the spec.
+An example of a saved `audit.yaml` file:
 
-Template, filled in as an example:
-
-```markdown
-## TLDR
-2 of 5 pieces are done and uncommitted. P3 failed its proof, P4 waits on P3, and P5 needs your answer.
-
-## Findings
-1. **Decision 4 not built:** audit rows in the same transaction are not implemented by any piece.
-
-## Needs from you
-1. **P3:** Should an empty export return an error? (rec: **yes** — the spec's Proof assumes it)
-2. **P5:** Should a cancelled slot be released at once or at the next sweep? (rec: **at once**)
-3. Review the diff, then run `/cycle <absolute spec path>`.
-
-## What changed
-- **P1** — done.
-- **P2** — done (attempt 2; `src/Booking/SlotDecider.cs` was already dirty before the run).
-- **P3** — not done: `dotnet test --filter Export` exit 1 (`"Expected 3 rows, got 0"`).
-- **P4** — not done: waits on P3.
-- **P5** — needs the user (see item 2 above).
-
-## Verification
-- **Decisions:** D1–D3 honoured; D4 not built (see Finding 1).
-- **Checked:** `dotnet test tests/Booking` exit 0; `pnpm -C web typecheck` exit 0 (both run by the auditor).
-- **Not checked:** full gate and mutation (`/cycle` runs them); lint (no command named in repo instructions or Taskfile).
-
-## Parked
-1. **`SlotRepository.Find` loads every slot** — filter in the query (~6 lines, no design call; hits any room with many slots). (rec: **leave**, outside this spec)
-
----
-**Built pieces:** P1, P2
+```yaml
+tldr: 2 of 5 pieces are done and uncommitted. P3 failed its proof, P4 waits on P3, and P5 needs your answer.
+findings:
+  - title: Decision D4 not built
+    detail: Audit rows in the same transaction are not implemented by any piece.
+needsFromYou:
+  - item: "P3: Should an empty export return an error?"
+    rec: yes — the spec's Proof assumes it
+  - item: "P5: Should a cancelled slot be released at once or at the next sweep?"
+    rec: at once
+  - item: Review the diff, then run /cycle <absolute spec path>.
+    rec: run /cycle after answering items 1 and 2
+pieces:
+  - id: P1
+    status: done
+  - id: P2
+    status: done
+    note: attempt 2; src/Booking/SlotDecider.cs was already dirty before the run
+  - id: P3
+    status: not-done
+    note: 'dotnet test --filter Export exit 1 ("Expected 3 rows, got 0")'
+  - id: P4
+    status: not-done
+    note: waits on P3
+  - id: P5
+    status: needs-user
+    note: see item 2 in needsFromYou
+decisions:
+  - id: D1
+    status: honoured
+    note: built by P1
+  - id: D2
+    status: honoured
+    note: built by P1
+  - id: D3
+    status: honoured
+    note: built by P2
+  - id: D4
+    status: not-built
+    note: no piece built it (see Finding 1)
+checked:
+  - cmd: dotnet test tests/Booking
+    exit: 0
+    pieces: [P1, P2]
+  - cmd: pnpm -C web typecheck
+    exit: 0
+notChecked:
+  - check: task gate
+    reason: full gate (/cycle runs it)
+  - check: mutation
+    reason: /cycle runs mutation
+  - check: lint
+    reason: no command named in repo instructions or Taskfile
+parked:
+  - item: SlotRepository.Find loads every slot
+    detail: filter in the query (~6 lines, no design call; hits any room with many slots)
+    rec: leave
+    why: outside this spec
+builtPieces: [P1, P2]
 ```
+
+6. **Validate your report** before replying:
+
+```sh
+node <skill>/scripts/go-ctl.mjs validate go-audit "<report>" --spec "<spec>"
+```
+
+Fix any YAML, schema, completeness, or `builtPieces` error until the command exits `0`.
+
+7. **Reply with only the path** of your report file.
 
 ## Verify every claim against the tree or your own run
 
-**Law:** Take nothing from the orchestrator except the lines of your brief, check every subagent report claim you repeat against `git diff HEAD`, untracked files on `owns:`, or your own command runs, and never call something done that you did not check.
+**Law:** Take nothing from the orchestrator except the lines of your brief, check every subagent report claim you repeat against `git diff HEAD`, untracked files on `owns`, or your own command runs, and never call something done that you did not check.
 
-**When:** Reading `build-<id>-<n>.md`, `critic-<id>-<n>.md`, and `status-before.txt` in the run folder while auditing a `/go` run; note beside any piece when a path it owns was already dirty in `status-before.txt`.
+**When:** Reading `build-<id>-<n>.yaml`, `critic-<id>-<n>.yaml`, and `status-before.txt` in the run folder while auditing a `/go` run; note beside any piece when a path it owns was already dirty in `status-before.txt`.
 
-Bad: Marking P2 done because `critic-P2-1.md` ended `VERDICT: PASS` without reading P2's diff or untracked files.
+Bad: Marking P2 `done` because `critic-P2-1.yaml` had `verdict: PASS` without reading P2's diff or untracked files.
 Good: Reading `git diff HEAD` and P2's untracked files, verifying every repeated claim directly, and noting any path listed in `status-before.txt`.
 
 ## Run Done-means commands skipping the full gate and mutation
@@ -83,29 +121,29 @@ Good: Running every non-gate, non-mutation, non-user-only Done-means command wit
 
 ## Settle every piece and every Decision
 
-**Law:** Settle every Piece in the spec as `done`, `not done`, or `needs the user` and settle every spec Decision by naming the piece whose diff honours it (or "no piece built it"); never omit a piece or Decision, and never soften `not done` because the cause looks small.
+**Law:** Settle every Piece in `spec.pieces` as `done`, `not-done`, or `needs-user` and settle every spec Decision in `spec.decisions` as `honoured` (naming the piece whose diff honours it in `note`) or `not-built`; never omit a piece or Decision, and never soften `not-done` because the cause looks small.
 
-**When:** Settling pieces and Decisions in the audit report. **done:** highest-attempt critic ends `VERDICT: PASS`, the change is in the diff or an untracked owned file, no covering Done-means command is red, and no gap caused or left by this work exists. **not done:** anything else, with a one-line cause (quoted from critic findings, builder report, red command, or gap with `file:line`; unstarted pieces are `not done: waits on <id>`). **needs the user:** stopped on a question only the user can answer, quoting the question. A piece on the spec's `**Built pieces:**` line with no critic file in the run folder is "done in an earlier run (not re-checked)"; one on that line whose highest-attempt critic does not end `VERDICT: PASS` opens Findings.
+**When:** Settling pieces and Decisions in `audit.yaml`. **done:** highest-attempt critic has `verdict: PASS`, the change is in the diff or an untracked owned file, no covering Done-means command is red, and no gap caused or left by this work exists. **not-done:** anything else, with a one-line `note` (quoted from critic findings, builder report, red command, or gap with `file:line`; unstarted pieces are `waits on <id>`). **needs-user:** stopped on a question only the user can answer, quoting the question. A piece in `spec.builtPieces` with no critic file in the run folder is `status: done` with `note: done in an earlier run (not re-checked)`; one in `spec.builtPieces` whose highest-attempt critic does not have `verdict: PASS` adds a `findings` entry.
 
-Bad: Skipping Decision 2 because it seemed minor, or calling P3 done despite a failing Done-means command because the fix is two lines.
-Good: Naming the owning piece for every Decision, marking P3 `not done` with the exact failing command and output, and marking earlier-run pieces with no critic file as "done in an earlier run (not re-checked)".
+Bad: Skipping Decision D2 because it seemed minor, or calling P3 `done` despite a failing Done-means command because the fix is two lines.
+Good: Settling every Decision with its owning piece, marking P3 `not-done` with the exact failing command and output, and marking earlier-run pieces with no critic file as `status: done` with `note: done in an earlier run (not re-checked)`.
 
 ## Never park a gap this work caused or left
 
-**Law:** Check every outcome a piece's diff adds or restructures for a test that would go red without it, and never park any gap this work caused or left (an untested added or restructured outcome, or a promised check that is missing) regardless of the critic's verdict: open a numbered Finding, mark the owning piece `not done`, and state under `Needs from you` what to add to the spec before `/go` runs again.
+**Law:** Check every outcome a piece's diff adds or restructures for a test that would go red without it, and never park any gap this work caused or left (an untested added or restructured outcome, or a promised check that is missing) regardless of the critic's verdict: add an entry to `findings`, mark the owning piece `not-done`, and state under `needsFromYou` what to add to the spec before `/go` runs again.
 
-**When:** Reviewing reports, diffs, and untracked files for gaps; park only items raised by reports that are real, non-trivial, and outside this work — one line each with the fix, rough line count, design call, and who hits it (`rec: fold in` for any gap users hit without being told; trivial items are never parked).
+**When:** Reviewing reports, diffs, and untracked files for gaps; record under `parked` only items raised by reports that are real, non-trivial, and outside this work — each with `item`, `detail` (the fix, rough line count, design call, and who hits it), `rec` (`fold-in` for any gap users hit without being told; `leave` otherwise; trivial items are never parked), and `why`.
 
-Bad: Putting an untested new error branch from P2 under `Parked` because `critic-P2-1.md` ended `VERDICT: PASS`.
-Good: Raising a numbered Finding for the untested branch, marking P2 `not done` with `file:line`, and parking only non-trivial defects outside this spec's scope.
+Bad: Putting an untested new error branch from P2 under `parked` because `critic-P2-1.yaml` had `verdict: PASS`.
+Good: Adding a `findings` entry for the untested branch, marking P2 `not-done` with `file:line`, and parking only non-trivial defects outside this spec's scope.
 
 ## Touch only the report and end with Built pieces
 
-**Law:** Never edit any file other than your report, never fix, revert, commit, or stage anything, never start subagents, and end the report with `**Built pieces:**` followed by the comma-separated ids of every piece settled as done or "done in an earlier run (not re-checked)", or `none`.
+**Law:** Never edit any file other than your report, never fix, revert, commit, or stage anything, never start subagents, and set `builtPieces` to the exact list of piece IDs settled as `done` (including pieces marked "done in an earlier run (not re-checked)"), or `[]` when none are done.
 
-**When:** Completing the `/go` audit and writing `<run>/report.md` (which the orchestrator relays verbatim and whose final line it copies into the spec).
+**When:** Completing the `/go` audit, writing `<run>/audit.yaml` matching `GoAuditReportSchema`, and validating it with `go-ctl.mjs validate go-audit "<report>" --spec "<spec>"` (from which `go-ctl.mjs` updates `spec.builtPieces` and renders `<run>/report.md`).
 
-Bad: Fixing a typo in a built file during the audit, or ending the report with a closing paragraph after `**Built pieces:** P1, P2`.
-Good: Writing only `<run>/report.md` with no workspace edits, ending on `**Built pieces:** P1, P2`, and replying with the report path only.
+Bad: Fixing a typo in a built file during the audit, or leaving `builtPieces` out of sync with the pieces settled as `done`.
+Good: Writing only `<run>/audit.yaml` with no workspace edits, setting `builtPieces: [P1, P2]` matching every `done` piece, validating until exit `0`, and replying with the report path only.
 
 <!-- end of go/references/auditor.md -->

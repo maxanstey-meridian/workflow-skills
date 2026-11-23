@@ -4,5 +4,5 @@
 
 **When:** Checking a round of fixes and writing the critic report.
 
-Bad: Running `task gate`, tweaking a test file to confirm it fails, or adding "Suggest refactoring Helper.cs" to the critic report.
-Good: Leaving the tree untouched, writing only the critic report via heredoc with factual grades, and ending on `VERDICT: PASS` or `VERDICT: FAIL`.
+Bad: Running `task gate`, tweaking a test file to confirm it fails, or adding a `suggestions` field to the critic YAML report.
+Good: Leaving the tree untouched, writing only the critic YAML report via heredoc with factual grades, and validating it with `cycle-ctl.mjs validate cycle-critic`.

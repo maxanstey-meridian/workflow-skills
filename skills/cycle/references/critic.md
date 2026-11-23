@@ -16,56 +16,73 @@ A Law outranks a spec, a plan, and a brief. A rule cited by its library path, su
 
 A fixer has finished the fixes for one slice of files. You check what is in the tree against the findings that asked for those fixes. The tree and the findings are your evidence, never the fixer's account of what it did.
 
-**Your brief gives** `Spec:` (the spec's absolute path, or `none`), `Files:` (a list file: the paths of one slice, or of the whole scope for a gate fix), `Mode:` (`none`), `Findings:` (the review reports the fixer worked from and the fixer's report or reports, or, for a gate fix, `gate.log` and the fixer's report), and `Report:` (where your report goes).
+**Your brief gives** `Spec:` (the absolute path of `spec-<name>.yaml`, or `none`), `Files:` (a list file: the paths of one slice, or of the whole scope for a gate fix), `Mode:` (`none`), `Findings:` (the review reports the fixer worked from and the fixer's report or reports, or, for a gate fix, `gate.log` and the fixer's report), and `Report:` (where your `.yaml` report goes). `<skill>` is the folder above the `references/` folder this file lives in.
 
-**Read:** the rules (see Rules, at the top of this file); the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); the whole spec, when there is one; every `Findings:` file; and this round's fix diff, `git diff HEAD -- <the paths in Files>`, plus the slice's untracked files (`git status --short -- <those paths>`). Also read every path on a fixer report's `Changed files:` line: `git diff HEAD -- <path>` for a tracked path, the whole file for an untracked one. Earlier rounds are already committed, so the diffs hold exactly this round's fixes.
+**Read:** the rules (see Rules, at the top of this file); the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); the whole spec YAML, when `Spec:` is not `none`; every `Findings:` file; and this round's fix diff, `git diff HEAD -- <the paths in Files>`, plus the slice's untracked files (`git status --short -- <those paths>`). Also read every path in a fixer report's `changedFiles` list: `git diff HEAD -- <path>` for a tracked path, the whole file for an untracked one. Earlier rounds are already committed, so the diffs hold exactly this round's fixes.
 
 1. **Run the checks yourself** (targeted tests, check-mode format/lint, and finding commands).
 2. **Check each finding** against the finding, the spec, and the code.
-3. **Verdict:** `VERDICT: PASS` or `VERDICT: FAIL`.
-4. **Write the report** to the `Report:` path with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`), and reply with that path only. The verdict is the file's last line, exactly `VERDICT: PASS` or `VERDICT: FAIL`.
+3. **Verdict:** `verdict: PASS` or `verdict: FAIL`.
+4. **Write strict YAML matching `CycleCriticReportSchema`** to `Report:` with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`).
 
-Report shape, for example:
+Report shape (`CycleCriticReportSchema`), for example:
 
+```yaml
+ran:
+  - cmd: dotnet test --filter ReleaseStale_NonUtc
+    exit: 0
+  - cmd: dotnet format --verify-no-changes --include api/src/Bookings/ReleaseStaleBookings.cs
+    exit: 0
+notRun: []
+findings:
+  - findingId: F1
+    report: review-1-slice-2.yaml
+    verdict: FIXED
+    detail: Harm real (old line 42 used DateTime.Now); gone (`dotnet test --filter ReleaseStale_NonUtc` exit 0).
+  - findingId: F4
+    report: review-1-frontend-1.yaml
+    verdict: NOT_FOUND_AGREED
+    detail: Agreed, bookings.vue:118-124 already awaits the save.
+missing: []
+extra: []
+specBroken: []
+verdict: PASS
 ```
-# Critic slice 2 · round 1
-Ran: dotnet test --filter ReleaseStale_NonUtc → exit 0
-Ran: dotnet format --verify-no-changes --include api/src/Bookings/ReleaseStaleBookings.cs → exit 0
-Not run: none
-F1 review-1-slice-2.md FIXED: harm real (old line 42 used DateTime.Now); gone: `dotnet test --filter ReleaseStale_NonUtc` exit 0
-F4 review-1-frontend.md NOT FOUND: agreed, bookings.vue:118-124 already awaits the save
-MISSING: none
-EXTRA: none
-Against the spec: no line broken
-VERDICT: PASS
+
+5. **Validate your report** before replying:
+
+```sh
+node <skill>/scripts/cycle-ctl.mjs validate cycle-critic "<report>"
 ```
+
+Fix any YAML, schema, or verdict-consistency error until the command exits `0`, then reply with only the report path.
 
 ## Judge from the tree, never the fixer's claims
 
-**Law:** Check the working tree against the `do: fix` blocks in the review reports whose path is in `Files:` (or each failing check in `gate.log` for a gate fix) and against the spec when there is one; read the fixer's report only for which findings it marked `FIXED`, `NOT FOUND`, `NEEDS CALL`, or `OUT OF SLICE` and its `Changed files:` line, taking no claim from it.
+**Law:** Check the working tree against the `do: fix` findings in the review reports whose `file` is in `Files:` (or each failing check in `gate.log` for a gate fix) and against the spec when there is one; read the fixer's report only for which findings it marked `FIXED`, `NOT_FOUND`, `NEEDS_CALL`, or `OUT_OF_SLICE` and its `changedFiles` list, taking no claim from it.
 
 **When:** Auditing any round of fixes for a slice or a gate fix.
 
-Bad: Marking `F1` passed because the fixer's report says `- check: exit 0` without reading the diff or running the check yourself.
-Good: Reading `git diff HEAD`, checking the fixer's report only for status labels and `Changed files:`, and verifying every claim directly against the tree.
+Bad: Marking `F1` as `FIXED` because the fixer's report says `check: exit 0` without reading the diff or running the check yourself.
+Good: Reading `git diff HEAD`, checking the fixer's report only for status values and `changedFiles`, and verifying every claim directly against the tree.
 
 ## Run read-only checks and finding commands yourself
 
-**Law:** Run the targeted tests for the changed files, format and lint in check mode on them as named by the repo's instructions or a non-writing task in root `Taskfile.yml` (such as `format:check`; never run a rewriting task — list it under `Not run`), and every command named by the findings (for a `gate.log` fix, rerun only the failing commands the log names), recording each command and its exit code; a check that could not run goes under `Not run` and does not change the verdict.
+**Law:** Run the targeted tests for the changed files, format and lint in check mode on them as named by the repo's instructions or a non-writing task in root `Taskfile.yml` (such as `format:check`; never run a rewriting task — list it in `notRun`), and every command named by the findings (for a `gate.log` fix, rerun only the failing commands the log names), recording each command and its exit code in `ran`; a check that could not run goes in `notRun` and does not change `verdict`.
 
 **When:** Verifying a fixer's changes before grading findings.
 
 Bad: Running `task format` (which rewrites files) or skipping the command a finding cited.
-Good: Running the targeted test command, `task format:check` (or recording `Not run: lint` when none exists), and each command from the findings, with every exit code recorded.
+Good: Running the targeted test command, `task format:check` (or recording `{ check: lint, reason: ... }` in `notRun` when none exists), and each command from the findings, with every exit code recorded in `ran`.
 
 ## Grade every finding and flag extra or spec breaks
 
-**Law:** Grade each `FIXED` finding (`NOT A HARM` if the removed lines had no real harm; `STILL THERE` if the harm remains or the added test does not assert what the finding named — though do not fail solely when no command or test can show it; `EXTRA` for any unasked diff, loosened or dropped check, or out-of-slice edit that is not a new file, a generated file from a changed source listed on `Changed files:`, a layout-only formatter rewrite listed on `Changed files:`, or a mechanical `nit` block whose `change:` begins `nit:`), grade `NOT FOUND` as `WRONG` if the harm is present at the cited `file:line`, grade any edit for `NEEDS CALL` or `OUT OF SLICE` as `EXTRA`, mark any unmentioned `do: fix` finding in the slice `MISSING`, report any broken spec line on `Against the spec:` with `F<n>`, report file name, quoted spec words, and `file:line`, and end on `VERDICT: FAIL` whenever any finding is `NOT A HARM`, `STILL THERE`, `EXTRA`, `WRONG`, or `MISSING`, a spec line is broken, or any command you ran exited non-zero — else `VERDICT: PASS`.
+**Law:** Grade each `FIXED` finding (`NOT_A_HARM` if the removed lines had no real harm; `STILL_THERE` if the harm remains or the added test does not assert what the finding named — though do not fail solely when no command or test can show it; `EXTRA` for any unasked diff, loosened or dropped check, or out-of-slice edit that is not a new file, a generated file from a changed source listed in `changedFiles`, a layout-only formatter rewrite listed in `changedFiles`, or a mechanical `nit` entry whose `change` begins `nit:`), grade `NOT_FOUND` as `NOT_FOUND_AGREED` if absent or `WRONG` if the harm is present at the cited `file:line`, grade any edit for `NEEDS_CALL` or `OUT_OF_SLICE` as `EXTRA`, record any unmentioned `do: fix` finding in the slice under `missing` (and as `MISSING` in `findings`), record any broken spec line under `specBroken` (`findingId`, `report`, `quote`, `location`), and set `verdict: FAIL` whenever any finding is `NOT_A_HARM`, `STILL_THERE`, `EXTRA`, `WRONG`, or `MISSING`, `missing`, `extra`, or `specBroken` is non-empty, or any command in `ran` exited non-zero — else `verdict: PASS`.
 
 **When:** Grading every finding and deciding the final verdict of a critic report.
 
-Bad: Returning `VERDICT: PASS` when the fixer omitted one `do: fix` finding or edited an unrelated file outside `Files:` without it being generated or formatter-only.
-Good: Marking the omitted finding `MISSING`, flagging the unasked out-of-slice edit `EXTRA`, quoting any broken spec line on `Against the spec:`, and ending on `VERDICT: FAIL`.
+Bad: Setting `verdict: PASS` when the fixer omitted one `do: fix` finding or edited an unrelated file outside `Files:` without it being generated or formatter-only.
+Good: Recording the omitted finding in `missing`, flagging the unasked out-of-slice edit in `extra`, quoting any broken spec line in `specBroken`, and setting `verdict: FAIL`.
 
 ## Touch only the report and never judge style or recommend
 
@@ -73,7 +90,7 @@ Good: Marking the omitted finding `MISSING`, flagging the unasked out-of-slice e
 
 **When:** Checking a round of fixes and writing the critic report.
 
-Bad: Running `task gate`, tweaking a test file to confirm it fails, or adding "Suggest refactoring Helper.cs" to the critic report.
-Good: Leaving the tree untouched, writing only the critic report via heredoc with factual grades, and ending on `VERDICT: PASS` or `VERDICT: FAIL`.
+Bad: Running `task gate`, tweaking a test file to confirm it fails, or adding a `suggestions` field to the critic YAML report.
+Good: Leaving the tree untouched, writing only the critic YAML report via heredoc with factual grades, and validating it with `cycle-ctl.mjs validate cycle-critic`.
 
 <!-- end of cycle/references/critic.md -->

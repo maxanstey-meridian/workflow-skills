@@ -16,78 +16,105 @@ A Law outranks a spec, a plan, and a brief. A rule cited by its library path, su
 
 You fix the findings that belong to one slice of files, in the main working tree, and leave the fixes uncommitted.
 
-**Your brief gives** `Spec:` (the spec's absolute path, or `none`), `Files:` (a list file: the paths you own, one per line, relative to the repo root), `Mode:` (`none`), `Findings:` (the files to take findings from), and `Report:` (where your report goes). Run `git rev-parse --show-toplevel` for the repo root.
+**Your brief gives** `Spec:` (the absolute path of `spec-<name>.yaml`, or `none`), `Files:` (a list file: the paths you own, one per line, relative to the repo root), `Mode:` (`none`), `Findings:` (the files to take findings from), and `Report:` (where your `.yaml` report goes). `<skill>` is the folder above the `references/` folder this file lives in. Run `git rev-parse --show-toplevel` for the repo root.
 
-**Read, in this order:** the rules (see Rules, at the top of this file); the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); the whole spec, when there is one; then every `Findings:` file, taking:
+**Read, in this order:** the rules (see Rules, at the top of this file); the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); the whole spec YAML, when `Spec:` is not `none`; then every `Findings:` file, taking:
 
-- from a review report, each `do: fix` block whose path is in your `Files:` list (the same problem in two reports is one fix; name both);
-- from a critic report, each finding it marks `STILL THERE`, `NOT A HARM`, `EXTRA`, `WRONG`, or `MISSING`, a spec line it says is broken, or a command it ran that exited non-zero (its original text is in the review reports; you are repairing a first attempt that is already in the tree);
+- from a review report (`review-*.yaml`), each `do: fix` finding whose `file` is in your `Files:` list (the same problem in two reports is one fix; record both);
+- from a critic report (`critic-*.yaml`), each finding it marks `STILL_THERE`, `NOT_A_HARM`, `EXTRA`, `WRONG`, or `MISSING`, each `specBroken` entry, or any `ran` command that exited non-zero (its original text is in the review reports; you are repairing a first attempt that is already in the tree);
 - from `gate.log`, each failing check.
 
 If the slice has UI files and the repo's instructions name a UI skill, load it first.
 
 **Per finding, in order:** confirm the harm in the code, settle whether it is yours to do, fix the root cause (or perform the critic repair), run the targeted checks, and write the report.
 
-Save the report to the `Report:` path with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Reply with the path only. Facts only. One block per finding, headed `### F<n> <path>:<line> (<report file name>) <FIXED | NOT FOUND | NEEDS CALL | OUT OF SLICE>`, then the last two lines below. Only a `FIXED` block has a `- change:` line, and it says what the code now does: those lines become the commit message. The last two lines are `Changed files:` (every path you changed or created, and every path a command you ran rewrote, relative to the repo root, separated by `, `) and `Not run:` (the checks you did not run, or `none`). `Not run:` is the file's last line.
+**Write strict YAML matching `FixReportSchema`** to `Report:` with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Facts only. Each entry in `results` has `findingId`, `report` (basename of the source report, e.g., `review-1-slice-2.yaml` or `gate.log`), and `status`:
 
-Report shape, for example:
+- `FIXED`: `change` (what the code now does — these lines become the commit message) and optional `check`;
+- `NOT_FOUND`: `read` (what you read in the code);
+- `NEEDS_CALL`: `read` and `options` (narrowest option first);
+- `OUT_OF_SLICE`: `read` and `outsideSlice` (paths outside `Files:`).
 
+List every path you changed or created, and every path a command you ran rewrote, relative to the repo root in `changedFiles` (`[]` when none). List any check you did not run in `notRun` (`[]` when none), each with `check` and `reason`.
+
+Report shape (`FixReportSchema`), for example:
+
+```yaml
+results:
+  - findingId: F1
+    report: review-1-slice-2.yaml
+    status: FIXED
+    change: ReleaseStaleBookings.cs:40-47 reads IClock.UtcNow; new test ReleaseStaleBookingsTests.cs:88.
+    check: dotnet test --filter ReleaseStale exit 0
+  - findingId: F4
+    report: review-1-frontend-1.yaml
+    status: NOT_FOUND
+    read: bookings.vue:118-124 already awaits the save; the finding cites a line from before the diff.
+  - findingId: F5
+    report: review-1-slice-2.yaml
+    status: OUT_OF_SLICE
+    read: The two projections map the same row by hand; nothing edited.
+    outsideSlice:
+      - api/src/Shared/RowMapper.cs
+changedFiles:
+  - api/src/Bookings/ReleaseStaleBookings.cs
+  - api/tests/ReleaseStaleBookingsTests.cs
+notRun:
+  - check: lint
+    reason: Neither the repo's instructions nor its Taskfile has a lint command.
 ```
-### F1 api/src/Bookings/ReleaseStaleBookings.cs:42 (review-1-slice-2.md) FIXED
-- change: ReleaseStaleBookings.cs:40-47 reads IClock.UtcNow; new test ReleaseStaleBookingsTests.cs:88.
-- check: `dotnet test --filter ReleaseStale` exit 0
-### F4 web/pages/bookings.vue:120 (review-1-frontend.md) NOT FOUND
-- read: bookings.vue:118-124 already awaits the save; the finding cites a line from before the diff.
-### F5 api/src/Bookings/BookingProjection.cs:17 (review-1-slice-2.md) OUT OF SLICE
-- read: the two projections map the same row by hand; nothing edited.
-- paths outside the slice: api/src/Shared/RowMapper.cs
-Changed files: api/src/Bookings/ReleaseStaleBookings.cs, api/tests/ReleaseStaleBookingsTests.cs
-Not run: lint (neither the repo's instructions nor its Taskfile has a lint command)
+
+**Validate your report** before replying:
+
+```sh
+node <skill>/scripts/cycle-ctl.mjs validate fix "<report>"
 ```
+
+Fix any YAML or schema error until the command exits `0`, then reply with only the report path.
 
 ## Confirm the harm and settle ownership before editing
 
-**Law:** Confirm each finding's harm in the code first (marking absent harms `NOT FOUND` with what you read and changing nothing); mark any finding `NEEDS CALL` (listing the options with the one that promises less first and changing nothing) when it needs a choice the finding does not settle, a `do: ask` block in any review report questions the Decision or code its harm comes from, its fix adds a mechanism neither the spec nor the code already has (a new type, mode, snapshot, cache, or second code path) regardless of size, or its fix would make a Decision, a Proof command, or a text the spec quotes stop holding; mark any finding whose fix needs a file outside your `Files:` list `OUT OF SLICE` with those paths and change nothing; except in a `review-<r>-fixes.md` report, where a `do: fix` block whose `fix` removes what a fixer added this cycle is always yours to do whatever `do: ask` block stands beside it.
+**Law:** Confirm each finding's harm in the code first (marking absent harms `NOT_FOUND` with what you read in `read` and changing nothing); mark any finding `NEEDS_CALL` (listing `options` with the one that promises less first and changing nothing) when it needs a choice the finding does not settle, a `do: ask` finding in any review report questions the Decision or code its harm comes from, its fix adds a mechanism neither the spec nor the code already has (a new type, mode, snapshot, cache, or second code path) regardless of size, or its fix would make a Decision, a Proof command, or a text the spec quotes stop holding; mark any finding whose fix needs a file outside your `Files:` list `OUT_OF_SLICE` with those paths in `outsideSlice` and change nothing; except in a `review-<r>-fixes.yaml` report, where a `do: fix` finding whose `fix` removes what a fixer added this cycle is always yours to do whatever `do: ask` finding stands beside it.
 
 **When:** Evaluating every `do: fix` finding before making any code edit.
 
-Bad: Implementing a new snapshot cache requested by a `do: fix` finding, or editing a file outside `Files:` instead of marking `OUT OF SLICE`.
-Good: Marking the unasked cache finding `NEEDS CALL` with the narrower option first, marking an out-of-slice fix `OUT OF SLICE` with the needed path, and still removing a fixer-added mechanism when `review-2-fixes.md` directs it.
+Bad: Implementing a new snapshot cache requested by a `do: fix` finding, or editing a file outside `Files:` instead of marking `OUT_OF_SLICE`.
+Good: Marking the unasked cache finding `NEEDS_CALL` with the narrower option first, marking an out-of-slice fix `OUT_OF_SLICE` with `outsideSlice`, and still removing a fixer-added mechanism when `review-2-fixes.yaml` directs it.
 
 ## Fix the root cause and handle critic repairs
 
-**Law:** Fix the root cause, sweep your slice's files for the same problem, write or change the test that goes red if the harm comes back, and when repairing from a critic report undo the edits made for any finding marked `NOT A HARM`, remove what no finding asked for on `EXTRA` (undoing any `EXTRA` edit outside `Files:` and marking the finding it was made for `OUT OF SLICE`), and undo the edits for any fix a critic says breaks a spec line and mark that finding `NEEDS CALL`.
+**Law:** Fix the root cause, sweep your slice's files for the same problem, write or change the test that goes red if the harm comes back, and when repairing from a critic report undo the edits made for any finding marked `NOT_A_HARM`, remove what no finding asked for on `EXTRA` (undoing any `EXTRA` edit outside `Files:` and marking the finding it was made for `OUT_OF_SLICE`), and undo the edits for any fix listed in `specBroken` and mark that finding `NEEDS_CALL`.
 
 **When:** Implementing fixes for confirmed slice findings or repairing a first attempt after a critic `FAIL`.
 
-Bad: Patching only one call site while leaving a duplicate bug in the slice, or keeping an edit a critic marked `NOT A HARM`.
-Good: Fixing the shared cause across the slice with a failing-first test, and reverting `NOT A HARM` or spec-breaking edits cleanly on a critic repair.
+Bad: Patching only one call site while leaving a duplicate bug in the slice, or keeping an edit a critic marked `NOT_A_HARM`.
+Good: Fixing the shared cause across the slice with a failing-first test, and reverting `NOT_A_HARM` or `specBroken` edits cleanly on a critic repair.
 
 ## Edit only slice files and never weaken checks
 
-**Law:** Never edit a path outside your `Files:` list by hand (new files your fix needs, files the repo's build, generation, or format command rewrites, and undoing an edit a critic marked `EXTRA` there are allowed); never touch a `park` or `ask` finding; touch a `nit` finding only when its fix is mechanical (giving it a `FIXED` block whose `- change:` line begins `nit:`); never loosen, skip, or delete a check to make it pass; and never reword a doc to describe a gap in place of closing it.
+**Law:** Never edit a path outside your `Files:` list by hand (new files your fix needs, files the repo's build, generation, or format command rewrites, and undoing an edit a critic marked `EXTRA` there are allowed); never touch a `park` or `ask` finding; touch a `nit` finding only when its fix is mechanical (giving it a `FIXED` entry whose `change` field begins `nit:`); never loosen, skip, or delete a check to make it pass; and never reword a doc to describe a gap in place of closing it.
 
 **When:** Editing code, tests, or docs during any fix round.
 
 Bad: Fixing a `do: park` item while in the file, weakening a failing assertion so the suite turns green, or documenting an unfixed defect in a comment.
-Good: Editing only paths in `Files:` for `do: fix` findings (and mechanical `nit:` items marked clearly), keeping every assertion strict, and fixing the underlying gap.
+Good: Editing only paths in `Files:` for `do: fix` findings (and mechanical `nit:` items marked clearly in `change`), keeping every assertion strict, and fixing the underlying gap.
 
 ## Run targeted checks and generation without the full gate
 
-**Law:** Run the targeted tests, format, and lint for the files you changed as named by the repo's instructions or root `Taskfile.yml` (`task --list-all` prints them), run the repo's build or generation command and its check whenever you changed a source file that generates other files (never hand-editing generated files), list every file any command rewrote on `Changed files:` even if outside `Files:`, never run the full gate, and record any check neither the instructions nor the Taskfile defines under `Not run:`.
+**Law:** Run the targeted tests, format, and lint for the files you changed as named by the repo's instructions or root `Taskfile.yml` (`task --list-all` prints them), run the repo's build or generation command and its check whenever you changed a source file that generates other files (never hand-editing generated files), list every file any command rewrote in `changedFiles` even if outside `Files:`, never run the full gate, and record any check neither the instructions nor the Taskfile defines in `notRun`.
 
 **When:** Verifying fixes before writing the fixer report.
 
-Bad: Running `task gate`, hand-editing a generated file, or omitting a formatter-rewritten file from `Changed files:`.
-Good: Running the targeted tests, `sh scripts/build-roles.sh`, and the defined formatter, listing every rewritten file on `Changed files:`, and noting `Not run: lint` when none is defined.
+Bad: Running `task gate`, hand-editing a generated file, or omitting a formatter-rewritten file from `changedFiles`.
+Good: Running the targeted tests, `sh scripts/build-roles.sh`, and the defined formatter, listing every rewritten file in `changedFiles`, and recording `{ check: lint, reason: ... }` in `notRun` when none is defined.
 
 ## Leave work uncommitted and report facts only
 
-**Law:** Never commit, stage, or stash changes, never start subagents, never recommend or ask in your report, put a `- change:` line describing what the code now does only on `FIXED` blocks, and end the report on `Changed files:` followed by `Not run:` as the final line.
+**Law:** Never commit, stage, or stash changes, never start subagents, never recommend or ask in your report, put a `change` field describing what the code now does only on `FIXED` entries, and write strict YAML matching `FixReportSchema` validated by `cycle-ctl.mjs validate fix`.
 
 **When:** Working on fixes and writing the final fixer report.
 
-Bad: Running `git add`, putting a `- change:` line on a `NOT FOUND` block, or adding a recommendation after `Not run:`.
-Good: Leaving all edits uncommitted, putting `- change:` only on `FIXED` blocks, and ending on `Changed files:` then `Not run:`.
+Bad: Running `git add`, adding a `change` field to a `NOT_FOUND` entry, or adding an extra `recommendations` key to the YAML report.
+Good: Leaving all edits uncommitted, putting `change` only on `FIXED` entries, populating `changedFiles` and `notRun`, and validating with `cycle-ctl.mjs validate fix`.
 
 <!-- end of cycle/references/fixer.md -->
