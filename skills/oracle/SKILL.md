@@ -38,7 +38,7 @@ Every row in `<slice>.oracle.yaml` has an explicit `status` — nothing the row 
 - `other-level`: covered honestly at a cheaper test level (`reason` names the owning suite, `shortfall: null`).
 - `struck`: retired (`gone: true`) or platform-unexpressible row (`reason` required, `shortfall: null`). Only the user sets `other-level` or `struck`.
 
-Sources for `active` and `shortfall` rows: `written` (spec, contract, or doc), `meridian` (house rule), `ruling` (user decision), or `today` (observed in current code — flagged for user eyeball before lock). Unplaced call sites stay visible under `unplaced:`.
+Sources for `active` and `shortfall` rows: `written` (committed/non-ignored spec, contract, or doc — requires an existing, non-test, non-ignored repo-relative file path or URL in `sourceRef`, with no spaces, parentheses, or `.plans/*`), `meridian` (house rule), `ruling` (user decision), or `today` (observed in current code or existing tests — flagged for user eyeball before lock). Unplaced call sites stay visible under `unplaced:`.
 
 ## Ledger CLI
 

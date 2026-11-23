@@ -11,8 +11,8 @@ You draft expectations for one slice of an `/oracle` case, editing only `<case>/
    - `expect`: the intended product outcome.
      - For `browser`: `{ ui: "<what the person sees and can do next>", api?: "<optional wire or server-state outcome>" }` (`ui` is required and non-empty; omit `api` rather than leaving it empty).
      - For `api-contract` and `cli`: a non-empty string stating the expected status, error code, payload, exit code, output, or state change.
-   - `source`: where `expect` comes from — `written` (spec, contract, or doc), `meridian` (house rule), `ruling` (user decision), or `today` (observed in current code).
-   - `sourceRef` (optional): the file path, contract, doc, or Meridian rule path backing `source`.
+   - `source`: where `expect` comes from — `written` (committed/non-ignored spec, contract, or doc — never a test file), `meridian` (house rule), `ruling` (user decision), or `today` (observed in current code or existing tests).
+   - `sourceRef` (required when `source: written`, optional otherwise): a bare repo-relative file path (optional `#anchor` or `:line`) or URL backing `source` — no spaces, parentheses, prose, test files, or gitignored files (such as `.plans/*`).
    - `status`, `shortfall`, `reason`, and `question`:
      - `active`: intended behaviour that passes today (`shortfall: null`, `reason: null`, `question: null`). When no source settles the expectation, you may leave `expect: null` and `source: null` and set `question: { ask: "<question>", recommend: "<recommended expectation>" }`.
      - `shortfall`: intended behaviour that today's code fails (`shortfall: "<what today's code does wrong>"`, `reason: null`, `question: null`, with non-empty `when`, `expect`, and `source`).

@@ -318,6 +318,7 @@ describe("validate", () => {
           when: "User clicks Save",
           expect: { ui: "   " },
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: null,
           question: null,
@@ -371,6 +372,189 @@ describe("validate", () => {
     assert.match(res.stderr, /bad_other.*non-empty reason/);
     assert.match(res.stderr, /shortfall_with_question.*shortfall row must have question: null/);
     assert.match(res.stderr, /struck_with_shortfall.*struck row must have shortfall: null/);
+  });
+
+  it("rejects gitignored, nonexistent, .plans/, parenthesised, and missing sourceRef on written rows", () => {
+    const repoDir = makeTempDir("source-ref-git");
+    assert.equal(spawnSync("git", ["init", "-q"], { cwd: repoDir }).status, 0);
+    fs.writeFileSync(path.join(repoDir, ".gitignore"), "scratch.md\nignored-dir/\n", "utf8");
+    fs.writeFileSync(path.join(repoDir, "scratch.md"), "# scratch\n", "utf8");
+    fs.mkdirSync(path.join(repoDir, "ignored-dir"), { recursive: true });
+    fs.writeFileSync(path.join(repoDir, "ignored-dir", "spec.md"), "# ignored\n", "utf8");
+    fs.mkdirSync(path.join(repoDir, "docs"), { recursive: true });
+    fs.writeFileSync(path.join(repoDir, "docs", "spec.md"), "# spec\n", "utf8");
+    fs.mkdirSync(path.join(repoDir, "test"), { recursive: true });
+    fs.writeFileSync(path.join(repoDir, "test", "e2e.test.ts"), "// test\n", "utf8");
+    const caseDir = path.join(repoDir, "__oracle__", "demo");
+    fs.mkdirSync(caseDir, { recursive: true });
+    writeJson(path.join(caseDir, "oracle.conf.json"), {
+      kind: "cli",
+      rows: ["node", "rows.mjs"],
+    });
+
+    // Rejects gitignored sourceRef (both repo-relative and case-relative), missing file, directory, and missing sourceRef on written
+    writeYaml(path.join(caseDir, "core.oracle.yaml"), {
+      kind: "cli",
+      slice: "core",
+      rows: [
+        {
+          id: "ignored_root",
+          status: "active",
+          when: "Runs command",
+          expect: "Exits 0",
+          source: "written",
+          sourceRef: "scratch.md#L1",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+        {
+          id: "ignored_nested",
+          status: "active",
+          when: "Runs command",
+          expect: "Exits 0",
+          source: "written",
+          sourceRef: "../../ignored-dir/spec.md:10",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+        {
+          id: "missing_file",
+          status: "active",
+          when: "Runs command",
+          expect: "Exits 0",
+          source: "written",
+          sourceRef: "docs/nonexistent.md",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+        {
+          id: "dir_ref",
+          status: "active",
+          when: "Runs command",
+          expect: "Exits 0",
+          source: "written",
+          sourceRef: "docs",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+        {
+          id: "test_file_ref",
+          status: "active",
+          when: "Runs command",
+          expect: "Exits 0",
+          source: "written",
+          sourceRef: "test/e2e.test.ts:1",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+        {
+          id: "missing_ref",
+          status: "active",
+          when: "Runs command",
+          expect: "Exits 0",
+          source: "written",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+      ],
+    });
+
+    const valRes = runLedger(["validate", caseDir]);
+    assert.equal(valRes.status, 1);
+    assert.match(valRes.stderr, /ignored_root.*is gitignored/);
+    assert.match(valRes.stderr, /ignored_nested.*is gitignored/);
+    assert.match(valRes.stderr, /missing_file.*does not exist on disk/);
+    assert.match(valRes.stderr, /dir_ref.*does not exist on disk/);
+    assert.match(valRes.stderr, /test_file_ref.*is a test file/);
+    assert.match(valRes.stderr, /missing_ref.*requires sourceRef/);
+
+    const lockRes = runLedger(["lock", caseDir]);
+    assert.equal(lockRes.status, 1);
+    assert.match(lockRes.stderr, /ignored_root.*is gitignored/);
+    assert.match(lockRes.stderr, /missing_file.*does not exist on disk/);
+
+    // Rejects .plans/ and parenthesised sourceRef at schema parse time
+    writeYaml(path.join(caseDir, "core.oracle.yaml"), {
+      kind: "cli",
+      slice: "core",
+      rows: [
+        {
+          id: "plans_ref",
+          status: "active",
+          when: "Runs command",
+          expect: "Exits 0",
+          source: "written",
+          sourceRef: ".plans/spec-foo.yaml",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+        {
+          id: "parens_ref",
+          status: "active",
+          when: "Runs command",
+          expect: "Exits 0",
+          source: "written",
+          sourceRef: "docs/spec.md (section 2)",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+      ],
+    });
+    const badFormatRes = runLedger(["validate", caseDir]);
+    assert.equal(badFormatRes.status, 1);
+    assert.match(badFormatRes.stderr, /\.plans\//);
+    assert.match(badFormatRes.stderr, /without whitespace or parentheses/);
+
+    // Accepts existing non-ignored repo-relative path, URL, and meridian skill rule path
+    writeYaml(path.join(caseDir, "core.oracle.yaml"), {
+      kind: "cli",
+      slice: "core",
+      rows: [
+        {
+          id: "ok_doc",
+          status: "active",
+          when: "Runs command",
+          expect: "Exits 0",
+          source: "written",
+          sourceRef: "docs/spec.md#ruling-1",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+        {
+          id: "ok_url",
+          status: "active",
+          when: "Runs command",
+          expect: "Exits 0",
+          source: "written",
+          sourceRef: "https://example.com/spec#s1",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+        {
+          id: "ok_meridian",
+          status: "active",
+          when: "Runs command",
+          expect: "Exits 0",
+          source: "meridian",
+          sourceRef: "tests/assert-the-intended-behaviour-not-todays-gap.md",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+      ],
+    });
+    assert.equal(runLedger(["validate", caseDir]).status, 0);
+    assert.equal(runLedger(["lock", caseDir]).status, 0);
   });
 });
 
@@ -428,6 +612,7 @@ describe("folded block scalars", () => {
           when: "User runs the command",
           expect: "Exits 0",
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: null,
           question: null,
@@ -566,6 +751,7 @@ describe("results, verify, and open", () => {
           when: "Valid input",
           expect: "Prints ok",
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: null,
           question: null,
@@ -735,6 +921,7 @@ describe("results, verify, and open", () => {
           when: "Run",
           expect: "Works",
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: null,
           question: null,
@@ -846,6 +1033,7 @@ describe("results, verify, and open", () => {
           when: "Run abs",
           expect: "Passes",
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: null,
           question: null,
@@ -856,6 +1044,7 @@ describe("results, verify, and open", () => {
           when: "Run rel",
           expect: "Passes",
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: null,
           question: null,
@@ -909,6 +1098,7 @@ describe("results, verify, and open", () => {
           when: "User clicks Submit",
           expect: { ui: "Shows confirmation" },
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: null,
           question: null,
@@ -919,6 +1109,7 @@ describe("results, verify, and open", () => {
           when: "User waits for dialog",
           expect: { ui: "Dialog appears" },
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: null,
           question: null,
@@ -977,6 +1168,7 @@ describe("results, verify, and open", () => {
           when: "Create standard user",
           expect: "Exits 0",
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: null,
           question: null,
@@ -987,6 +1179,7 @@ describe("results, verify, and open", () => {
           when: "Create admin user",
           expect: "Exits 0",
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: null,
           question: null,
@@ -1033,6 +1226,7 @@ describe("results, verify, and open", () => {
           when: "Run once",
           expect: "Passes",
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: null,
           question: null,
@@ -1079,6 +1273,7 @@ describe("results, verify, and open", () => {
           when: "Run a",
           expect: "Passes",
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: null,
           question: null,
@@ -1089,6 +1284,7 @@ describe("results, verify, and open", () => {
           when: "Run b",
           expect: "Passes",
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: null,
           question: null,
@@ -1422,6 +1618,7 @@ describe("command error branches", () => {
           when: "Run a",
           expect: "Passes",
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: null,
           question: null,
@@ -1496,6 +1693,7 @@ describe("command error branches", () => {
           when: "Run a",
           expect: "Passes",
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: null,
           question: null,
@@ -1506,6 +1704,7 @@ describe("command error branches", () => {
           when: "Run b",
           expect: "Passes",
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: null,
           question: null,
@@ -1577,6 +1776,7 @@ describe("command error branches", () => {
           when: "Old command",
           expect: "Prints old output",
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: null,
           question: null,
@@ -1613,6 +1813,7 @@ describe("command error branches", () => {
           when: "Run a",
           expect: "Passes",
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: null,
           question: null,
@@ -1623,6 +1824,7 @@ describe("command error branches", () => {
           when: "Impossible input",
           expect: "Unreachable",
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: "Guarded by schema",
           question: null,
@@ -1633,6 +1835,7 @@ describe("command error branches", () => {
           when: "Handled upstream",
           expect: "Checked in unit suite",
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: "Covered by unit test",
           question: null,
@@ -1643,6 +1846,7 @@ describe("command error branches", () => {
           when: "Obsolete path",
           expect: "Removed",
           source: "written",
+          sourceRef: "oracle.conf.json",
           shortfall: null,
           reason: "No longer supported",
           question: null,

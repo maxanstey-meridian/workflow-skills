@@ -25,8 +25,8 @@ You draft expectations for one slice of an `/oracle` case, editing only `<case>/
    - `expect`: the intended product outcome.
      - For `browser`: `{ ui: "<what the person sees and can do next>", api?: "<optional wire or server-state outcome>" }` (`ui` is required and non-empty; omit `api` rather than leaving it empty).
      - For `api-contract` and `cli`: a non-empty string stating the expected status, error code, payload, exit code, output, or state change.
-   - `source`: where `expect` comes from — `written` (spec, contract, or doc), `meridian` (house rule), `ruling` (user decision), or `today` (observed in current code).
-   - `sourceRef` (optional): the file path, contract, doc, or Meridian rule path backing `source`.
+   - `source`: where `expect` comes from — `written` (committed/non-ignored spec, contract, or doc — never a test file), `meridian` (house rule), `ruling` (user decision), or `today` (observed in current code or existing tests).
+   - `sourceRef` (required when `source: written`, optional otherwise): a bare repo-relative file path (optional `#anchor` or `:line`) or URL backing `source` — no spaces, parentheses, prose, test files, or gitignored files (such as `.plans/*`).
    - `status`, `shortfall`, `reason`, and `question`:
      - `active`: intended behaviour that passes today (`shortfall: null`, `reason: null`, `question: null`). When no source settles the expectation, you may leave `expect: null` and `source: null` and set `question: { ask: "<question>", recommend: "<recommended expectation>" }`.
      - `shortfall`: intended behaviour that today's code fails (`shortfall: "<what today's code does wrong>"`, `reason: null`, `question: null`, with non-empty `when`, `expect`, and `source`).
@@ -51,12 +51,12 @@ Ran: node <skill>/scripts/ledger.mjs validate <case> -> exit 0
 
 ## Never present today's code as intent
 
-**Law:** Set `source: today` whenever an expectation comes only from reading current code with no written spec, contract, doc, or Meridian rule behind it, and mark real defects `shortfall` against the intended behaviour (`tests/assert-the-intended-behaviour-not-todays-gap.md`) rather than weakening `expect` to match today's bug.
+**Law:** Set `source: today` whenever an expectation comes only from reading current code, existing test files, or an ephemeral/gitignored file (such as `.plans/*`) with no durable written spec, contract, doc, or Meridian rule behind it, and mark real defects `shortfall` against the intended behaviour (`tests/assert-the-intended-behaviour-not-todays-gap.md`) rather than weakening `expect` to match today's bug. `source: written` requires an existing, non-ignored, non-test repo-relative file path (optional `#anchor` or `:line`) or URL in `sourceRef` — no spaces, parentheses, or prose.
 
-**When:** Drafting `expect`, `source`, and `status` for any row in `<slice>.oracle.yaml`.
+**When:** Drafting `expect`, `source`, `sourceRef`, and `status` for any row in `<slice>.oracle.yaml`.
 
-Bad: Copying today's handler behaviour with `source: written`, or rewriting `expect` to match a known rounding bug so the row looks `active`.
-Good: Setting `source: today` when only current code backs the expectation so the user eyeballs it before locking, and marking the rounding bug `status: shortfall` with the intended `expect`.
+Bad: Copying today's handler behaviour with `source: written`, citing a test file (`*.test.*`, `*.spec.*`, `*Tests.cs`, `test/*`) or a gitignored `.plans/*.yaml` file, stuffing prose/parentheses into `sourceRef`, or rewriting `expect` to match a known rounding bug so the row looks `active`.
+Good: Setting `source: today` when only current code, existing tests, or a gitignored plan back the expectation so the user eyeballs it before locking, citing a bare committed doc path like `docs/rulings.md#ruling-21` for `source: written`, and marking the rounding bug `status: shortfall` with the intended `expect`.
 
 ## Preserve row inventory and user-only statuses
 

@@ -82,6 +82,59 @@ export const BrowserExpectSchema = z
   .strict();
 export type BrowserExpect = z.infer<typeof BrowserExpectSchema>;
 
+export const stripSourceRefLocator = (ref: string): string =>
+  ref.replace(/#.*$/, "").replace(/:\d+(?:-\d+)?$/, "");
+
+export const isUrlSourceRef = (ref: string): boolean => /^https?:\/\//i.test(ref);
+
+const TEST_DIR_SEGMENTS = new Set(["test", "tests", "__tests__"]);
+
+export const isTestFileSourceRef = (ref: string): boolean => {
+  if (isUrlSourceRef(ref)) {
+    return false;
+  }
+  const filePath = stripSourceRefLocator(ref).replace(/\\/g, "/");
+  const segments = filePath.split("/").filter((s) => s.length > 0);
+  if (segments.length === 0) {
+    return false;
+  }
+  const dirSegments = segments.slice(0, -1);
+  if (dirSegments.some((s) => TEST_DIR_SEGMENTS.has(s.toLowerCase()))) {
+    return true;
+  }
+  const fileName = segments[segments.length - 1] ?? "";
+  return (
+    /\.(?:test|spec)\.[^./]+$/i.test(fileName) ||
+    /(?:Test|Tests)\.cs$/.test(fileName) ||
+    /^test_[^/]+\.[^./]+$/i.test(fileName) ||
+    /_test\.[^./]+$/i.test(fileName)
+  );
+};
+
+export const validateSourceRefFormat = (ref: string): string | null => {
+  if (ref.length === 0) {
+    return "sourceRef must be non-empty";
+  }
+  if (/\s/.test(ref) || ref.includes("(") || ref.includes(")")) {
+    return `sourceRef "${ref}" must be a bare path or URL without whitespace or parentheses`;
+  }
+  if (isUrlSourceRef(ref)) {
+    return null;
+  }
+  if (ref.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(ref)) {
+    return `sourceRef "${ref}" must be a repo-relative path or URL, not an absolute path`;
+  }
+  const filePath = stripSourceRefLocator(ref).replace(/\\/g, "/");
+  if (filePath.length === 0) {
+    return `sourceRef "${ref}" must include a file path`;
+  }
+  const segments = filePath.split("/").filter((s) => s.length > 0);
+  if (segments.includes(".plans")) {
+    return `sourceRef "${ref}" points inside .plans/, which is not a durable source`;
+  }
+  return null;
+};
+
 const baseRowFields = {
   id: z.string().min(1),
   where: z.string().optional(),
@@ -90,7 +143,15 @@ const baseRowFields = {
   status: RowStatusSchema,
   when: z.string().nullable(),
   source: RowSourceSchema.nullable(),
-  sourceRef: z.string().optional(),
+  sourceRef: z
+    .string()
+    .superRefine((val, ctx) => {
+      const err = validateSourceRefFormat(val);
+      if (err !== null) {
+        ctx.addIssue({ code: "custom", message: err });
+      }
+    })
+    .optional(),
   shortfall: z.string().nullable(),
   reason: z.string().nullable(),
   question: QuestionSchema.nullable(),
@@ -284,6 +345,17 @@ export const validateOracleFile = (
   for (const row of file.rows) {
     const prefix = `${fileName} [${row.id}]`;
 
+    if (row.sourceRef !== undefined) {
+      const refErr = validateSourceRefFormat(row.sourceRef);
+      if (refErr !== null) {
+        errors.push(`${prefix}: ${refErr}`);
+      } else if (row.source === "written" && isTestFileSourceRef(row.sourceRef)) {
+        errors.push(
+          `${prefix}: sourceRef "${row.sourceRef}" is a test file; test files cannot back source "written"`,
+        );
+      }
+    }
+
     if (row.status === "active") {
       if (row.shortfall !== null) {
         errors.push(`${prefix}: active row must have shortfall: null`);
@@ -294,6 +366,8 @@ export const validateOracleFile = (
         }
         if (row.source === null) {
           errors.push(`${prefix}: active row without question requires source`);
+        } else if (row.source === "written" && !isNonEmpty(row.sourceRef)) {
+          errors.push(`${prefix}: active row with source "written" requires sourceRef`);
         }
         if (file.kind === "browser") {
           if (row.expect === null || typeof row.expect === "string" || !isNonEmpty(row.expect.ui)) {
@@ -317,6 +391,8 @@ export const validateOracleFile = (
       }
       if (row.source === null) {
         errors.push(`${prefix}: shortfall row requires source`);
+      } else if (row.source === "written" && !isNonEmpty(row.sourceRef)) {
+        errors.push(`${prefix}: shortfall row with source "written" requires sourceRef`);
       }
       if (file.kind === "browser") {
         if (row.expect === null || typeof row.expect === "string" || !isNonEmpty(row.expect.ui)) {

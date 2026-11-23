@@ -17,6 +17,7 @@ const makeBrowserRow = (overrides: Partial<BrowserRow> = {}): BrowserRow => ({
   when: "User clicks Save",
   expect: { ui: "Saved banner appears" },
   source: "written",
+  sourceRef: "docs/spec.md",
   shortfall: null,
   reason: null,
   question: null,
@@ -29,6 +30,7 @@ const makeSimpleRow = (overrides: Partial<SimpleRow> = {}): SimpleRow => ({
   when: "Open ticket is paused",
   expect: "Returns next=paused",
   source: "written",
+  sourceRef: "docs/spec.md",
   shortfall: null,
   reason: null,
   question: null,
@@ -314,5 +316,78 @@ describe("validateOracleFile", () => {
         `core.oracle.yaml [empty_shortfall]: ${kind} shortfall row requires non-empty expect`,
       ]);
     }
+  });
+
+  it("enforces strict sourceRef format and requires sourceRef for written rows", () => {
+    const validFile: OracleFile = {
+      kind: "cli",
+      slice: "core",
+      rows: [
+        makeSimpleRow({ id: "rel_path", sourceRef: "docs/rulings.md#ruling-21" }),
+        makeSimpleRow({ id: "specs_dir", sourceRef: "specs/auth.md" }),
+        makeSimpleRow({ id: "line_range", sourceRef: "docs/spec.md:10-25" }),
+        makeSimpleRow({
+          id: "url_ref",
+          sourceRef: "https://datatracker.ietf.org/doc/html/rfc9110#section-15",
+        }),
+        makeSimpleRow({ id: "today_no_ref", source: "today", sourceRef: undefined }),
+      ],
+    };
+    assert.deepEqual(validateOracleFile(validFile, "cli", "core.oracle.yaml"), []);
+
+    const invalidFile: OracleFile = {
+      kind: "cli",
+      slice: "core",
+      rows: [
+        makeSimpleRow({ id: "written_no_ref", source: "written", sourceRef: undefined }),
+        makeSimpleRow({
+          id: "shortfall_no_ref",
+          status: "shortfall",
+          shortfall: "Bug",
+          source: "written",
+          sourceRef: undefined,
+        }),
+        makeSimpleRow({ id: "has_parens", sourceRef: "docs/spec.md (section 2)" }),
+        makeSimpleRow({ id: "has_space", sourceRef: "docs/my spec.md" }),
+        makeSimpleRow({ id: "plans_path", sourceRef: ".plans/spec-foo.yaml" }),
+        makeSimpleRow({ id: "nested_plans", sourceRef: "sub/.plans/spec-foo.yaml#L10" }),
+        makeSimpleRow({ id: "abs_path", sourceRef: "/Users/max/repo/docs/spec.md" }),
+        makeSimpleRow({
+          id: "ts_test_file",
+          sourceRef: "skills/oracle/tracer/test/e2e.test.ts:43",
+        }),
+        makeSimpleRow({ id: "spec_ts_file", sourceRef: "apps/ui/records.nuxt.spec.ts" }),
+        makeSimpleRow({ id: "cs_test_file", sourceRef: "apps/api/CaseBridge.Tests/AuthTests.cs" }),
+        makeSimpleRow({ id: "test_dir_file", sourceRef: "tests/helpers/fixture.ts" }),
+      ],
+    };
+    const errors = validateOracleFile(invalidFile, "cli", "core.oracle.yaml");
+    assert.ok(
+      errors.some((e) =>
+        e.includes('[written_no_ref]: active row with source "written" requires sourceRef'),
+      ),
+    );
+    assert.ok(
+      errors.some((e) =>
+        e.includes('[shortfall_no_ref]: shortfall row with source "written" requires sourceRef'),
+      ),
+    );
+    assert.ok(
+      errors.some(
+        (e) => e.includes("[has_parens]:") && e.includes("without whitespace or parentheses"),
+      ),
+    );
+    assert.ok(
+      errors.some(
+        (e) => e.includes("[has_space]:") && e.includes("without whitespace or parentheses"),
+      ),
+    );
+    assert.ok(errors.some((e) => e.includes("[plans_path]:") && e.includes(".plans/")));
+    assert.ok(errors.some((e) => e.includes("[nested_plans]:") && e.includes(".plans/")));
+    assert.ok(errors.some((e) => e.includes("[abs_path]:") && e.includes("not an absolute path")));
+    assert.ok(errors.some((e) => e.includes("[ts_test_file]:") && e.includes("is a test file")));
+    assert.ok(errors.some((e) => e.includes("[spec_ts_file]:") && e.includes("is a test file")));
+    assert.ok(errors.some((e) => e.includes("[cs_test_file]:") && e.includes("is a test file")));
+    assert.ok(errors.some((e) => e.includes("[test_dir_file]:") && e.includes("is a test file")));
   });
 });
