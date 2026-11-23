@@ -1,0 +1,24 @@
+{
+  "name": "workflow-contracts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/cli.ts --bundle --format=esm --platform=node --minify --banner:js=\"#!/usr/bin/env node\nimport { createRequire as __contractsCreateRequire } from 'node:module'; const require = __contractsCreateRequire(import.meta.url);\" --outfile=../../skills/spec/scripts/spec-ctl.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint",
+    "format:check": "oxfmt --check src test",
+    "test": "node --test test/*.test.ts"
+  },
+  "dependencies": {
+    "commander": "15.1.0",
+    "yaml": "2.9.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "esbuild": "^0.28.2",
+    "oxfmt": "0.62.0",
+    "oxlint": "1.83.0",
+    "typescript": "6.0.3"
+  }
+}
