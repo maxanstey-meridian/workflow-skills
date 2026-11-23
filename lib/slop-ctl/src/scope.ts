@@ -459,7 +459,7 @@ export const runMechanicalFinders = (
         writeLeadFile(runDir, "leads-inspectcode.txt", "skipped: jb not installed\n");
       } else {
         const inspectParts: string[] = [];
-        let inspectError: string | undefined;
+        const inspectErrors: Array<{ solution: string; reason: string }> = [];
         for (let i = 0; i < dotnet.solutions.length; i += 1) {
           const solution = dotnet.solutions[i];
           if (solution === undefined) {
@@ -477,7 +477,7 @@ export const runMechanicalFinders = (
               },
             );
             if (jbRes.error !== undefined) {
-              inspectError = jbRes.error.message;
+              inspectErrors.push({ solution, reason: jbRes.error.message });
               break;
             }
             if (fs.existsSync(tmpOutPath)) {
@@ -487,19 +487,30 @@ export const runMechanicalFinders = (
               }
             } else if (jbRes.status !== 0) {
               const detail = combineOutput(jbRes.stdout, jbRes.stderr).trim();
-              inspectError =
+              const reason =
                 detail.length > 0
                   ? `jb inspectcode exited ${jbRes.status ?? 1}: ${detail}`
                   : `jb inspectcode exited ${jbRes.status ?? 1}`;
+              inspectErrors.push({ solution, reason });
             }
           } finally {
             fs.rmSync(tmpOutPath, { force: true });
           }
         }
         if (inspectParts.length > 0) {
-          writeLeadFile(runDir, "leads-inspectcode.txt", inspectParts.join(""));
-        } else if (inspectError !== undefined) {
-          writeLeadFile(runDir, "leads-inspectcode.txt", `skipped: ${inspectError}\n`);
+          const failureLines = inspectErrors.map(
+            ({ solution, reason }) => `skipped (${solution}): ${reason}\n`,
+          );
+          writeLeadFile(
+            runDir,
+            "leads-inspectcode.txt",
+            `${inspectParts.join("")}${failureLines.join("")}`,
+          );
+        } else if (inspectErrors.length > 0) {
+          const failureLines = inspectErrors.map(
+            ({ solution, reason }) => `skipped: ${solution}: ${reason}\n`,
+          );
+          writeLeadFile(runDir, "leads-inspectcode.txt", failureLines.join(""));
         } else {
           writeLeadFile(runDir, "leads-inspectcode.txt", "");
         }

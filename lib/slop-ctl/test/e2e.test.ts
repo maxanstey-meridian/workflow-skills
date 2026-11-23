@@ -916,7 +916,7 @@ describe("slop-ctl e2e: plans ignore, mechanical finders, error exits, and run d
       "skipped: jb not installed\n",
     );
 
-    // 4. Restored solution where jb inspectcode exits non-zero without writing output -> skipped marker
+    // 4. Restored solutions where jb inspectcode exits non-zero for all solutions -> skipped lines
     const fakeBinFailJb = makeFakeBinDir("dotnet-fail-jb", {
       npx: 'printf "FAKE_NPX %s\\n" "$*"',
       dotnet: 'echo "Program.cs(1,1): info IDE0052: Unread field"',
@@ -929,9 +929,39 @@ describe("slop-ctl e2e: plans ignore, mechanical finders, error exits, and run d
     const failJbRes = runSlopCtl(["init"], repo, envWithBin(fakeBinFailJb));
     assert.equal(failJbRes.status, 0, failJbRes.stderr);
     const failJbOut = InitOutputSchema.parse(YAML.parse(failJbRes.stdout));
-    assert.match(
+    assert.equal(
       fs.readFileSync(path.join(failJbOut.run, "leads-inspectcode.txt"), "utf8"),
-      /^skipped: jb inspectcode exited 2: license check failed\n$/,
+      [
+        "skipped: App.sln: jb inspectcode exited 2: license check failed",
+        "skipped: Tools.slnx: jb inspectcode exited 2: license check failed",
+        "",
+      ].join("\n"),
+    );
+
+    // 5. Partial failure: one solution writes output, another exits non-zero without output
+    const fakeBinPartialJb = makeFakeBinDir("dotnet-partial-jb", {
+      npx: 'printf "FAKE_NPX %s\\n" "$*"',
+      dotnet: 'echo "Program.cs(1,1): info IDE0052: Unread field"',
+      jb: [
+        'if [ "$1" = "--version" ]; then echo "jb 2026.1"; exit 0; fi',
+        'if [ "$2" = "Tools.slnx" ]; then echo "solution load failed" >&2; exit 2; fi',
+        'for arg in "$@"; do',
+        '  case "$arg" in',
+        '    -o=*) printf "INSPECTCODE_REPORT %s\\n" "$2" > "${arg#-o=}" ;;',
+        "  esac",
+        "done",
+      ].join("\n"),
+    });
+    const partialJbRes = runSlopCtl(["init"], repo, envWithBin(fakeBinPartialJb));
+    assert.equal(partialJbRes.status, 0, partialJbRes.stderr);
+    const partialJbOut = InitOutputSchema.parse(YAML.parse(partialJbRes.stdout));
+    assert.equal(
+      fs.readFileSync(path.join(partialJbOut.run, "leads-inspectcode.txt"), "utf8"),
+      [
+        "INSPECTCODE_REPORT App.sln",
+        "skipped (Tools.slnx): jb inspectcode exited 2: solution load failed",
+        "",
+      ].join("\n"),
     );
   });
 
