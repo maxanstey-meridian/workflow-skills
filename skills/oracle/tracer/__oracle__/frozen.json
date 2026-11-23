@@ -1,0 +1,12 @@
+{
+  "date": "2026-11-23T19:04:28.059Z",
+  "words": "ticket lifecycle decider",
+  "command": [
+    "node",
+    "rows.ts"
+  ],
+  "script": {
+    "file": "rows.ts",
+    "sha256": "14b30a2a2152b82534fa00eb7a6e68952d411c28c168f554f821ff06c6995ce7"
+  }
+}

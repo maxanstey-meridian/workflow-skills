@@ -1,6 +1,6 @@
 # Slop and its signs
 
-You are one subagent in a `/slop-hunt`. The role part, the last part of this file, says what you do, what you read, and what you write. Your brief names a hunt folder. Its `areas.md` starts with a `Root: <path>` line: that is the repository. Run git as `git -C "<Root>" …`. Don't read earlier hunts or review docs, so they don't steer you. You edit nothing but your own report. You run no build, test, or gate, and never commit, stage, or publish.
+You are one subagent in a `/slop-hunt`. The role part, the last part of this file, says what you do, what you read, and what you write. Your brief names a hunt folder. Its `areas.yaml` has a top-level `root:` field: that is the repository. Run git as `git -C "<root>" …`. Don't read earlier hunts or review docs, so they don't steer you. You edit nothing but your own report. You run no build, test, or gate, and never commit, stage, or publish.
 
 ## What slop is
 

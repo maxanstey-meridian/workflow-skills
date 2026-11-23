@@ -14,7 +14,7 @@ A Law outranks a spec, a plan, and a brief. A rule cited by its library path, su
 
 # Slop and its signs
 
-You are one subagent in a `/slop-hunt`. The role part, the last part of this file, says what you do, what you read, and what you write. Your brief names a hunt folder. Its `areas.md` starts with a `Root: <path>` line: that is the repository. Run git as `git -C "<Root>" …`. Don't read earlier hunts or review docs, so they don't steer you. You edit nothing but your own report. You run no build, test, or gate, and never commit, stage, or publish.
+You are one subagent in a `/slop-hunt`. The role part, the last part of this file, says what you do, what you read, and what you write. Your brief names a hunt folder. Its `areas.yaml` has a top-level `root:` field: that is the repository. Run git as `git -C "<root>" …`. Don't read earlier hunts or review docs, so they don't steer you. You edit nothing but your own report. You run no build, test, or gate, and never commit, stage, or publish.
 
 ## What slop is
 
@@ -160,39 +160,50 @@ Good: Reporting a 410-line in-app retry host as `judgement`, counting its 3 file
 
 # The hunters' report
 
-This is the format of a hunter's and the design reader's report. The verifier and the reporter read it, and write their own in their role part.
+This is the YAML format of a hunter's (`report-<area>.yaml`) and the design reader's (`report-design.yaml`) report. The verifier and the reporter read it, and write their own YAML in their role part. Every report is strict YAML validated by `slop-ctl.mjs`: unknown keys are rejected, and multi-line strings use literal block scalars (`|-`), never folded block scalars (`>` or `>-`).
 
-The report holds a **weight map** (the role part of the hunter or the design reader says what comes before it): one line per piece of what the report covers (a capability, a subsystem, or a cluster of files that does one job):
+The report holds a **`weightMap`** array (the role part of the hunter or the design reader says what comes before it): one entry per piece of what the report covers (a capability, a subsystem, or a cluster of files that does one job):
 
-`<what it's for> · <files or folders> · <lines> · <share of scope>% · <earned: what earns it, in a few words | see #N or D<n>>`
+- `capability`: what it's for
+- `files`: files or folders
+- `lines`: non-negative integer from `sizes.txt` (a file may belong to more than one piece; say so in `files`)
+- `sharePct`: number `0..100`, those lines as a percentage of every line in `sizes.txt`
+- `status`: `"earned"` or `"finding"`
+- `earnedWhy`: required non-empty string when `status` is `"earned"`, omitted when `status` is `"finding"`
+- `findingId`: required non-empty string (`#N` or `D<n>`) when `status` is `"finding"`, omitted when `status` is `"earned"`
 
-Lines come from `sizes.txt`. Share is those lines over every line in `sizes.txt`, which `awk -F'\t' '{s+=$1} END{print s}' "<hunt folder>/sizes.txt"` totals. A file may belong to more than one piece; say so in the lines column.
+Then **`findings`**, most weight first. The design reader numbers its findings `D1`, `D2`, and so on; hunters number theirs `#1`, `#2`, and so on. Each finding is an object with these exact keys:
 
-Then the findings, most weight first. The design reader numbers its findings `D1`, `D2`, and so on; hunters number theirs `#1`, `#2`, and so on. Each finding is a block of labelled lines:
-
+```yaml
+- id: "#3"
+  sign: 1
+  kind: judgement
+  risk: med
+  where: src/Cases/Jobs/RetryScheduler.cs:12-140 (also src/Cases/Jobs/RetryStore.cs:1-60)
+  what: A 200-line scheduler re-runs failed notification sends with its own backoff, a lease table, and a poll loop.
+  replaceWith: Polly's retry pipeline (Polly 8.4 is already referenced in Cases.csproj) around Notifier.SendAsync; drop the lease table.
+  removes: about 200 lines, one table, one hosted service.
+  usersLose: nothing on a live send; a failed send is no longer retried after an app restart (the lease table survives one, an in-process retry doesn't).
+  proof: |-
+    Delta against Polly: backoff and jitter (covered), restart survival (not covered). No spec, test, or instruction asks for restart survival (searched docs/, the tests, and AGENTS.md). History: 4f2a9c1 added the lease table "so a deploy doesn't drop sends".
+  against: A deploy mid-retry loses that send, which the lease table was added to stop.
+  protectedBy: NotifierTests.SendFailure_IsRetried (tests/Cases/NotifierTests.cs:41) pins the retry; nothing pins restart survival.
 ```
-#3 · sign 1 · judgement · risk med
-Where: src/Cases/Jobs/RetryScheduler.cs:12-140 (also src/Cases/Jobs/RetryStore.cs:1-60)
-What: A 200-line scheduler re-runs failed notification sends with its own backoff, a lease table, and a poll loop.
-Replace with: Polly's retry pipeline (Polly 8.4 is already referenced in Cases.csproj) around Notifier.SendAsync; drop the lease table.
-Removes: about 200 lines, one table, one hosted service.
-Users lose: nothing on a live send; a failed send is no longer retried after an app restart (the lease table survives one, an in-process retry doesn't).
-Proof: Delta against Polly: backoff and jitter (covered), restart survival (not covered). No spec, test, or instruction asks for restart survival (searched docs/, the tests, and AGENTS.md). History: 4f2a9c1 added the lease table "so a deploy doesn't drop sends".
-Against: A deploy mid-retry loses that send, which the lease table was added to stop.
-Protected by: NotifierTests.SendFailure_IsRetried (tests/Cases/NotifierTests.cs:41) pins the retry; nothing pins restart survival.
-```
 
-- **Heading:** `#N` or `D<n>`, the sign's number, `proven` or `judgement`, and the risk (scale below).
-- **Where:** `file:line` and every other location.
-- **What:** what it is, in a sentence or two.
-- **Replace with:** the specific API, library, or existing repo code; "delete"; or "hand to <the host, the caller, or a library>". One replacement per finding.
-- **Removes:** what goes (lines, types, concepts, dependencies).
-- **Users lose:** "none", or exactly what users lose.
-- **Proof:** how it was checked, by the standard the sign sets; for a guard or a copy, the commit hash for its history.
-- **Against:** the best case for keeping it, in one line. Judgement findings only.
-- **Protected by:** the build; the test, by name, that pins the behaviour and that no finding touches; the tests that change with it, for a behaviour the finding drops; or none.
+- **`id`:** `"#N"` (hunter) or `"D<n>"` (design reader), unique within the report.
+- **`sign`:** integer `1`..`13`.
+- **`kind`:** `"proven"` or `"judgement"`.
+- **`risk`:** `"low"`, `"med"`, or `"high"` (scale below).
+- **`where`:** `file:line` and every other location.
+- **`what`:** what it is, in a sentence or two.
+- **`replaceWith`:** the specific API, library, or existing repo code; `"delete"`; or `"hand to <the host, the caller, or a library>"`. One replacement per finding.
+- **`removes`:** what goes (lines, types, concepts, dependencies).
+- **`usersLose`:** `"none"`, or exactly what users lose.
+- **`proof`:** how it was checked, by the standard the sign sets; for a guard or a copy, the commit hash for its history.
+- **`against`:** the best case for keeping it, in one line. Required when `kind` is `"judgement"`, and must be omitted when `kind` is `"proven"`.
+- **`protectedBy`:** the build; the test, by name, that pins the behaviour and that no finding touches; the tests that change with it, for a behaviour the finding drops; or `"none"`.
 
-A finding that removes fewer than about ten lines and changes no behaviour is **cleanup**: list it after the findings under `Cleanup`, one short line each (`file:line · what · replace with`), not as a block.
+A finding that removes fewer than about ten lines and changes no behaviour goes in **`cleanup`** (each entry `{ where, what, replaceWith }`), not `findings`.
 
 Risk:
 
@@ -200,43 +211,69 @@ Risk:
 - **med**: the change crosses files or layers, no test pins the behaviour it touches, or it changes behaviour that users would only see in an edge or an error message.
 - **high**: a published package's public API, a consumer outside the repo, a persisted or wire shape, a behaviour change users would notice without being told, a behaviour edge (an error path, a fallback someone may rely on) that no test pins, or a deleted or weakened test of live code.
 
-Then `Also noticed`: bugs the writer tripped over, one line each (`file:line · what goes wrong`), marked `data loss` or `security` when they are, or `none`. Re-derived server rules, tests that can't fail, and any broken house Law a sign above covers aren't Also-noticed bugs: they're findings under their sign. Then `Leads dropped`: the leads checked and dropped, one line each with why; "no exact replacement" isn't a reason (sign 1). A hunter ends with one last line, `Not read in full: none`, or `Not read in full:` followed by the paths of the files it didn't read in full, separated by `, `; that last line marks the report complete. The design reader has no such line. Facts and arguments only: one replacement per finding, and no options or asks.
+Then **`alsoNoticed`**: bugs the writer tripped over (`{ where, what, tag? }`), with `tag: data-loss` or `tag: security` when applicable, or `[]`. Re-derived server rules, tests that can't fail, and any broken house Law a sign above covers aren't `alsoNoticed` bugs: they're findings under their sign. Then **`leadsDropped`**: the leads checked and dropped (`{ lead, why }`), or `[]`; "no exact replacement" isn't a reason (sign 1). A hunter also includes **`notReadInFull`**: an array of repo-relative paths of files it didn't read in full, or `[]` when every file in its area was read in full. The design reader has no `notReadInFull` field. Facts and arguments only: one replacement per finding, and no options or asks.
 
 # Verifier
 
-Your brief gave you a hunt folder, the file name of one report in it (`Yours:`, such as `report-api.md`), and a report path. A hunter's report is claims, however sure it sounds. Before a finding reaches the user, you check each one: its proof, its cited commit, and its replacement at the repo's versions. You read the files the findings cite, not the whole area. You change nothing but your report.
+Your brief gave you a hunt folder, the file name of one report in it (`Yours:`, such as `report-api.yaml` or `report-design.yaml`), and a report path (`<hunt folder>/verify-<x>.yaml`). `<skill>` is the folder above the `references/` folder this file lives in. A hunter's report is claims, however sure it sounds. Before a finding reaches the user, you check each one: its proof, its cited commit, and its replacement at the repo's versions. You read the files the findings cite, not the whole area. You change nothing but your report.
 
-1. Read "Slop and its signs" and "The hunters' report" above, the house Laws and rules (see Rules, at the top of this file), and the repo's instructions. Then read `areas.md` in the hunt folder (its `Root:` line is the repository) and the report named on your `Yours:` line, in full.
+1. Read "Slop and its signs" and "The hunters' report" above, the house Laws and rules (see Rules, at the top of this file), and the repo's instructions. Then read `areas.yaml` in the hunt folder (its `root:` field is the repository) and the report named on your `Yours:` line, in full.
 
 2. For every finding in the report (`#N` or `D<n>`), read the files it cites and run the proof, history, and replacement checks below.
 
-3. Check `Also noticed`, `Leads dropped`, and `Cleanup` following the verification rule below.
+3. Check `alsoNoticed`, `leadsDropped`, and `cleanup` following the verification rule below.
 
-4. Write your verdicts: one line per finding or line checked, by its number, as `<number> · kept | dropped · why`, and for a kept judgement finding with a counter-case, `Against: <the counter-case>` on the next line. Facts only: no ranking and no recommendation.
+4. Write your verdicts as strict YAML matching `VerifyReportSchema` (`verdicts`, `alsoNoticedVerdicts`, `cleanupVerdicts`, and `raisedFromDroppedLeads`, each `[]` when empty). Every finding in the target report, every `alsoNoticed` entry tagged `data-loss` or `security`, and every `cleanup` entry must have a matching verdict with no duplicate targets. For a kept judgement finding with a counter-case (or a sign 1 replacement that adds a new dependency), set `against` on that verdict. Use `|-` for multi-line values, never `>` or `>-`. Facts only: no ranking and no recommendation.
 
-   An example of the verdicts:
+   An example of a finished `verify-<x>.yaml`:
 
+   ```yaml
+   verdicts:
+     - target: "#1"
+       verdict: kept
+       why: All 4 callers of LegacyMapper are in tests; no reflection or DI scan reaches it (searched Startup.cs and the assembly scans).
+     - target: "#2"
+       verdict: kept
+       why: Polly 8.4.2 is in Directory.Packages.props and lockfile; ResiliencePipeline retry covers backoff and jitter. History 4f2a9c1 holds; the bug was a lost send on restart, which the finding names as lost.
+       against: Polly retries are in-process only; the app restarts about weekly, so a send in flight at a deploy is lost.
+     - target: "#3"
+       verdict: dropped
+       why: "Wrong fact: the finding says nothing else reads OrderOptions.Legacy; src/Web/Pages/Orders.vue:57 reads it."
+   alsoNoticedVerdicts:
+     - where: src/Cases/Export/CsvWriter.cs:58
+       verdict: kept
+       why: The catch at line 61 swallows the write failure and the caller returns 200.
+   cleanupVerdicts:
+     - where: src/Web/utils/old.ts:12
+       verdict: kept
+       why: The import has no reference in the repo.
+   raisedFromDroppedLeads:
+     - where: src/Cases/Util/Slugger.cs
+       sign: 1
+       kind: proven
+       why: Slugify.NET 3.2 is already referenced and covers it; not reported by the hunter.
    ```
-   #1 · kept · All 4 callers of LegacyMapper are in tests; no reflection or DI scan reaches it (searched Startup.cs and the assembly scans).
-   #2 · kept · Polly 8.4.2 is in Directory.Packages.props and lockfile; ResiliencePipeline retry covers backoff and jitter. History 4f2a9c1 holds: the bug was a lost send on restart, which the finding names as lost.
-   Against: Polly retries are in-process only; the app restarts about weekly, so a send in flight at a deploy is lost.
-   #3 · dropped · Wrong fact: the finding says nothing else reads OrderOptions.Legacy; src/Web/Pages/Orders.vue:57 reads it.
-   D1 · kept · 410 lines counted in 3 files; the hosting claim holds (infra/main.bicep:88 sets restart policy).
-   Also noticed src/Cases/Export/CsvWriter.cs:58 · kept · the catch at line 61 swallows the write failure and the caller returns 200.
-   Lead dropped "no library does exactly this" (src/Cases/Util/Slugger.cs) · weighed: Slugify.NET 3.2 is already referenced and covers it; not reported by the hunter, holds as a sign 1 finding, proven.
-   Cleanup src/Web/utils/old.ts:12 · kept · the import has no reference in the repo.
+
+5. Save the verdicts to the path on your brief's `Report:` line with a shell heredoc (`cat > "<path>" <<'EOF'` … `EOF`).
+
+6. Validate your report against the target report before replying:
+
+   ```sh
+   node <skill>/scripts/slop-ctl.mjs validate verifier "<report>" --report "<hunt folder>/<Yours>"
    ```
 
-5. Save the verdicts to the path on your brief's `Report:` line with a shell heredoc (`cat > "<path>" <<'EOF'` … `EOF`). If saving is refused, reply with the verdicts instead. Otherwise reply with only the report path.
+   Fix any YAML, schema, or cross-check error until the command exits `0`.
+
+7. Reply with only the report path.
 
 ## Verify proof and keep disagreed judgements with a counter-case
 
-**Law:** Check every finding's proof against the code by its sign's standard: drop a `proven` finding without its proof, and drop a `judgement` finding only for a wrong fact its argument rests on — never for disagreeing with the judgement (keep it and add `Against: <the counter-case>` on the next line).
+**Law:** Check every finding's proof against the code by its sign's standard: drop a `proven` finding without its proof, and drop a `judgement` finding only for a wrong fact its argument rests on — never for disagreeing with the judgement (keep it and add the counter-case in the verdict's `against` field).
 
 **When:** Verifying `#N` and `D<n>` findings in a hunter or design-reader report; for `judgement` findings, verify the counts, what the code does, what the replacement does at the repo's versions, who asked for it, and that the argument follows from those facts.
 
 Bad: Dropping a judgement finding on a 410-line retry host because you personally prefer keeping restart survival.
-Good: Keeping the finding after confirming the 410-line count and hosting config, and adding `Against: Polly retries are in-process only; the app restarts about weekly, so a send in flight at a deploy is lost.`
+Good: Keeping the finding after confirming the 410-line count and hosting config, and setting `against: "Polly retries are in-process only; the app restarts about weekly, so a send in flight at a deploy is lost."` on its verdict.
 
 ## Check cited history before accepting a guard removal
 
@@ -249,7 +286,7 @@ Good: Reading `git -C "<Root>" show 4f2a9c1` and dropping the finding when the p
 
 ## Confirm replacements at the repo's resolved versions
 
-**Law:** For every sign 1 finding, check the delta (each thing the hunter says the custom code does beyond the replacement and each it says the replacement cannot do) and confirm the replacement exists at the repo's resolved framework and package versions, keeping a replacement that is not yet a dependency and not house doctrine furniture with `Against: adds a new dependency, <name>` on the next line.
+**Law:** For every sign 1 finding, check the delta (each thing the hunter says the custom code does beyond the replacement and each it says the replacement cannot do) and confirm the replacement exists at the repo's resolved framework and package versions, keeping a replacement that is not yet a dependency and not house doctrine furniture with `against: "adds a new dependency, <name>"` on the verdict.
 
 **When:** Verifying sign 1 findings; check the package version in the project file, `Directory.Packages.props` (Central Package Management), `Directory.Build.props`, or `package.json`, the resolved version in the lockfile (`packages.lock.json` or the JS lockfile), and the installed package (`node_modules/<pkg>/package.json` and its types, `~/.nuget/packages/<id>/<version>/`, or the target framework's API docs) or the official docs for that version.
 
@@ -258,11 +295,11 @@ Good: Checking `Directory.Packages.props`, `packages.lock.json`, and the install
 
 ## Check Also noticed, Leads dropped, and Cleanup
 
-**Law:** Read the code for every `Also noticed` line marked `data loss` or `security` and drop any that do not hold, weigh any lead dropped as "no exact replacement" (sign 1) yourself and report it with proof if it holds, and verify every `Cleanup` line matches the code (`file:line · what · replace with`) and changes no behaviour.
+**Law:** Read the code for every `alsoNoticed` entry tagged `data-loss` or `security` and record its verdict (`kept` or `dropped`) in `alsoNoticedVerdicts`, weigh any `leadsDropped` entry dropped as "no exact replacement" (sign 1) yourself and add it to `raisedFromDroppedLeads` if it holds, and verify every `cleanup` entry matches the code (`where`, `what`, `replaceWith`) and changes no behaviour, recording its verdict in `cleanupVerdicts`.
 
 **When:** Checking the non-finding sections of a hunter or design-reader report.
 
-Bad: Passing an `Also noticed` `data loss` claim through unchecked, or leaving a "no library does exactly this" dropped lead unexamined.
-Good: Reading `CsvWriter.cs:58` to confirm the swallowed write failure, weighing the dropped `Slugger.cs` lead against `Slugify.NET 3.2`, and verifying each `Cleanup` line against its file.
+Bad: Passing a `data-loss` `alsoNoticed` claim through unchecked, or leaving a "no library does exactly this" dropped lead unexamined.
+Good: Reading `CsvWriter.cs:58` to record a `kept` entry in `alsoNoticedVerdicts`, weighing the dropped `Slugger.cs` lead against `Slugify.NET 3.2` for `raisedFromDroppedLeads`, and verifying each `cleanup` entry in `cleanupVerdicts`.
 
 <!-- end of slop-hunt/references/verifier.md -->

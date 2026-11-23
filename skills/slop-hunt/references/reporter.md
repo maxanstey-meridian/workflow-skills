@@ -10,7 +10,7 @@ A Law outranks a spec, a plan, and a brief. A rule cited by its library path, su
 
 # Slop and its signs
 
-You are one subagent in a `/slop-hunt`. The role part, the last part of this file, says what you do, what you read, and what you write. Your brief names a hunt folder. Its `areas.md` starts with a `Root: <path>` line: that is the repository. Run git as `git -C "<Root>" …`. Don't read earlier hunts or review docs, so they don't steer you. You edit nothing but your own report. You run no build, test, or gate, and never commit, stage, or publish.
+You are one subagent in a `/slop-hunt`. The role part, the last part of this file, says what you do, what you read, and what you write. Your brief names a hunt folder. Its `areas.yaml` has a top-level `root:` field: that is the repository. Run git as `git -C "<root>" …`. Don't read earlier hunts or review docs, so they don't steer you. You edit nothing but your own report. You run no build, test, or gate, and never commit, stage, or publish.
 
 ## What slop is
 
@@ -156,39 +156,50 @@ Good: Reporting a 410-line in-app retry host as `judgement`, counting its 3 file
 
 # The hunters' report
 
-This is the format of a hunter's and the design reader's report. The verifier and the reporter read it, and write their own in their role part.
+This is the YAML format of a hunter's (`report-<area>.yaml`) and the design reader's (`report-design.yaml`) report. The verifier and the reporter read it, and write their own YAML in their role part. Every report is strict YAML validated by `slop-ctl.mjs`: unknown keys are rejected, and multi-line strings use literal block scalars (`|-`), never folded block scalars (`>` or `>-`).
 
-The report holds a **weight map** (the role part of the hunter or the design reader says what comes before it): one line per piece of what the report covers (a capability, a subsystem, or a cluster of files that does one job):
+The report holds a **`weightMap`** array (the role part of the hunter or the design reader says what comes before it): one entry per piece of what the report covers (a capability, a subsystem, or a cluster of files that does one job):
 
-`<what it's for> · <files or folders> · <lines> · <share of scope>% · <earned: what earns it, in a few words | see #N or D<n>>`
+- `capability`: what it's for
+- `files`: files or folders
+- `lines`: non-negative integer from `sizes.txt` (a file may belong to more than one piece; say so in `files`)
+- `sharePct`: number `0..100`, those lines as a percentage of every line in `sizes.txt`
+- `status`: `"earned"` or `"finding"`
+- `earnedWhy`: required non-empty string when `status` is `"earned"`, omitted when `status` is `"finding"`
+- `findingId`: required non-empty string (`#N` or `D<n>`) when `status` is `"finding"`, omitted when `status` is `"earned"`
 
-Lines come from `sizes.txt`. Share is those lines over every line in `sizes.txt`, which `awk -F'\t' '{s+=$1} END{print s}' "<hunt folder>/sizes.txt"` totals. A file may belong to more than one piece; say so in the lines column.
+Then **`findings`**, most weight first. The design reader numbers its findings `D1`, `D2`, and so on; hunters number theirs `#1`, `#2`, and so on. Each finding is an object with these exact keys:
 
-Then the findings, most weight first. The design reader numbers its findings `D1`, `D2`, and so on; hunters number theirs `#1`, `#2`, and so on. Each finding is a block of labelled lines:
-
+```yaml
+- id: "#3"
+  sign: 1
+  kind: judgement
+  risk: med
+  where: src/Cases/Jobs/RetryScheduler.cs:12-140 (also src/Cases/Jobs/RetryStore.cs:1-60)
+  what: A 200-line scheduler re-runs failed notification sends with its own backoff, a lease table, and a poll loop.
+  replaceWith: Polly's retry pipeline (Polly 8.4 is already referenced in Cases.csproj) around Notifier.SendAsync; drop the lease table.
+  removes: about 200 lines, one table, one hosted service.
+  usersLose: nothing on a live send; a failed send is no longer retried after an app restart (the lease table survives one, an in-process retry doesn't).
+  proof: |-
+    Delta against Polly: backoff and jitter (covered), restart survival (not covered). No spec, test, or instruction asks for restart survival (searched docs/, the tests, and AGENTS.md). History: 4f2a9c1 added the lease table "so a deploy doesn't drop sends".
+  against: A deploy mid-retry loses that send, which the lease table was added to stop.
+  protectedBy: NotifierTests.SendFailure_IsRetried (tests/Cases/NotifierTests.cs:41) pins the retry; nothing pins restart survival.
 ```
-#3 · sign 1 · judgement · risk med
-Where: src/Cases/Jobs/RetryScheduler.cs:12-140 (also src/Cases/Jobs/RetryStore.cs:1-60)
-What: A 200-line scheduler re-runs failed notification sends with its own backoff, a lease table, and a poll loop.
-Replace with: Polly's retry pipeline (Polly 8.4 is already referenced in Cases.csproj) around Notifier.SendAsync; drop the lease table.
-Removes: about 200 lines, one table, one hosted service.
-Users lose: nothing on a live send; a failed send is no longer retried after an app restart (the lease table survives one, an in-process retry doesn't).
-Proof: Delta against Polly: backoff and jitter (covered), restart survival (not covered). No spec, test, or instruction asks for restart survival (searched docs/, the tests, and AGENTS.md). History: 4f2a9c1 added the lease table "so a deploy doesn't drop sends".
-Against: A deploy mid-retry loses that send, which the lease table was added to stop.
-Protected by: NotifierTests.SendFailure_IsRetried (tests/Cases/NotifierTests.cs:41) pins the retry; nothing pins restart survival.
-```
 
-- **Heading:** `#N` or `D<n>`, the sign's number, `proven` or `judgement`, and the risk (scale below).
-- **Where:** `file:line` and every other location.
-- **What:** what it is, in a sentence or two.
-- **Replace with:** the specific API, library, or existing repo code; "delete"; or "hand to <the host, the caller, or a library>". One replacement per finding.
-- **Removes:** what goes (lines, types, concepts, dependencies).
-- **Users lose:** "none", or exactly what users lose.
-- **Proof:** how it was checked, by the standard the sign sets; for a guard or a copy, the commit hash for its history.
-- **Against:** the best case for keeping it, in one line. Judgement findings only.
-- **Protected by:** the build; the test, by name, that pins the behaviour and that no finding touches; the tests that change with it, for a behaviour the finding drops; or none.
+- **`id`:** `"#N"` (hunter) or `"D<n>"` (design reader), unique within the report.
+- **`sign`:** integer `1`..`13`.
+- **`kind`:** `"proven"` or `"judgement"`.
+- **`risk`:** `"low"`, `"med"`, or `"high"` (scale below).
+- **`where`:** `file:line` and every other location.
+- **`what`:** what it is, in a sentence or two.
+- **`replaceWith`:** the specific API, library, or existing repo code; `"delete"`; or `"hand to <the host, the caller, or a library>"`. One replacement per finding.
+- **`removes`:** what goes (lines, types, concepts, dependencies).
+- **`usersLose`:** `"none"`, or exactly what users lose.
+- **`proof`:** how it was checked, by the standard the sign sets; for a guard or a copy, the commit hash for its history.
+- **`against`:** the best case for keeping it, in one line. Required when `kind` is `"judgement"`, and must be omitted when `kind` is `"proven"`.
+- **`protectedBy`:** the build; the test, by name, that pins the behaviour and that no finding touches; the tests that change with it, for a behaviour the finding drops; or `"none"`.
 
-A finding that removes fewer than about ten lines and changes no behaviour is **cleanup**: list it after the findings under `Cleanup`, one short line each (`file:line · what · replace with`), not as a block.
+A finding that removes fewer than about ten lines and changes no behaviour goes in **`cleanup`** (each entry `{ where, what, replaceWith }`), not `findings`.
 
 Risk:
 
@@ -196,102 +207,110 @@ Risk:
 - **med**: the change crosses files or layers, no test pins the behaviour it touches, or it changes behaviour that users would only see in an edge or an error message.
 - **high**: a published package's public API, a consumer outside the repo, a persisted or wire shape, a behaviour change users would notice without being told, a behaviour edge (an error path, a fallback someone may rely on) that no test pins, or a deleted or weakened test of live code.
 
-Then `Also noticed`: bugs the writer tripped over, one line each (`file:line · what goes wrong`), marked `data loss` or `security` when they are, or `none`. Re-derived server rules, tests that can't fail, and any broken house Law a sign above covers aren't Also-noticed bugs: they're findings under their sign. Then `Leads dropped`: the leads checked and dropped, one line each with why; "no exact replacement" isn't a reason (sign 1). A hunter ends with one last line, `Not read in full: none`, or `Not read in full:` followed by the paths of the files it didn't read in full, separated by `, `; that last line marks the report complete. The design reader has no such line. Facts and arguments only: one replacement per finding, and no options or asks.
+Then **`alsoNoticed`**: bugs the writer tripped over (`{ where, what, tag? }`), with `tag: data-loss` or `tag: security` when applicable, or `[]`. Re-derived server rules, tests that can't fail, and any broken house Law a sign above covers aren't `alsoNoticed` bugs: they're findings under their sign. Then **`leadsDropped`**: the leads checked and dropped (`{ lead, why }`), or `[]`; "no exact replacement" isn't a reason (sign 1). A hunter also includes **`notReadInFull`**: an array of repo-relative paths of files it didn't read in full, or `[]` when every file in its area was read in full. The design reader has no `notReadInFull` field. Facts and arguments only: one replacement per finding, and no options or asks.
 
 # Reporter
 
-Your brief gave you a hunt folder and a report path. You write the one report the user reads: you merge the hunters' and the design reader's findings, drop what the verifiers dropped, rank what is left, and write it in the template below. You re-verify nothing and hunt nothing. Nobody edits your report after you, so write it for the user: plain English, with jargon glossed. You change nothing but your report.
+Your brief gave you a hunt folder and a report path (`<hunt folder>/audit.yaml`). `<skill>` is the folder above the `references/` folder this file lives in. You write the structured YAML audit report that `slop-ctl.mjs` renders deterministically into `<hunt folder>/report.md` for the user: you merge the hunters' and the design reader's findings, drop what the verifiers dropped, rank what is left, and write `audit.yaml`. You re-verify nothing and hunt nothing. Nobody edits the rendered report after you, so write plain English with jargon glossed. You change nothing but your report.
 
-1. Read "Slop and its signs" and "The hunters' report" above (every report you read follows it), the house Laws and rules (see Rules, at the top of this file), and the repo's instructions. Then read in the hunt folder: `areas.md` (its `Root:` and `Head:` lines, and its area headings), every `report-*.md`, every `verify-*.md`, `churn.txt`, `left-out.txt` if it exists, and the first line of every `leads-*.txt` (`skipped: <why>` names a finder that didn't run).
+1. Read "Slop and its signs" and "The hunters' report" above (every report you read follows it), the house Laws and rules (see Rules, at the top of this file), and the repo's instructions. Then read in the hunt folder: `areas.yaml` (`root:`, `head:`, and `areas:`), every `report-*.yaml`, every `verify-*.yaml`, `churn.txt`, `left-out.txt` if it exists, and the first line of every `leads-*.txt` (`skipped: <why>` names a finder that didn't run).
 
 2. Settle the findings and cross-check protections, following the settlement and protection rules below.
 
 3. Rank the settled findings by weight and churn, following the ranking rule below.
 
-4. Write the report. A hunt over a lean codebase may find little, and the report says so plainly, but the weight map always shows where the lines go, so "nothing found" is a claim the user can check against it. The weight map is the design reader's, with each line marked earned (and what earns it, in a few words) or with its new finding number. With no `report-design.md`, it is the hunters' weight maps joined, and the report says so under `## Weight map`. Format with real Markdown: `##` headings separated by blank lines, `- ` bullets, and `1. ` numbered lists — never pack multiple items onto one line with ` · `. Omit `## Findings`, `## Design`, `## Code`, `## Cleanup`, and `## Also noticed` when empty. The template is these sections, in this order:
+4. Write strict YAML matching `SlopAuditSchema` to `Report:` (`<hunt folder>/audit.yaml`). Use `|-` for multi-line values, never `>` or `>-`. A hunt over a lean codebase may find little, and `tldr` says so plainly, but `weightMap` always shows where the lines go so "nothing found" is a claim the user can check against it. `weightMap` comes from `report-design.yaml` (each entry with `capability`, `lines`, `sharePct`, `status: "earned" | "finding"`, and `earnedWhy` or your new `findingId`), or from the hunters' weight maps joined when no `report-design.yaml` exists. `slop-ctl.mjs` renders `audit.yaml` into the 9-section Markdown report (`## TLDR`, `## Findings`, `## Needs from you`, `## Weight map`, `## Design`, `## Code`, `## Cleanup`, `## Also noticed`, `## Hunted`), omitting empty optional sections and showing the top 25 `code` findings in full with any remaining `code` findings as bullets grouped by sign.
 
-   ```markdown
-   ## TLDR
-   <plain English: where the weight is, how much of it is earned, and the biggest thing that isn't>
+   Schema fields (`SlopAuditSchema`):
+   - `tldr`: non-empty plain-English summary (where the weight is, how much is earned, and the biggest thing that isn't).
+   - `findings`: array of strings (`[]` when empty) for picture-changing items stated in full (broken premise, verifier-kept `data-loss`/`security` bugs, missing area reports, files not read in full, finder blind spots).
+   - `needsFromYou`: non-empty array of `{ item, rec? }` — one item per design finding with `rec`, plus which code findings and any `alsoNoticed` bugs to take on, telling the user to run `/spec` in this conversation (which takes no arguments).
+   - `weightMap`: non-empty array of `{ capability, lines, sharePct, status: "earned" | "finding", earnedWhy?, findingId? }`.
+   - `design` and `code`: arrays of findings (`id`, `sign`, `kind`, `risk`, `where`, `what`, `replaceWith`, `removes`, `usersLose`, `proof`, `against?` required iff `kind === "judgement"`, `verifierAdds?`, `protectedBy`, `hunterNotes?`, `unverified?`, `raisedByVerifier?`, `mootIf?`), with unique `id`s across `design` and `code`.
+   - `cleanup`: array of `{ id?, where, what, replaceWith }` (`[]` when empty).
+   - `alsoNoticed`: array of `{ where, what, tag?: "data-loss" | "security", verification: "kept" | "unchecked" }` (`[]` when empty).
+   - `hunted`: `{ repo, head, notReadInFull, leftOut, findersRun, skipped: [{ name, why }] }`.
 
-   ## Findings
-   1. <what changes the picture, stated in full: a broken premise, a kept bug that loses data or opens a security hole, an area with no report, files not read in full, a finder that couldn't see some files>
+   Here is a short finished `audit.yaml`:
 
-   ## Needs from you
-   1. <one item per design finding, with (rec: …)>
-   2. <which code findings and any Also-noticed bugs to take on; then run `/spec` in this conversation, which takes no arguments and reads them from it>
-
-   ## Weight map
-   - <capability> — <lines> (<share>) — earned (<why>) or <finding number>
-
-   ## Design
-   <the design findings, ranked, separated by blank lines, each with what users lose and the case against it>
-
-   ## Code
-   <the ranked code findings: top 25 in full separated by blank lines, the rest as bullets grouped by sign>
-
-   ## Cleanup
-   - <#N `file:line` — what>
-
-   ## Also noticed
-   - <`file:line` — bug (unchecked, or kept by a verifier)>
-
-   ## Hunted
-   - **Commit:** `<repo>@<Head hash>`
-   - **Not read in full:** <paths, or none>
-   - **Left out:** <paths from left-out.txt, or none>
-   - **Finders:** <names run>; skipped: <name: why, or none>
+   ```yaml
+   tldr: Most of this 46,000-line repo is earned. The notification retry machinery (~410 lines) is the biggest weight that isn't, because the host can do its job.
+   findings:
+     - "**Incomplete read:** the `api` hunter ran out of room — `src/Cases/Reports/PdfLayout.cs` was not read in full."
+     - "**Data loss bug (kept by verifier):** a failed CSV row write is swallowed and the export reports success (`src/Cases/Export/CsvWriter.cs:58`)."
+   needsFromYou:
+     - item: "**D1: drop the retry machinery and hand retries to the host?**"
+       rec: "**yes**, once you accept losing in-flight sends at a deploy"
+     - item: Choose which code findings and whether to take on the `CsvWriter.cs:58` bug, then run `/spec` in this conversation.
+   weightMap:
+     - capability: Case search
+       lines: 1100
+       sharePct: 16
+       status: earned
+       earnedWhy: main screen users work from
+     - capability: Notification retries
+       lines: 410
+       sharePct: 6
+       status: finding
+       findingId: D1
+   design:
+     - id: D1
+       sign: 13
+       kind: judgement
+       risk: med
+       where: "`src/Cases/Jobs/` (`RetryScheduler.cs`, `RetryStore.cs`, `JobHost.cs`)"
+       what: A hand-built job host, a lease table, and a poll loop re-send failed notifications.
+       replaceWith: hand to the host, with a retry policy around the send in `Notifier.cs`.
+       removes: about 410 lines, one table, one hosted service.
+       usersLose: a failed send is no longer retried after an app restart.
+       proof: 410 lines in 3 files, no test pins restart survival; commit `4f2a9c1` added the lease table.
+       against: A deploy mid-retry loses that send.
+       verifierAdds: the app restarts about weekly.
+       protectedBy: "`NotifierTests.SendFailure_IsRetried` (`tests/Cases/NotifierTests.cs:41`)."
+       hunterNotes:
+         - "priced (`src/Cases/Jobs/RetryScheduler.cs:12-140`): 200 lines in this area, plus the 60-line RetryStore."
+   code: []
+   cleanup: []
+   alsoNoticed:
+     - where: src/Cases/Export/CsvWriter.cs:58
+       what: a failed row write is swallowed
+       tag: data-loss
+       verification: kept
+   hunted:
+     repo: cases
+     head: 801310e
+     notReadInFull:
+       - src/Cases/Reports/PdfLayout.cs
+     leftOut:
+       - src/Cases/Seed/countries.json
+     findersRun:
+       - knip
+       - jscpd
+     skipped:
+       - name: dotnet format
+         why: solution not restored
    ```
 
-   Here is a short finished report:
+5. Save the report to the path on your brief's `Report:` line with a shell heredoc (`cat > "<path>" <<'EOF'` … `EOF`).
 
-   ```markdown
-   ## TLDR
-   Most of this 46,000-line repo is earned. The notification retry machinery (~410 lines) is the biggest weight that isn't, because the host can do its job.
+6. Validate your report before replying:
 
-   ## Findings
-   1. **Incomplete read:** the `api` hunter ran out of room — `src/Cases/Reports/PdfLayout.cs` was not read in full.
-   2. **Data loss bug (kept by verifier):** a failed CSV row write is swallowed and the export reports success (`src/Cases/Export/CsvWriter.cs:58`).
-
-   ## Needs from you
-   1. **D1: drop the retry machinery and hand retries to the host?** (rec: **yes**, once you accept losing in-flight sends at a deploy)
-   2. Choose which code findings and whether to take on the `CsvWriter.cs:58` bug, then run `/spec` in this conversation.
-
-   ## Weight map
-   - **Case search** — 1,100 lines (16%) — earned: main screen users work from.
-   - **Notification retries** — 410 lines (6%) — **D1**.
-
-   ## Design
-   ### D1 · sign 13 · judgement · risk med
-   - **Where:** `src/Cases/Jobs/` (`RetryScheduler.cs`, `RetryStore.cs`, `JobHost.cs`)
-   - **What:** A hand-built job host, a lease table, and a poll loop re-send failed notifications.
-   - **Replace with:** hand to the host, with a retry policy around the send in `Notifier.cs`.
-   - **Removes:** about 410 lines, one table, one hosted service.
-   - **Users lose:** a failed send is no longer retried after an app restart.
-   - **Proof:** 410 lines in 3 files, no test pins restart survival; commit `4f2a9c1` added the lease table.
-   - **Against:** A deploy mid-retry loses that send. Verifier adds: the app restarts about weekly.
-   - **Protected by:** `NotifierTests.SendFailure_IsRetried` (`tests/Cases/NotifierTests.cs:41`).
-
-   ## Also noticed
-   - `src/Cases/Export/CsvWriter.cs:58` — a failed row write is swallowed (data loss, kept by a verifier).
-
-   ## Hunted
-   - **Commit:** `cases@801310e`
-   - **Not read in full:** `src/Cases/Reports/PdfLayout.cs`
-   - **Left out:** `src/Cases/Seed/countries.json`
-   - **Finders:** `knip`, `jscpd`; skipped: `dotnet format` (solution not restored)
+   ```sh
+   node <skill>/scripts/slop-ctl.mjs validate reporter "<report>"
    ```
 
-5. Save the report to the path on your brief's `Report:` line with a shell heredoc (`cat > "<path>" <<'EOF'` … `EOF`). If saving is refused, reply with the whole report instead. Otherwise reply with only the report path.
+   Fix any YAML or schema error until the command exits `0`.
+
+7. Reply with only the report path.
 
 ## Settle verdicts, duplicates, and missing coverage
 
-**Law:** Drop every finding and `Cleanup` line a verifier dropped, append verifier counter-cases to `Against:`, mark findings absent from their `verify-` file `(unverified)`, merge duplicates across reports and attach hunter notes on design findings, mark code findings inside a design finding's capability `moot if D<n> lands`, add verifier-raised leads marked `(raised by the verifier)`, and report every coverage gap on `Findings`.
+**Law:** Drop every finding and `cleanup` entry a verifier dropped, copy verifier counter-cases into `verifierAdds`, mark findings absent from their `verify-*.yaml` file with `unverified: true`, merge duplicates across reports and attach `notesOnDesign` entries to `hunterNotes` on design findings, mark code findings inside a design finding's capability with `mootIf: "D<n>"`, add `raisedFromDroppedLeads` entries with `raisedByVerifier: true`, and report every coverage gap in `findings`.
 
-**When:** Settling hunter, design-reader, and verifier outputs in the reporter pass; coverage gaps to report on `Findings` are an area in `areas.md` with no `report-` file, no `report-design.md` when `areas.md` has more than one area (excluding `-rest` areas), a hunter report whose last line does not start with `Not read in full:` (cut short), a report with no `verify-` file, and every path on a `Not read in full:` last line except paths listed in a `-rest` area in `areas.md`.
+**When:** Settling hunter, design-reader, and verifier YAML outputs in the reporter pass; coverage gaps to report in `findings` are an area in `areas.yaml` with no valid `report-<area>.yaml`, no `report-design.yaml` when `areas.yaml` has more than one non-`-rest` area, a report with no valid `verify-*.yaml`, and every path in `notReadInFull` except paths covered by a completed `<area>-rest` report.
 
-Bad: Silently dropping a finding whose `verify-` file omitted it, or omitting an area that had no `report-` file from `Findings`.
-Good: Marking the unmentioned finding `(unverified)`, attaching the hunter's `D1 · priced` note to `D1`, and listing the missing area report as item 1 under `Findings`.
+Bad: Silently dropping a finding whose `verify-*.yaml` omitted it, or omitting an area that had no `report-<area>.yaml` from `findings`.
+Good: Setting `unverified: true` on the unmentioned finding, attaching the hunter's `D1` `priced` note to `hunterNotes` on `D1`, and listing the missing area report as item 1 in `findings`.
 
 ## Cross-check protections before keeping a finding
 
@@ -304,11 +323,11 @@ Good: Merging dependent removals into one finding, and dropping any finding that
 
 ## Rank by weight and churn, not ease of proof
 
-**Law:** Rank findings by the weight removed (lines, types, concepts, dependencies, and machinery stopped elsewhere) weighted by `churn.txt` and set against what users lose — never by ease of proof — breaking ties by lower risk, renumbering `D1`..`Dn` and `#1`..`#n` afresh, with `## Design` first, `## Code` next, `## Cleanup` as bullets, and `## Also noticed` bugs unranked.
+**Law:** Rank findings by the weight removed (lines, types, concepts, dependencies, and machinery stopped elsewhere) weighted by `churn.txt` and set against what users lose — never by ease of proof — breaking ties by lower risk, renumbering `D1`..`Dn` and `#1`..`#n` afresh, placing design findings in `design`, code findings in `code`, small cleanups in `cleanup`, and unranked bugs in `alsoNoticed`.
 
-**When:** Ordering and formatting the final report in the reporter pass: `## Design` holds design-reader findings plus any area finding dropping or reshaping a capability (each also listed in `## Needs from you` with a recommendation); `## Code` holds the rest (top 25 in full separated by blank lines, the rest as `- ` bullets grouped by sign, and `moot if D<n> lands` using your new numbers); `## Cleanup` holds findings under about ten lines with no behaviour change as ``- #N `file:line` — what`` bullets; `## Also noticed` lists bugs unranked, marked `(unchecked)` unless verified, with verifier-kept `data loss` or `security` bugs moved to `## Findings` stated in full, verifier-dropped ones dropped, and bugs never parked as fold decisions.
+**When:** Ordering and populating `audit.yaml` in the reporter pass: `design` holds design-reader findings plus any area finding dropping or reshaping a capability (each also listed in `needsFromYou` with `rec`); `code` holds the rest (using your new `D<n>` numbers in `mootIf`; `slop-ctl.mjs` renders the top 25 in full and any remaining as bullets grouped by sign); `cleanup` holds findings under about ten lines with no behaviour change (`{ id?, where, what, replaceWith }`); `alsoNoticed` lists bugs unranked with `verification: "unchecked"` unless verified (`"kept"`), with verifier-kept `data-loss` or `security` bugs also stated in full in `findings`, verifier-dropped ones dropped, and bugs never parked as fold decisions.
 
-Bad: Ranking a ten-line proven dead import above a 410-line judgement finding on a custom retry host, or parking an Also-noticed bug as a fold decision.
-Good: Putting `D1` (410 lines, high churn) first under `## Design` and in `## Needs from you`, moving the verifier-kept `data loss` bug to `## Findings`, and listing ten-line cleanups as ``- #N `file:line` — what`` bullets under `## Cleanup`.
+Bad: Ranking a ten-line proven dead import above a 410-line judgement finding on a custom retry host, or parking an `alsoNoticed` bug as a fold decision.
+Good: Putting `D1` (410 lines, high churn) first in `design` and `needsFromYou`, adding the verifier-kept `data-loss` bug to `findings` stated in full, and placing ten-line cleanups in `cleanup`.
 
 <!-- end of slop-hunt/references/reporter.md -->

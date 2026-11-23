@@ -22,7 +22,7 @@ Of the review rules, `coding/leave-harmless-redundancy-out-of-review-findings.md
 **When:** Drafting findings in a hunter or design-reader report; a ten-line certain cleanup matters less than a 500-line doubtful subsystem, and the ranking reflects that.
 
 Bad: Listing twelve five-line unused-import findings while skipping a questionable 500-line custom scheduler because it requires a judgement argument.
-Good: Reporting the 500-line scheduler as `judgement` with its cost, alternative, and `Against:` line, and putting minor cleanups under `Cleanup`.
+Good: Reporting the 500-line scheduler as `judgement` with its cost, alternative, and `against` field, and putting minor cleanups in `cleanup`.
 
 ## Weigh before you read lines
 
@@ -53,12 +53,12 @@ Good: Grepping the whole repository (and checking DI scans, templates, and confi
 
 ## Never claim to have read what you did not
 
-**Law:** Read every file of your hunter area in full with no skimming, sampling, or reading signatures in place of bodies, name every file you could not finish on the report's final `Not read in full:` line, and never claim a file you did not read (the design reader has no `Not read in full:` line and still never claims unread files).
+**Law:** Read every file of your hunter area in full with no skimming, sampling, or reading signatures in place of bodies, list every file you could not finish in `notReadInFull`, and never claim a file you did not read (the design reader has no `notReadInFull` field and still never claims unread files).
 
 **When:** Reading files and writing the report in a hunter or design-reader pass.
 
-Bad: Skimming a 900-line file's method signatures and ending the hunter report with `Not read in full: none`.
-Good: Reading the file in line-range chunks until complete, or listing its path on `Not read in full:` if room runs out.
+Bad: Skimming a 900-line file's method signatures and setting `notReadInFull: []` in the hunter report.
+Good: Reading the file in line-range chunks until complete, or listing its repo-relative path in `notReadInFull` if room runs out.
 
 ## Ask necessity and history of every finding
 
@@ -98,16 +98,16 @@ Good: Recording a tripped-over off-by-one bug as one line under `Also noticed` a
 
 ## Check leads against the code before reporting
 
-**Law:** Treat every `knip`, `jscpd`, analyzer, and `report-design.md` entry as a lead to read — never a finding until checked against the code — and when a design lead covers code in your hunter area, add what you see to that lead (`confirmed`, `priced`, or `contradicted`, citing `file:line`) rather than reporting the same thing again.
+**Law:** Treat every `knip`, `jscpd`, analyzer, and `report-design.yaml` entry as a lead to read — never a finding until checked against the code — and when a design lead covers code in your hunter area, add what you see to `notesOnDesign` (`confirmed`, `priced`, or `contradicted`, citing `where`) rather than reporting the same thing again.
 
-**When:** Working through mechanical finder outputs (`leads-*.txt`) and `report-design.md` in a hunter pass.
+**When:** Working through mechanical finder outputs (`leads-*.txt`) and `report-design.yaml` in a hunter pass.
 
 Bad: Copying a `knip` unused-file line straight into findings without checking Nuxt auto-imports, or duplicating `D1` as `#1`.
-Good: Reading the file first, dropping false leads under `Leads dropped`, and recording `D1 · priced · src/Cases/Jobs/RetryScheduler.cs:12-140 · ...` under `Notes on design findings:`.
+Good: Reading the file first, dropping false leads under `leadsDropped`, and recording `{ findingId: D1, stance: priced, where: src/Cases/Jobs/RetryScheduler.cs:12-140, note: "..." }` under `notesOnDesign`.
 
 # Slop and its signs
 
-You are one subagent in a `/slop-hunt`. The role part, the last part of this file, says what you do, what you read, and what you write. Your brief names a hunt folder. Its `areas.md` starts with a `Root: <path>` line: that is the repository. Run git as `git -C "<Root>" …`. Don't read earlier hunts or review docs, so they don't steer you. You edit nothing but your own report. You run no build, test, or gate, and never commit, stage, or publish.
+You are one subagent in a `/slop-hunt`. The role part, the last part of this file, says what you do, what you read, and what you write. Your brief names a hunt folder. Its `areas.yaml` has a top-level `root:` field: that is the repository. Run git as `git -C "<root>" …`. Don't read earlier hunts or review docs, so they don't steer you. You edit nothing but your own report. You run no build, test, or gate, and never commit, stage, or publish.
 
 ## What slop is
 
@@ -253,39 +253,50 @@ Good: Reporting a 410-line in-app retry host as `judgement`, counting its 3 file
 
 # The hunters' report
 
-This is the format of a hunter's and the design reader's report. The verifier and the reporter read it, and write their own in their role part.
+This is the YAML format of a hunter's (`report-<area>.yaml`) and the design reader's (`report-design.yaml`) report. The verifier and the reporter read it, and write their own YAML in their role part. Every report is strict YAML validated by `slop-ctl.mjs`: unknown keys are rejected, and multi-line strings use literal block scalars (`|-`), never folded block scalars (`>` or `>-`).
 
-The report holds a **weight map** (the role part of the hunter or the design reader says what comes before it): one line per piece of what the report covers (a capability, a subsystem, or a cluster of files that does one job):
+The report holds a **`weightMap`** array (the role part of the hunter or the design reader says what comes before it): one entry per piece of what the report covers (a capability, a subsystem, or a cluster of files that does one job):
 
-`<what it's for> · <files or folders> · <lines> · <share of scope>% · <earned: what earns it, in a few words | see #N or D<n>>`
+- `capability`: what it's for
+- `files`: files or folders
+- `lines`: non-negative integer from `sizes.txt` (a file may belong to more than one piece; say so in `files`)
+- `sharePct`: number `0..100`, those lines as a percentage of every line in `sizes.txt`
+- `status`: `"earned"` or `"finding"`
+- `earnedWhy`: required non-empty string when `status` is `"earned"`, omitted when `status` is `"finding"`
+- `findingId`: required non-empty string (`#N` or `D<n>`) when `status` is `"finding"`, omitted when `status` is `"earned"`
 
-Lines come from `sizes.txt`. Share is those lines over every line in `sizes.txt`, which `awk -F'\t' '{s+=$1} END{print s}' "<hunt folder>/sizes.txt"` totals. A file may belong to more than one piece; say so in the lines column.
+Then **`findings`**, most weight first. The design reader numbers its findings `D1`, `D2`, and so on; hunters number theirs `#1`, `#2`, and so on. Each finding is an object with these exact keys:
 
-Then the findings, most weight first. The design reader numbers its findings `D1`, `D2`, and so on; hunters number theirs `#1`, `#2`, and so on. Each finding is a block of labelled lines:
-
+```yaml
+- id: "#3"
+  sign: 1
+  kind: judgement
+  risk: med
+  where: src/Cases/Jobs/RetryScheduler.cs:12-140 (also src/Cases/Jobs/RetryStore.cs:1-60)
+  what: A 200-line scheduler re-runs failed notification sends with its own backoff, a lease table, and a poll loop.
+  replaceWith: Polly's retry pipeline (Polly 8.4 is already referenced in Cases.csproj) around Notifier.SendAsync; drop the lease table.
+  removes: about 200 lines, one table, one hosted service.
+  usersLose: nothing on a live send; a failed send is no longer retried after an app restart (the lease table survives one, an in-process retry doesn't).
+  proof: |-
+    Delta against Polly: backoff and jitter (covered), restart survival (not covered). No spec, test, or instruction asks for restart survival (searched docs/, the tests, and AGENTS.md). History: 4f2a9c1 added the lease table "so a deploy doesn't drop sends".
+  against: A deploy mid-retry loses that send, which the lease table was added to stop.
+  protectedBy: NotifierTests.SendFailure_IsRetried (tests/Cases/NotifierTests.cs:41) pins the retry; nothing pins restart survival.
 ```
-#3 · sign 1 · judgement · risk med
-Where: src/Cases/Jobs/RetryScheduler.cs:12-140 (also src/Cases/Jobs/RetryStore.cs:1-60)
-What: A 200-line scheduler re-runs failed notification sends with its own backoff, a lease table, and a poll loop.
-Replace with: Polly's retry pipeline (Polly 8.4 is already referenced in Cases.csproj) around Notifier.SendAsync; drop the lease table.
-Removes: about 200 lines, one table, one hosted service.
-Users lose: nothing on a live send; a failed send is no longer retried after an app restart (the lease table survives one, an in-process retry doesn't).
-Proof: Delta against Polly: backoff and jitter (covered), restart survival (not covered). No spec, test, or instruction asks for restart survival (searched docs/, the tests, and AGENTS.md). History: 4f2a9c1 added the lease table "so a deploy doesn't drop sends".
-Against: A deploy mid-retry loses that send, which the lease table was added to stop.
-Protected by: NotifierTests.SendFailure_IsRetried (tests/Cases/NotifierTests.cs:41) pins the retry; nothing pins restart survival.
-```
 
-- **Heading:** `#N` or `D<n>`, the sign's number, `proven` or `judgement`, and the risk (scale below).
-- **Where:** `file:line` and every other location.
-- **What:** what it is, in a sentence or two.
-- **Replace with:** the specific API, library, or existing repo code; "delete"; or "hand to <the host, the caller, or a library>". One replacement per finding.
-- **Removes:** what goes (lines, types, concepts, dependencies).
-- **Users lose:** "none", or exactly what users lose.
-- **Proof:** how it was checked, by the standard the sign sets; for a guard or a copy, the commit hash for its history.
-- **Against:** the best case for keeping it, in one line. Judgement findings only.
-- **Protected by:** the build; the test, by name, that pins the behaviour and that no finding touches; the tests that change with it, for a behaviour the finding drops; or none.
+- **`id`:** `"#N"` (hunter) or `"D<n>"` (design reader), unique within the report.
+- **`sign`:** integer `1`..`13`.
+- **`kind`:** `"proven"` or `"judgement"`.
+- **`risk`:** `"low"`, `"med"`, or `"high"` (scale below).
+- **`where`:** `file:line` and every other location.
+- **`what`:** what it is, in a sentence or two.
+- **`replaceWith`:** the specific API, library, or existing repo code; `"delete"`; or `"hand to <the host, the caller, or a library>"`. One replacement per finding.
+- **`removes`:** what goes (lines, types, concepts, dependencies).
+- **`usersLose`:** `"none"`, or exactly what users lose.
+- **`proof`:** how it was checked, by the standard the sign sets; for a guard or a copy, the commit hash for its history.
+- **`against`:** the best case for keeping it, in one line. Required when `kind` is `"judgement"`, and must be omitted when `kind` is `"proven"`.
+- **`protectedBy`:** the build; the test, by name, that pins the behaviour and that no finding touches; the tests that change with it, for a behaviour the finding drops; or `"none"`.
 
-A finding that removes fewer than about ten lines and changes no behaviour is **cleanup**: list it after the findings under `Cleanup`, one short line each (`file:line · what · replace with`), not as a block.
+A finding that removes fewer than about ten lines and changes no behaviour goes in **`cleanup`** (each entry `{ where, what, replaceWith }`), not `findings`.
 
 Risk:
 
@@ -293,7 +304,7 @@ Risk:
 - **med**: the change crosses files or layers, no test pins the behaviour it touches, or it changes behaviour that users would only see in an edge or an error message.
 - **high**: a published package's public API, a consumer outside the repo, a persisted or wire shape, a behaviour change users would notice without being told, a behaviour edge (an error path, a fallback someone may rely on) that no test pins, or a deleted or weakened test of live code.
 
-Then `Also noticed`: bugs the writer tripped over, one line each (`file:line · what goes wrong`), marked `data loss` or `security` when they are, or `none`. Re-derived server rules, tests that can't fail, and any broken house Law a sign above covers aren't Also-noticed bugs: they're findings under their sign. Then `Leads dropped`: the leads checked and dropped, one line each with why; "no exact replacement" isn't a reason (sign 1). A hunter ends with one last line, `Not read in full: none`, or `Not read in full:` followed by the paths of the files it didn't read in full, separated by `, `; that last line marks the report complete. The design reader has no such line. Facts and arguments only: one replacement per finding, and no options or asks.
+Then **`alsoNoticed`**: bugs the writer tripped over (`{ where, what, tag? }`), with `tag: data-loss` or `tag: security` when applicable, or `[]`. Re-derived server rules, tests that can't fail, and any broken house Law a sign above covers aren't `alsoNoticed` bugs: they're findings under their sign. Then **`leadsDropped`**: the leads checked and dropped (`{ lead, why }`), or `[]`; "no exact replacement" isn't a reason (sign 1). A hunter also includes **`notReadInFull`**: an array of repo-relative paths of files it didn't read in full, or `[]` when every file in its area was read in full. The design reader has no `notReadInFull` field. Facts and arguments only: one replacement per finding, and no options or asks.
 
 # The house shape and the capability map
 
@@ -303,9 +314,9 @@ Then `Also noticed`: bugs the writer tripped over, one line each (`file:line · 
 
 # Design reader
 
-Your brief gave you a hunt folder and a report path. You weigh the whole repository's capabilities before any area is hunted, and you leave the hunters leads. They read every file of their areas later; you read the entry points, the composition root, and as much of each capability as you need to judge it. You change nothing but your report.
+Your brief gave you a hunt folder and a report path (`<hunt folder>/report-design.yaml`). `<skill>` is the folder above the `references/` folder this file lives in. You weigh the whole repository's capabilities before any area is hunted, and you leave the hunters leads. They read every file of their areas later; you read the entry points, the composition root, and as much of each capability as you need to judge it. You change nothing but your report.
 
-1. Read "How to read", "Slop and its signs" (signs 1, 4, 11, 12, and 13 above all), "The hunters' report", and "The house shape and the capability map" above, the house Laws and rules (see Rules, at the top of this file), and the repo's instructions. Then read, in the hunt folder, `areas.md` (its `Root:` line is the repository), `sizes.txt`, and `churn.txt` (the 40 files that changed most in the last 12 months: heavy code that also churns costs most).
+1. Read "How to read", "Slop and its signs" (signs 1, 4, 11, 12, and 13 above all), "The hunters' report", and "The house shape and the capability map" above, the house Laws and rules (see Rules, at the top of this file), and the repo's instructions. Then read, in the hunt folder, `areas.yaml` (its `root:` field is the repository), `sizes.txt`, and `churn.txt` (the 40 files that changed most in the last 12 months: heavy code that also churns costs most).
 
 2. Learn the house shape, as "The house shape and the capability map" above describes.
 
@@ -313,25 +324,52 @@ Your brief gave you a hunt folder and a report path. You weigh the whole reposit
 
 4. Weigh each capability, following the weighing rule below.
 
-5. Write the report as "The hunters' report" above describes: first the house shape from step 2, then the weight map from step 3 (every capability, each marked earned or with its finding number), then the findings numbered `D1`, `D2`, and so on, then `Cleanup`, `Also noticed`, and `Leads dropped`. Your report has no `Not read in full:` line. Here is the start of a finished report:
+5. Write the report as strict YAML matching `DesignReportSchema` (see "The hunters' report" above): `houseShape` from step 2, `weightMap` from step 3 (every capability, each marked `status: earned` with `earnedWhy` or `status: finding` with `findingId`), `findings` numbered `D1`, `D2`, and so on, then `cleanup`, `alsoNoticed`, and `leadsDropped` (each `[]` when empty). Your report has no `notReadInFull` field. Use `|-` for multi-line values, never `>` or `>-`. Here is an example of a finished `report-design.yaml`:
 
-   ```
-   House shape: vertical slices under src/Cases/<Feature>/ (Endpoint, Handler, Validator). Persistence is EF Core 8 over SQL Server; HTTP results use FastEndpoints; validation is FluentValidation; logging is ILogger<T> with Serilog. Deployment config lives in infra/main.bicep and src/Cases/appsettings.*.json.
-   Notification retries · src/Cases/Jobs/ · 410 lines · 6% · D1
-   Case search · src/Cases/Search/ · 1,100 lines · 16% · earned: the main screen users work from
-   Retention sweep · src/Cases/Retention/ · 780 lines · 11% · D2
-   D1 · sign 13 · judgement · risk med
-   Where: src/Cases/Jobs/ (RetryScheduler.cs, RetryStore.cs, JobHost.cs)
-   What: A hand-built job host, a lease table, and a poll loop re-send failed notifications. The host (Azure Container Apps) already restarts failed revisions.
-   Replace with: hand to the host, a retry policy around the send in Notifier.cs.
-   Removes: about 410 lines, one table, one hosted service.
-   Users lose: a failed send is no longer retried after an app restart.
-   Proof: 410 lines in 3 files, 1 hosted service, no test pins restart survival; commit 4f2a9c1 added the lease table "so a deploy doesn't drop sends".
-   Against: A deploy mid-retry loses that send.
-   Protected by: NotifierTests.SendFailure_IsRetried (tests/Cases/NotifierTests.cs:41) pins the retry itself.
+   ```yaml
+   houseShape: Vertical slices under src/Cases/<Feature>/ (Endpoint, Handler, Validator). Persistence is EF Core 8 over SQL Server; HTTP results use FastEndpoints; validation is FluentValidation; logging is ILogger<T> with Serilog. Deployment config lives in infra/main.bicep and src/Cases/appsettings.*.json.
+   weightMap:
+     - capability: Notification retries
+       files: src/Cases/Jobs/
+       lines: 410
+       sharePct: 6
+       status: finding
+       findingId: D1
+     - capability: Case search
+       files: src/Cases/Search/
+       lines: 1100
+       sharePct: 16
+       status: earned
+       earnedWhy: the main screen users work from
+   findings:
+     - id: D1
+       sign: 13
+       kind: judgement
+       risk: med
+       where: src/Cases/Jobs/ (RetryScheduler.cs, RetryStore.cs, JobHost.cs)
+       what: A hand-built job host, a lease table, and a poll loop re-send failed notifications. The host (Azure Container Apps) already restarts failed revisions.
+       replaceWith: hand to the host, a retry policy around the send in Notifier.cs.
+       removes: about 410 lines, one table, one hosted service.
+       usersLose: a failed send is no longer retried after an app restart.
+       proof: 410 lines in 3 files, 1 hosted service, no test pins restart survival; commit 4f2a9c1 added the lease table "so a deploy doesn't drop sends".
+       against: A deploy mid-retry loses that send.
+       protectedBy: NotifierTests.SendFailure_IsRetried (tests/Cases/NotifierTests.cs:41) pins the retry itself.
+   cleanup: []
+   alsoNoticed: []
+   leadsDropped: []
    ```
 
-6. Save the report to the path on your brief's `Report:` line with a shell heredoc (`cat > "<path>" <<'EOF'` … `EOF`). If saving is refused, reply with the whole report instead. Otherwise reply with only the report path.
+6. Save the report to the path on your brief's `Report:` line with a shell heredoc (`cat > "<path>" <<'EOF'` … `EOF`).
+
+7. Validate your report before replying:
+
+   ```sh
+   node <skill>/scripts/slop-ctl.mjs validate design-reader "<report>"
+   ```
+
+   Fix any YAML or schema error until the command exits `0`.
+
+8. Reply with only the report path.
 
 ## Cover every major folder in the capability map
 

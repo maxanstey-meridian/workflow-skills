@@ -8,7 +8,7 @@ You write a spec. The orchestrator starts subagents. A critic checks each round.
 
 The orchestrator only dispatches. The auditor writes the report, so the orchestrator never marks its own run.
 
-For `/go` and `/cycle`, deterministic Node CLIs (`go-ctl.mjs` and `cycle-ctl.mjs`) own all state transitions, DAG scheduling, retry tracking, slice planning, report validation, spec updates, and Markdown audit rendering. Each orchestrator `SKILL.md` is a thin pull-based dispatch loop: it calls `<routine>-ctl.mjs init` and then loops `<routine>-ctl.mjs next <run>`, executing the one YAML action block printed to stdout (`spawn`, `slice`, `commit`, `gate`, `relay`, or `stop`). Every subagent writes a strict YAML report matching its schema in `lib/contracts/` and self-validates it with `<routine>-ctl.mjs validate` before returning its path. Compaction recovery is a single call to `<routine>-ctl.mjs next <run>`.
+For `/go`, `/cycle`, and `/slop-hunt`, deterministic Node CLIs (`go-ctl.mjs`, `cycle-ctl.mjs`, and `slop-ctl.mjs`) own all state transitions, DAG scheduling, retry tracking, slice planning, area splitting, report validation, spec updates, and Markdown audit rendering. Each orchestrator `SKILL.md` is a thin pull-based dispatch loop: it calls `<routine>-ctl.mjs init` and then loops `<routine>-ctl.mjs next <run>`, executing the one YAML action block printed to stdout (`spawn`, `slice`, `review-scope`, `split`, `commit`, `gate`, `relay`, or `stop`). Every subagent writes a strict YAML report matching its schema in `lib/contracts/` or `lib/slop-ctl/` and self-validates it with `<cli>.mjs validate` before returning its path. Compaction recovery is a single call to `<cli>.mjs next <run>`.
 
 ## Layout
 
@@ -19,10 +19,11 @@ lib/
   go-ctl/             /go pure state machine, brief generators, narrow I/O shell, and go-ctl entrypoint
   cycle-ctl/          /cycle slice planner, pure state machine, brief generators, git/I/O shell, and cycle-ctl entrypoint
   oracle-ledger/      /oracle pure schema, lint, JUnit, and merge core, narrow I/O shell, command handlers, and ledger entrypoint
+  slop-ctl/           /slop-hunt YAML schemas, cross-validators, renderer, pure state machine, brief generators, narrow I/O/git shell, and slop-ctl entrypoint
 
 skills/<routine>/
-  SKILL.md            hand-written: the orchestrator's file (thin pull-based dispatch loop over *-ctl.mjs for /go and /cycle)
-  scripts/            generated esbuild bundles (spec-ctl.mjs, go-ctl.mjs, cycle-ctl.mjs, and ledger.mjs) built from lib/, plus hand-written scripts that use $0, $1, and so on (which a SKILL.md can't hold)
+  SKILL.md            hand-written: the orchestrator's file (thin pull-based dispatch loop over *-ctl.mjs for /go, /cycle, and /slop-hunt)
+  scripts/            generated esbuild bundles (spec-ctl.mjs, go-ctl.mjs, cycle-ctl.mjs, ledger.mjs, and slop-ctl.mjs) built from lib/, plus hand-written scripts that use $0, $1, and so on (which a SKILL.md can't hold)
   roles/              hand-written: the routine's roles under roles/<folder>/, and roles.list
   references/         generated: one file per role, and the rule files
   kinds/              oracle only: kinds.list, hand-written parts under kinds/<name>/, and generated kinds/<name>.md
@@ -48,18 +49,19 @@ Kind files are generated the same way, from a routine's `skills/<routine>/kinds/
 
 ## Orchestrator CLIs and YAML reports
 
-`lib/` is one shared TypeScript package containing four sibling folders (`lib/contracts/`, `lib/go-ctl/`, `lib/cycle-ctl/`, and `lib/oracle-ledger/`) under one `package.json`, `pnpm-lock.yaml`, `tsconfig.json`, `.oxlintrc.json`, and `.oxfmtrc.json`. Both `lib/go-ctl/` and `lib/cycle-ctl/` import schemas, validators, renderers, and shared CLI registration directly from `lib/contracts/src/` with no duplication, and `lib/oracle-ledger/` reuses the shared YAML reader in `lib/contracts/src/io.ts`. Pure state-machine transitions, brief builders, slice planning, and oracle ledger core logic stay free of `fs` and `child_process` behind narrow I/O and git shells.
+`lib/` is one shared TypeScript package containing five sibling folders (`lib/contracts/`, `lib/go-ctl/`, `lib/cycle-ctl/`, `lib/oracle-ledger/`, and `lib/slop-ctl/`) under one `package.json`, `pnpm-lock.yaml`, `tsconfig.json`, `.oxlintrc.json`, and `.oxfmtrc.json`. Both `lib/go-ctl/` and `lib/cycle-ctl/` import schemas, validators, renderers, and shared CLI registration directly from `lib/contracts/src/` with no duplication, and `lib/oracle-ledger/` and `lib/slop-ctl/` reuse the shared YAML reader in `lib/contracts/src/io.ts`. Pure state-machine transitions, brief builders, slice planning, slop-hunt validation and rendering, and oracle ledger core logic stay free of `fs` and `child_process` behind narrow I/O and git shells.
 
-`pnpm -C lib build` compiles four self-contained, zero-dependency `esbuild` bundles tracked under the skills so every installed skill folder runs standalone:
+`pnpm -C lib build` compiles five self-contained, zero-dependency `esbuild` bundles tracked under the skills so every installed skill folder runs standalone:
 
 - `skills/spec/scripts/spec-ctl.mjs` (from `lib/contracts/src/cli.ts`)
 - `skills/go/scripts/go-ctl.mjs` (from `lib/go-ctl/src/cli.ts`)
 - `skills/cycle/scripts/cycle-ctl.mjs` (from `lib/cycle-ctl/src/cli.ts`)
 - `skills/oracle/scripts/ledger.mjs` (from `lib/oracle-ledger/src/cli.ts`)
+- `skills/slop-hunt/scripts/slop-ctl.mjs` (from `lib/slop-ctl/src/cli.ts`)
 
-Never edit those `.mjs` bundles by hand. Each orchestrator CLI (`spec-ctl.mjs`, `go-ctl.mjs`, and `cycle-ctl.mjs`) registers `validate` and `render` through `registerContractCommands` in `lib/contracts/src/commands.ts`. Every `/go`, `/cycle`, and `/spec` subagent role writes a strict YAML report to its `Report:` path and validates it with `node <skill>/scripts/<routine>-ctl.mjs validate ...` until exit `0` before returning the path.
+Never edit those `.mjs` bundles by hand. `spec-ctl.mjs`, `go-ctl.mjs`, and `cycle-ctl.mjs` register `validate` and `render` through `registerContractCommands` in `lib/contracts/src/commands.ts`, while `slop-ctl.mjs` registers its own `validate` and `render` commands for `/slop-hunt`'s schemas. Every `/go`, `/cycle`, `/spec`, and `/slop-hunt` subagent role writes a strict YAML report to its `Report:` path and validates it with `node <skill>/scripts/<cli>.mjs validate ...` until exit `0` before returning the path.
 
-`Taskfile.yml` wires all repo checks: `task build` runs `sh scripts/build-roles.sh` and `pnpm -C lib build`; `task typecheck`, `task lint`, and `task format:check` run the matching `lib/` checks; `task test` runs `sh scripts/test-build-roles.sh`, `pnpm -C lib test`, and `node --test skills/oracle/tracer/test/e2e.test.ts`; and `task gate`, which CI and `/cycle` run, checks that no `SKILL.md` holds `$[0-9]`, verifies generated role files, kind files, and `skills/*/scripts/*.mjs` bundles are up to date, and runs `typecheck`, `lint`, `format:check`, and `test`.
+`Taskfile.yml` wires all repo checks: `task build` runs `sh scripts/build-roles.sh` and `pnpm -C lib build`; `task typecheck`, `task lint`, and `task format:check` run the matching `lib/` checks; `task test` runs `sh scripts/test-build-roles.sh` and `pnpm -C lib test`; and `task gate`, which CI and `/cycle` run, checks that no `SKILL.md` holds `$[0-9]`, verifies generated role files, kind files, and `skills/*/scripts/*.mjs` bundles are up to date, and runs `typecheck`, `lint`, `format:check`, and `test`.
 
 ## The rule library
 

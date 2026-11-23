@@ -1,0 +1,84 @@
+kind: cli
+slice: lifecycle
+rows:
+  - id: open_pause
+    where: ../ticket.ts
+    status: active
+    when: "A ticket with status 'open' is given the action 'pause'."
+    expect: "decide('open', 'pause') returns ok with next 'paused'."
+    source: ruling
+    shortfall: null
+    reason: null
+    question: null
+  - id: open_resume
+    where: ../ticket.ts
+    status: active
+    when: "A ticket with status 'open' is given the action 'resume'."
+    expect: "decide('open', 'resume') returns not ok with reason 'ticket is already open'."
+    source: ruling
+    shortfall: null
+    reason: null
+    question: null
+  - id: open_close
+    where: ../ticket.ts
+    status: active
+    when: "A ticket with status 'open' is given the action 'close'."
+    expect: "decide('open', 'close') returns ok with next 'closed'."
+    source: ruling
+    shortfall: null
+    reason: null
+    question: null
+  - id: paused_pause
+    where: ../ticket.ts
+    status: active
+    when: "A ticket with status 'paused' is given the action 'pause'."
+    expect: "decide('paused', 'pause') returns not ok with reason 'ticket is paused'."
+    source: ruling
+    shortfall: null
+    reason: null
+    question: null
+  - id: paused_resume
+    where: ../ticket.ts
+    status: active
+    when: "A ticket with status 'paused' is given the action 'resume'."
+    expect: "decide('paused', 'resume') returns ok with next 'open'."
+    source: ruling
+    shortfall: null
+    reason: null
+    question: null
+  - id: paused_close
+    where: ../ticket.ts
+    status: shortfall
+    when: "A ticket with status 'paused' is given the action 'close'."
+    expect: "decide('paused', 'close') returns ok with next 'closed'."
+    source: ruling
+    shortfall: "decide currently refuses closing a paused ticket instead of transitioning to closed"
+    reason: null
+    question: null
+  - id: closed_pause
+    where: ../ticket.ts
+    status: active
+    when: "A ticket with status 'closed' is given the action 'pause'."
+    expect: "decide('closed', 'pause') returns not ok with reason 'ticket is already closed'."
+    source: ruling
+    shortfall: null
+    reason: null
+    question: null
+  - id: closed_resume
+    where: ../ticket.ts
+    status: active
+    when: "A ticket with status 'closed' is given the action 'resume'."
+    expect: "decide('closed', 'resume') returns not ok with reason 'ticket is already closed'."
+    source: ruling
+    shortfall: null
+    reason: null
+    question: null
+  - id: closed_close
+    where: ../ticket.ts
+    status: active
+    when: "A ticket with status 'closed' is given the action 'close'."
+    expect: "decide('closed', 'close') returns not ok with reason 'ticket is already closed'."
+    source: ruling
+    shortfall: null
+    reason: null
+    question: null

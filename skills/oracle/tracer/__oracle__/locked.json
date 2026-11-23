@@ -1,0 +1,15 @@
+{
+  "lockedAt": "2026-11-23T20:17:50.991Z",
+  "kind": "cli",
+  "rows": {
+    "open_pause": "c0abce8557d7d2dd8828a4c91659e9ce382222c358e762b0440763c73a55ebe0",
+    "open_resume": "84dee234c2b46dd0618879f44429095bc99e304d6e5fd1ad18ddfe04346ed6b0",
+    "open_close": "7a8cf33a5bf48ff551bf88c3f466b41117a49dc8a9e9ddc4f5f2ca44c9d23dde",
+    "paused_pause": "87114c9f5dad3bd58843c859665a9afcdd01343746f76775dafd5054778f2734",
+    "paused_resume": "b2474b2fad5abeb18d71e48399362161e9772c6a602abde38e9c08e486fc02ff",
+    "paused_close": "fe4c3b92b320f3d74fa8edce836915ef4d726dba6f88aecb891ad3e6b11247ee",
+    "closed_pause": "fc01774445a4c194c83f95ce8698822ebf777e0224be54eacef882c90b01c30e",
+    "closed_resume": "682d05ca926d2c3bdf90badf699999757d2a1e98d6a990b053eaee42a4d0a261",
+    "closed_close": "5884d43d1e02427374f2f3105d405e1a473ee89dcfe33107e4d193131f5f9444"
+  }
+}
