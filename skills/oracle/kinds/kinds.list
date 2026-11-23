@@ -1,4 +1,4 @@
-# The kinds of this routine, built by scripts/build-roles.sh into ./<kind>.md.
+# The kinds of this routine, built by lib/build-roles/src/cli.ts into ./<kind>.md.
 #   kind <name> <part>[,<part>...]
 #     builds kinds/<name>.md: the parts (files in kinds/<name>/, without .md), in order.
 #     A part named head is exempt from the five-part rule format; every other part is a rule.

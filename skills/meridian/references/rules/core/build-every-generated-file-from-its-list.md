@@ -5,4 +5,4 @@
 **When:** Adding, renaming, or removing a role part or rule, or changing anything under a routine's `references/`.
 
 Bad: Editing `references/filler.md` by hand, or leaving a rule out of every `rules-<name>.list`.
-Good: Editing the source under `roles/` or `rules/`, listing it in order, and running `sh scripts/build-roles.sh`.
+Good: Editing the source under `roles/` or `rules/`, listing it in order, and running `node lib/build-roles/src/cli.ts`.

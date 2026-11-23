@@ -5,4 +5,4 @@
 **When:** Verifying fixes before writing the fixer report.
 
 Bad: Running `task gate`, hand-editing a generated file, or omitting a formatter-rewritten file from `changedFiles`.
-Good: Running the targeted tests, `sh scripts/build-roles.sh`, and the defined formatter, listing every rewritten file in `changedFiles`, and recording `{ check: lint, reason: ... }` in `notRun` when none is defined.
+Good: Running the targeted tests, `node lib/build-roles/src/cli.ts`, and the defined formatter, listing every rewritten file in `changedFiles`, and recording `{ check: lint, reason: ... }` in `notRun` when none is defined.

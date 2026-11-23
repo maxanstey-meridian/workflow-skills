@@ -38,7 +38,7 @@ Every rule is in exactly one of the six files, under a `<!-- rule: <path> -->` l
 
 ## Core Rules
 
-The Laws open three of the files: the cross-stack Laws open `references/rules-core.md`, the Backend Laws open `references/rules-backend.md`, and the Frontend Laws open `references/rules-frontend.md`. Each is an index that `sh scripts/build-roles.sh` generates from each rule's strength line: each line gives a rule's title, its one sentence, and its path. A Default, a Preference, and a Tooling rule each carry their strength on their own strength line, and the rule `core/rule-strength.md`, in `references/rules-core.md`, says what each strength means. Change a rule's strength in the rule, never in an index.
+The Laws open three of the files: the cross-stack Laws open `references/rules-core.md`, the Backend Laws open `references/rules-backend.md`, and the Frontend Laws open `references/rules-frontend.md`. Each is an index that `node lib/build-roles/src/cli.ts` generates from each rule's strength line: each line gives a rule's title, its one sentence, and its path. A Default, a Preference, and a Tooling rule each carry their strength on their own strength line, and the rule `core/rule-strength.md`, in `references/rules-core.md`, says what each strength means. Change a rule's strength in the rule, never in an index.
 
 ## Mechanical Checking
 
@@ -49,4 +49,4 @@ Plumb's rules are in `references/rules-core.md`, starting at the rule `tools/run
 - For backend/frontend structure, do not restate generic clean architecture from scratch; use the Meridian references directly.
 - For testing and coding questions, prefer the doctrine here over generic framework advice.
 - AGENTS.md is the workflow-skills shared rules file your agent loads as its rules, not the repo's own AGENTS.md.
-- The six rule files are generated: `references/rules-<name>.list` names a file's rules, and `sh scripts/build-roles.sh` in the workflow-skills repo concatenates each into the tracked `rules-<name>.md` here and in every routine's `references/` folder, where the routines' subagents read them. A new rule is written under `references/rules/` and goes in one list. After editing a rule or a list, run the script: it also refuses a rule file that breaks the format.
+- The six rule files are generated: `references/rules-<name>.list` names a file's rules, and `node lib/build-roles/src/cli.ts` in the workflow-skills repo concatenates each into the tracked `rules-<name>.md` here and in every routine's `references/` folder, where the routines' subagents read them. A new rule is written under `references/rules/` and goes in one list. After editing a rule or a list, run the script: it also refuses a rule file that breaks the format.

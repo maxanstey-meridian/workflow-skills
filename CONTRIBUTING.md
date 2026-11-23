@@ -43,9 +43,9 @@ A part is shared only inside one routine, and only when every role takes it unch
 
 ## Generated files
 
-Role files and rule files are generated from colocated `.list` files by `sh scripts/build-roles.sh`: the mechanism is the house rule `core/build-every-generated-file-from-its-list.md`. Generation is what lets a role share a part and still be one file to read. Never edit `references/` by hand. A routine's `references/` gets only the rule files its roles read. The build refuses orphans too: a rule in no list, a part no role uses, a flat `.md` file directly under `roles/`, and a generated file no line builds, which is what a rule file is once the routine's roles stop reading it.
+Role files and rule files are generated from colocated `.list` files by `node lib/build-roles/src/cli.ts`: the mechanism is the house rule `core/build-every-generated-file-from-its-list.md`. Generation is what lets a role share a part and still be one file to read. Never edit `references/` by hand. A routine's `references/` gets only the rule files its roles read. The build refuses orphans too: a rule in no list, a part no role uses, a flat `.md` file directly under `roles/`, and a generated file no line builds, which is what a rule file is once the routine's roles stop reading it.
 
-Kind files are generated the same way, from a routine's `skills/<routine>/kinds/kinds.list` — `oracle` is the routine that has kinds. A `kind <name> <parts>` line concatenates the parts, in order, into the generated and tracked `skills/<routine>/kinds/<name>.md`, which is never edited by hand; the parts are the files under `skills/<routine>/kinds/<name>/`. A part is a rule in the five-part format, and the part named `head` is exempt from the format check, as the index files are. The build refuses a kind part its own kind line does not use, a kind line naming a part that is missing, an orphaned `kinds/<name>.md` no kind line builds, and a kind file over the byte budget.
+Kind files are generated the same way, from a routine's `skills/<routine>/kinds/kinds.list` — `oracle` is the routine that has kinds. A `kind <name> <parts>` line concatenates the parts, in order, into the generated and tracked `skills/<routine>/kinds/<name>.md`, which is never edited by hand; the parts are the files under `skills/<routine>/kinds/<name>/`. A part is a rule in the five-part format, and the part named `head` is exempt from the format check, as the index files are. The build refuses a kind part its own kind line does not use, a kind line naming a part that is missing, and an orphaned `kinds/<name>.md` no kind line builds, and warns on any generated file over 40,000 bytes.
 
 ## Orchestrator CLIs and YAML reports
 
@@ -61,7 +61,7 @@ Kind files are generated the same way, from a routine's `skills/<routine>/kinds/
 
 Never edit those `.mjs` bundles by hand. `spec-ctl.mjs`, `go-ctl.mjs`, and `cycle-ctl.mjs` register `validate` and `render` through `registerContractCommands` in `lib/contracts/src/commands.ts`, while `slop-ctl.mjs` registers its own `validate` and `render` commands for `/slop-hunt`'s schemas. Every `/go`, `/cycle`, `/spec`, and `/slop-hunt` subagent role writes a strict YAML report to its `Report:` path and validates it with `node <skill>/scripts/<cli>.mjs validate ...` until exit `0` before returning the path.
 
-`Taskfile.yml` wires all repo checks: `task build` runs `sh scripts/build-roles.sh` and `pnpm -C lib build`; `task typecheck`, `task lint`, and `task format:check` run the matching `lib/` checks; `task test` runs `sh scripts/test-build-roles.sh` and `pnpm -C lib test`; and `task gate`, which CI and `/cycle` run, checks that no `SKILL.md` holds `$[0-9]`, verifies generated role files, kind files, and `skills/*/scripts/*.mjs` bundles are up to date, and runs `typecheck`, `lint`, `format:check`, and `test`.
+`Taskfile.yml` wires all repo checks: `task build` runs `node lib/build-roles/src/cli.ts` and `pnpm -C lib build`; `task typecheck`, `task lint`, and `task format:check` run the matching `lib/` checks; `task test` runs `pnpm -C lib test`; and `task gate`, which CI and `/cycle` run, checks that no `SKILL.md` holds `$[0-9]`, verifies generated role files, kind files, and `skills/*/scripts/*.mjs` bundles are up to date, and runs `typecheck`, `lint`, `format:check`, and `test`.
 
 ## The rule library
 
@@ -69,6 +69,6 @@ Never edit those `.mjs` bundles by hand. `spec-ctl.mjs`, `go-ctl.mjs`, and `cycl
 
 ## Format of a rule
 
-The format is the house rule `core/write-every-rule-in-the-five-part-format.md`, and `sh scripts/build-roles.sh` refuses a rule file that breaks it.
+The format is the house rule `core/write-every-rule-in-the-five-part-format.md`, and `node lib/build-roles/src/cli.ts` refuses a rule file that breaks it.
 
 `core/rule-strength.md` says what Law, Default, Preference, and Tooling mean.

@@ -4,7 +4,7 @@ tasks:
   build:
     desc: Build the rule files, role files, and bundled CLI .mjs scripts (spec-ctl.mjs, go-ctl.mjs, cycle-ctl.mjs, ledger.mjs, and slop-ctl.mjs), and check every rule, list, role, and citation; refuse a rule in no list, a part no role uses, and a generated file no line builds
     cmds:
-      - sh scripts/build-roles.sh
+      - node lib/build-roles/src/cli.ts
       - pnpm -C lib build
 
   typecheck:
@@ -23,9 +23,8 @@ tasks:
       - pnpm -C lib format:check
 
   test:
-    desc: Run the build-roles.sh test suite and all lib/ tests
+    desc: Run all lib/ tests (including build-roles)
     cmds:
-      - sh scripts/test-build-roles.sh
       - pnpm -C lib test
 
   gate:
