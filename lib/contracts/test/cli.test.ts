@@ -237,6 +237,46 @@ describe("spec-ctl validate spec", () => {
     assert.equal(badYaml.status, 2);
     assert.match(badYaml.stderr, /Failed to parse YAML/);
 
+    const foldedYamlPath = path.join(dir, "folded.yaml");
+    fs.writeFileSync(
+      foldedYamlPath,
+      [
+        "title: Folded spec",
+        "status: agreed",
+        "intent: >-",
+        "  Folded text can inject spaces inside wrapped tokens.",
+        "builtPieces: []",
+        "pieces:",
+        "  - id: P1",
+        "    name: First",
+        "    owns:",
+        "      - src/a.ts",
+        "    after: []",
+        "    now: Now.",
+        "    reuse: None.",
+        "    change: Change.",
+        "    proof: test",
+        "doneMeans:",
+        "  - cmd: pnpm test",
+        "    proves: Tests pass.",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    const foldedYaml = runCli(["validate", "spec", foldedYamlPath]);
+    assert.equal(foldedYaml.status, 2);
+    assert.match(foldedYaml.stderr, /Folded block scalars.*intent/);
+
+    const literalYamlPath = path.join(dir, "literal.yaml");
+    fs.writeFileSync(
+      literalYamlPath,
+      fs.readFileSync(foldedYamlPath, "utf8").replace("intent: >-", "intent: |-"),
+      "utf8",
+    );
+    const literalYaml = runCli(["validate", "spec", literalYamlPath]);
+    assert.equal(literalYaml.status, 0);
+    assert.equal(literalYaml.stdout.trim(), "OK");
+
     const missing = runCli(["validate", "spec", path.join(dir, "nope.yaml")]);
     assert.equal(missing.status, 2);
     assert.match(missing.stderr, /Failed to read/);

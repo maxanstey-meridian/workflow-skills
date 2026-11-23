@@ -1,9 +1,34 @@
 import fs from "node:fs";
 import path from "node:path";
-import YAML from "yaml";
+import YAML, { isMap, isPair, isScalar, isSeq, Scalar } from "yaml";
 import { z } from "zod";
 import { ReviewReportSchema } from "./report-schemas.ts";
 import type { OracleCaseRef, ValidationIssue } from "./spec-schema.ts";
+
+const findFoldedScalars = (node: unknown, currentPath: string, found: string[]): void => {
+  if (isScalar(node)) {
+    if (node.type === Scalar.BLOCK_FOLDED) {
+      found.push(currentPath.length > 0 ? currentPath : "(root)");
+    }
+    return;
+  }
+  if (isMap(node)) {
+    for (const item of node.items) {
+      if (!isPair(item)) {
+        continue;
+      }
+      const key = isScalar(item.key) ? String(item.key.value) : String(item.key);
+      const nextPath = currentPath.length > 0 ? `${currentPath}.${key}` : key;
+      findFoldedScalars(item.value, nextPath, found);
+    }
+    return;
+  }
+  if (isSeq(node)) {
+    for (let i = 0; i < node.items.length; i += 1) {
+      findFoldedScalars(node.items[i], `${currentPath}[${i}]`, found);
+    }
+  }
+};
 
 const OracleConfKindSchema = z.object({
   kind: z.enum(["api-contract", "browser", "cli"]),
@@ -29,7 +54,23 @@ export const readYamlFile = (
   }
 
   try {
-    const data: unknown = YAML.parse(content);
+    const doc = YAML.parseDocument(content);
+    if (doc.errors.length > 0) {
+      const firstError = doc.errors[0];
+      return {
+        ok: false,
+        error: `Failed to parse YAML in ${filePath}: ${firstError?.message ?? "syntax error"}`,
+      };
+    }
+    const folded: string[] = [];
+    findFoldedScalars(doc.contents, "", folded);
+    if (folded.length > 0) {
+      return {
+        ok: false,
+        error: `Folded block scalars (> or >-) are disallowed in ${filePath} at: ${folded.join(", ")}. Use literal block scalars (|-) or single-line strings instead.`,
+      };
+    }
+    const data: unknown = doc.toJS();
     return { ok: true, data };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

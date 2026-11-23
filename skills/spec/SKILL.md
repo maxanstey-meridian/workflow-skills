@@ -41,9 +41,8 @@ Write `<spec>` as strict YAML matching `SpecSchema` (no unknown keys). When upda
 ```yaml
 title: <short title>
 status: draft # draft | agreed | building | built
-intent: >-
-  3–5 plain-English sentences: what is true for the user once this ships.
-  No history of how it was found.
+intent: |-
+  3–5 plain-English sentences: what is true for the user once this ships. No history of how it was found.
 oracleCase: # omit unless building tests for an __oracle__ case
   path: <case folder path>
   kind: api-contract # api-contract | browser | cli
@@ -101,6 +100,7 @@ parked: # optional; omit or [] when none
 - Work that comes up after the spec is agreed is a new piece, added the same way; one that holds a decision is an open ask first.
 - `status` is `draft` while `openAsks` is non-empty, and `agreed` when `openAsks` is empty. `/go` sets `building`; `/cycle` sets `built`. A spec that is `building` stays `building` whatever you add: `/go` stops on its open asks by itself.
 - Plain English; gloss jargon on first use. No runbooks inline: link a file in `<main>/.plans/scratch/`.
+- Use `|-` (or plain single-line strings) for multi-line fields, never `>` or `>-` (`spec-ctl.mjs` rejects folded block scalars). Write one paragraph or numbered item per line and never hard-wrap prose at 80 columns — let the editor wrap.
 
 Validate `<spec>` before cold read:
 
