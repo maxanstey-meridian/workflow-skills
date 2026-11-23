@@ -6,6 +6,6 @@
 #   rule <file> <rule path>
 #     copies one meridian rule to references/<file>, for an orchestrator that needs that rule alone.
 
-role builder  core,invariants,tests,backend,backend-tooling,frontend  builder
-role critic   core,invariants,tests,backend,backend-tooling,frontend  critic
-role auditor  core,invariants,tests,backend,backend-tooling,frontend  auditor
+role builder  core,invariants,tests,backend,backend-tooling,frontend  builder/head,builder/stop-on-an-open-or-contradicted-spec,builder/edit-only-owned-files-and-honour-spec-decisions,builder/test-every-added-or-restructured-outcome,builder/run-proof-and-repo-checks-without-the-full-gate,builder/leave-work-uncommitted-and-report-facts-only
+role critic   core,invariants,tests,backend,backend-tooling,frontend  critic/head,critic/judge-from-the-tree-never-the-builders-report,critic/run-proof-and-read-only-checks-yourself,critic/list-every-diff-finding-with-spec-quote-and-location,critic/verify-a-failing-test-for-every-added-or-restructured-outcome,critic/touch-only-the-report-and-never-judge-style-or-recommend
+role auditor  core,invariants,tests,backend,backend-tooling,frontend  auditor/head,auditor/verify-every-claim-against-the-tree-or-your-own-run,auditor/run-done-means-commands-skipping-the-full-gate-and-mutation,auditor/settle-every-piece-and-every-decision,auditor/never-park-a-gap-this-work-caused-or-left,auditor/touch-only-the-report-and-end-with-built-pieces

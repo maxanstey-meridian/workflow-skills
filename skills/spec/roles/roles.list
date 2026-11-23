@@ -6,4 +6,4 @@
 #   rule <file> <rule path>
 #     copies one meridian rule to references/<file>, for an orchestrator that needs that rule alone.
 
-role cold-reader  core,invariants,tests,backend,backend-tooling,frontend  cold-reader
+role cold-reader  core,invariants,tests,backend,backend-tooling,frontend  cold-reader/head,cold-reader/require-every-piece-to-be-buildable-without-asking,cold-reader/verify-now-claims-by-symbol-without-line-numbers,cold-reader/keep-owns-disjoint-and-after-acyclic,cold-reader/check-that-every-proof-can-fail,cold-reader/check-that-every-done-means-command-exists,cold-reader/check-every-decision-against-house-laws,cold-reader/report-facts-only-without-fixes-or-options

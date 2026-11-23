@@ -1,0 +1,8 @@
+## Sign 10: Flag test slop
+
+**Law:** Flag checks that cannot fail (asserting the mock, comparing output with its own input, or passing with the code deleted), tests mocking the unit they claim to test, `UseInMemoryDatabase` or another fake engine where house doctrine requires the production one (`tests/run-adapter-tests-on-the-production-database-engine.md`), duplicate tests, snapshot sprawl, test hooks in production code, and config switching checks off too wide (an analyzer or lint rule scoped too wide).
+
+**When:** Reviewing tests and test config; prove each finding by naming the code change that would make the test or check fail, or saying "none". For a test of live code that cannot fail, specify "replace with a test that pins <behaviour>" — delete it only when the behaviour itself is being removed (dead code with its own tests, or a design finding the user agrees to) or another named test (`file:line`) already pins that behaviour. Delete a duplicate test only when the kept test fails for every break the deleted one fails for; for any other test slop, replace and never delete. A test slop finding never also removes the code that test covers (report them separately, and the code's proof cannot count on the test being replaced). Do not flag tests that mock real external dependencies while running the real logic.
+
+Bad: Recommending "delete" for a vacuous test of live code with no other test pinning that behaviour, or bundling code removal into a test slop finding.
+Good: Flagging a `UseInMemoryDatabase` repository test to replace with Testcontainers PostgreSQL, and flagging a vacuous test with "replace with a test that pins <behaviour>".

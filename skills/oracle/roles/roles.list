@@ -6,4 +6,4 @@
 #   rule <file> <rule path>
 #     copies one meridian rule to references/<file>, for an orchestrator that needs that rule alone.
 
-role filler  core,invariants,tests,backend,backend-tooling,frontend  filler
+role filler  core,invariants,tests,backend,backend-tooling,frontend  filler/head,filler/never-present-todays-code-as-intent,filler/preserve-row-inventory-and-user-only-statuses,filler/validate-the-case-before-reporting,filler/edit-only-the-slice-yaml-and-report

@@ -1,0 +1,8 @@
+## Sign 4: Flag speculative abstraction
+
+**Default:** Flag an interface with one implementation and none of house doctrine's seam reasons (variability, runtime boundary, ownership boundary, testability, or cross-module dependency), a factory, strategy, or registry for two or three cases a `switch` would hold, a base class whose subclasses only supply constants, forwarding wrappers, a library or generated client wrapped one-for-one, a generic repository or unit of work over a `DbContext`, an in-process mediator with nothing in its pipeline, a custom logging facade over `ILogger<T>`, a "Core" with thin shells around it, and a config option or flag never set to a second value.
+
+**When:** Reviewing interfaces, wrappers, hierarchies, and config knobs; prove each finding by counting implementations, callers, or values across the whole repo, and for a config value across deployment config too (appsettings per environment, Bicep or Terraform, pipelines, and live settings where readable, `az` included; without checking those, mark the finding `risk high`). Do not flag a port at the Infrastructure edge that `backend/keep-a-port-narrow-and-capability-shaped.md` or `frontend/shape-a-port-around-operations-not-dtos.md` calls for, or a seam that a test fake or second host actually uses.
+
+Bad: Flagging an `EmailSender` port used by an `InMemoryEmailSender` fake in tests, or calling a config flag unused without checking `appsettings.*.json` and Bicep.
+Good: Flagging `IPriceCalculator` after confirming one implementation and zero test fakes across the repo, and marking an unchecked deployment config flag `risk high`.

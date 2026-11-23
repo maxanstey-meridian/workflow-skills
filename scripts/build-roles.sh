@@ -15,14 +15,14 @@
 # are in the lists; the four others are in none.
 # It refuses (exit 1, the files still written) a rule that is in no list or in more than one (the four unlisted index
 # files: in any), a rule file, a role part, or a kind part, that breaks the rule format (core/write-every-rule-in-the-five-part-format.md;
-# core/rule-strength.md, the index files, and the parts named head are exempt; a part under a role folder, such as
-# test-oracle's filler/<rule>.md, is a rule and is checked, a flat part is a prompt file and is not, and a part under a
-# kind folder, such as test-oracle's browser-behaviour/<rule>.md, is a rule and is checked), a generated file over
-# the byte budget, a missing part or rule — a role, rule, or kind line naming one fails, naming it —, a role that reads a
-# rule file no list builds, a cited <path>#<slug> whose file has
+# core/rule-strength.md, the index files, and the parts named head are exempt; every role part lives in a subfolder
+# under roles/ — flat .md files directly under roles/ are refused — and every non-head part under roles/<folder>/ or
+# kinds/<name>/, such as oracle's filler/<rule>.md or browser/<rule>.md, is a rule and is checked), a generated file
+# over the byte budget, a missing part or rule — a role, rule, or kind line naming one fails, naming it —, a role that
+# reads a rule file no list builds, a cited <path>#<slug> whose file has
 # no heading with that slug, a citation in a routine, a part, the README, INSTALL.md, CONTRIBUTING.md, or AGENTS.md that
 # names no rule file, a part, at any depth under a routine's roles/, that no role is built from, a part under a routine's
-# kinds/<name>/ that no kind line uses, and a generated file no line
+# kinds/<name>/ that its own kind line does not use, and a generated file (under references/ or kinds/*.md) no line
 # builds. A routine gets only the rule files its roles read, so a rule file in its references/ that no role reads is a
 # generated file no line builds.
 # Run it after editing a rule, a rule list, a part, a roles.list, or a kinds.list: sh scripts/build-roles.sh
@@ -314,16 +314,21 @@ for list in "$repo"/skills/*/roles/roles.list; do
       *) fail "skills/$routine/roles/roles.list: unknown line kind '$kind'" ;;
     esac
   done < "$list"
-  # Every part is used, at any depth under roles/: a .md file no role is built from is dead. A part under a role folder
-  # is a rule and follows the rule format, unless it is named head; a flat part is a prompt file and is not checked.
+  # Every part lives in a subfolder under roles/ and is used by at least one role: a flat .md file directly under
+  # roles/ is refused, a .md file no role is built from is dead, and every part other than */head follows the rule
+  # format.
   parts=$(find "$repo/skills/$routine/roles" -name '*.md' -type f | sort)
   for part in $parts; do
     base=${part#"$repo/skills/$routine/roles/"}
     base=${base%.md}
+    case $base in
+      */*) ;;
+      *) fail "skills/$routine/roles/$base.md: role parts must live in a subfolder under roles/, not directly under roles/"; continue ;;
+    esac
     awk '$1 == "role" { print "," $4 "," }' "$list" | grep -Fq ",$base," || fail "skills/$routine/roles/$base.md: no line in roles.list uses it"
     case $base in
-      head | */head) continue ;;
-      */*) check_format "skills/$routine/roles/$base.md" "$part" ;;
+      */head) continue ;;
+      *) check_format "skills/$routine/roles/$base.md" "$part" ;;
     esac
   done
 done
@@ -342,14 +347,15 @@ for list in "$repo"/skills/*/kinds/kinds.list; do
       *) fail "skills/$routine/kinds/kinds.list: unknown line kind '$kind'" ;;
     esac
   done < "$list"
-  # Every part is used, under a kind folder: a .md file no kind line is built from is dead. A part is a rule and
-  # follows the rule format, unless it is named head.
+  # Every part is used by its own kind line: a .md file under kinds/<name>/ that the <name> kind line does not use is
+  # dead. A part is a rule and follows the rule format, unless it is named head.
   parts=$(find "$repo/skills/$routine/kinds" -mindepth 2 -name '*.md' -type f | sort)
   for part in $parts; do
     rel=${part#"$repo/skills/$routine/kinds/"}
     rel=${rel%.md}
+    kname=${rel%%/*}
     base=${rel#*/}
-    awk '$1 == "kind" { print "," $3 "," }' "$list" | grep -Fq ",$base," || fail "skills/$routine/kinds/$rel.md: no line in kinds.list uses it"
+    awk -v k="$kname" '$1 == "kind" && $2 == k { print "," $3 "," }' "$list" | grep -Fq ",$base," || fail "skills/$routine/kinds/$rel.md: no line in kinds.list uses it"
     [ "$base" = head ] && continue
     check_format "skills/$routine/kinds/$rel.md" "$part"
   done
@@ -375,7 +381,18 @@ for file in "$repo"/skills/*/roles/roles.list; do
   done
 done
 
-for file in "$repo"/README.md "$repo"/INSTALL.md "$repo"/CONTRIBUTING.md "$repo"/AGENTS.md "$repo"/skills/*/SKILL.md "$repo"/skills/*/roles/*.md "$repo"/skills/*/roles/*/*.md "$repo"/skills/*/kinds/*/*.md; do
+# Every flat kinds/<name>.md file is generated by this run: a file no kind line builds is left over, or hand-written.
+for file in "$repo"/skills/*/kinds/kinds.list; do
+  [ -e "$file" ] || continue
+  for out in "$(dirname "$file")"/*.md; do
+    [ -e "$out" ] || continue
+    grep -Fxq -- "$out" "$written" || fail "${out#"$repo"/}: no line in kinds.list builds it; kinds/*.md is generated only, so delete it or move it into a kind subfolder"
+    bytes=$(($(wc -c < "$out")))
+    [ "$bytes" -le "$budget" ] || fail "${out#"$repo"/}: $bytes bytes, over the budget of $budget, so it does not come back in one read; split its parts"
+  done
+done
+
+for file in "$repo"/README.md "$repo"/INSTALL.md "$repo"/CONTRIBUTING.md "$repo"/AGENTS.md "$repo"/skills/*/SKILL.md "$repo"/skills/*/roles/*/*.md "$repo"/skills/*/kinds/*/*.md; do
   [ -e "$file" ] || continue
   check_citations "$file" "${file#"$repo"/}"
 done
