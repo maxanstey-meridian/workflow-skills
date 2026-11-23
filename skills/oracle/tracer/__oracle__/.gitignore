@@ -1,4 +1,7 @@
+frozen.json
+locked.json
 run-state.json
 claims.yaml
+*.oracle.yaml
 reports/
 results.xml

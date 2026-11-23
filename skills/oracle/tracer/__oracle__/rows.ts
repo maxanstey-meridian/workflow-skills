@@ -1,10 +1,12 @@
-const rows = [
-  { id: "greet_name", slice: "cli", where: "../cli.ts" },
-  { id: "greet_missing", slice: "cli", where: "../cli.ts" },
-  { id: "list_json", slice: "cli", where: "../cli.ts" },
-  { id: "list_text", slice: "cli", where: "../cli.ts" },
-];
+import { ACTIONS, STATUSES } from "../ticket.ts";
 
-for (const row of rows) {
-  process.stdout.write(`${JSON.stringify(row)}\n`);
+for (const status of STATUSES) {
+  for (const action of ACTIONS) {
+    const row = {
+      id: `${status}_${action}`,
+      slice: "lifecycle",
+      where: "../ticket.ts",
+    };
+    process.stdout.write(`${JSON.stringify(row)}\n`);
+  }
 }

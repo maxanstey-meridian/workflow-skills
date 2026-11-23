@@ -6,10 +6,19 @@ import path from "node:path";
 import { after, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
-import { lintTestFile } from "../lint.ts";
+import {
+  collectCandidateFiles,
+  loadOracleFiles,
+  readJsonFile,
+  readJUnitFiles,
+  readTypedYamlFile,
+  resolveTestFile,
+  writeJsonAtomic,
+} from "../src/io.ts";
+import { ClaimsFileSchema, OracleConfSchema, RunStateSchema } from "../src/schema.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const LEDGER_MJS = path.resolve(__dirname, "../ledger.mjs");
+const LEDGER_MJS = path.resolve(__dirname, "../../../skills/oracle/scripts/ledger.mjs");
 
 const tmpDirs: string[] = [];
 
@@ -112,9 +121,7 @@ describe("freeze", () => {
     const res = runLedger(["freeze", dir, "--words", "CLI scope"]);
     assert.equal(res.status, 0);
 
-    const frozen = JSON.parse(
-      fs.readFileSync(path.join(dir, "frozen.json"), "utf8"),
-    );
+    const frozen = JSON.parse(fs.readFileSync(path.join(dir, "frozen.json"), "utf8"));
     assert.equal(frozen.words, "CLI scope");
     assert.deepEqual(frozen.command, ["node", "rows.mjs"]);
     assert.equal(frozen.script.file, "rows.mjs");
@@ -126,10 +133,7 @@ describe("rows", () => {
   it("refuses to run without freeze unless --draft is passed, and refuses script drift", () => {
     const dir = makeTempDir("rows-drift");
     const scriptPath = path.join(dir, "rows.mjs");
-    fs.writeFileSync(
-      scriptPath,
-      'console.log(JSON.stringify({ id: "op_a", slice: "core" }));\n',
-    );
+    fs.writeFileSync(scriptPath, 'console.log(JSON.stringify({ id: "op_a", slice: "core" }));\n');
     writeJson(path.join(dir, "oracle.conf.json"), {
       kind: "cli",
       rows: ["node", "rows.mjs"],
@@ -151,10 +155,7 @@ describe("rows", () => {
     });
     const cmdDrifted = runLedger(["rows", dir]);
     assert.equal(cmdDrifted.status, 1);
-    assert.match(
-      cmdDrifted.stderr,
-      /oracle\.conf\.json rows command drifted from frozen\.json/,
-    );
+    assert.match(cmdDrifted.stderr, /oracle\.conf\.json rows command drifted from frozen\.json/);
 
     // Restore command, then mutate script bytes after freeze -> must refuse with exit 1
     writeJson(path.join(dir, "oracle.conf.json"), {
@@ -182,12 +183,12 @@ describe("rows", () => {
     writeJson(path.join(dir, "oracle.conf.json"), {
       kind: "browser",
       rows: ["node", "rows.mjs"],
-      uiStates: [
-        { id: "empty_banner", slice: "form", when: "User opens form with zero items" },
-      ],
+      uiStates: [{ id: "empty_banner", slice: "form", when: "User opens form with zero items" }],
     });
 
-    assert.equal(runLedger(["rows", dir, "--draft"]).status, 0);
+    const firstSync = runLedger(["rows", dir, "--draft"]);
+    assert.equal(firstSync.status, 0);
+    assert.match(firstSync.stderr, /diagnostic stderr line/);
 
     const yamlPath = path.join(dir, "form.oracle.yaml");
     const doc1 = YAML.parse(fs.readFileSync(yamlPath, "utf8"));
@@ -368,14 +369,94 @@ describe("validate", () => {
     assert.match(res.stderr, /missing_ui.*non-empty expect\.ui/);
     assert.match(res.stderr, /bad_shortfall.*non-empty shortfall/);
     assert.match(res.stderr, /bad_other.*non-empty reason/);
-    assert.match(
-      res.stderr,
-      /shortfall_with_question.*shortfall row must have question: null/,
-    );
-    assert.match(
-      res.stderr,
-      /struck_with_shortfall.*struck row must have shortfall: null/,
-    );
+    assert.match(res.stderr, /shortfall_with_question.*shortfall row must have question: null/);
+    assert.match(res.stderr, /struck_with_shortfall.*struck row must have shortfall: null/);
+  });
+});
+
+describe("folded block scalars", () => {
+  it("rejects folded block scalars (> and >-) in *.oracle.yaml and claims.yaml", () => {
+    const dir = makeTempDir("folded-scalars");
+    const testsDir = path.join(dir, "tests");
+    fs.mkdirSync(testsDir, { recursive: true });
+    fs.writeFileSync(path.join(testsDir, "a.test.ts"), 'test("row_a", () => {});\n');
+
+    writeJson(path.join(dir, "oracle.conf.json"), {
+      kind: "cli",
+      rows: ["node", "rows.mjs"],
+    });
+
+    const oraclePath = path.join(dir, "s.oracle.yaml");
+    for (const style of [">", ">-"]) {
+      fs.writeFileSync(
+        oraclePath,
+        [
+          "kind: cli",
+          "slice: s",
+          "rows:",
+          "  - id: row_a",
+          "    status: active",
+          `    when: ${style}`,
+          "      User runs the command",
+          "    expect: Exits 0",
+          "    source: written",
+          "    shortfall: null",
+          "    reason: null",
+          "    question: null",
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+
+      const valRes = runLedger(["validate", dir]);
+      assert.equal(valRes.status, 1);
+      assert.match(valRes.stderr, /Folded block scalars/);
+
+      const lockRes = runLedger(["lock", dir]);
+      assert.equal(lockRes.status, 1);
+      assert.match(lockRes.stderr, /Folded block scalars/);
+    }
+
+    // Write valid oracle YAML, lock, record results, then test folded scalars in claims.yaml
+    writeYaml(oraclePath, {
+      kind: "cli",
+      slice: "s",
+      rows: [
+        {
+          id: "row_a",
+          status: "active",
+          when: "User runs the command",
+          expect: "Exits 0",
+          source: "written",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+      ],
+    });
+    assert.equal(runLedger(["lock", dir]).status, 0);
+
+    const junitPath = path.join(dir, "res.xml");
+    fs.writeFileSync(junitPath, makeJUnitXml([{ name: "row_a", outcome: "green" }]));
+    assert.equal(runLedger(["results", dir, junitPath, "--tests", testsDir]).status, 0);
+
+    const claimsPath = path.join(dir, "claims.yaml");
+    for (const style of [">", ">-"]) {
+      fs.writeFileSync(
+        claimsPath,
+        [
+          "claims:",
+          "  - id: row_a",
+          `    redCondition: ${style}`,
+          "      Break the output",
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+      const verifyRes = runLedger(["verify", dir, claimsPath]);
+      assert.equal(verifyRes.status, 1);
+      assert.match(verifyRes.stderr, /Folded block scalars/);
+    }
   });
 });
 
@@ -451,99 +532,9 @@ describe("lock", () => {
 
     const ok = runLedger(["lock", dir]);
     assert.equal(ok.status, 0);
-    const locked = JSON.parse(
-      fs.readFileSync(path.join(dir, "locked.json"), "utf8"),
-    );
+    const locked = JSON.parse(fs.readFileSync(path.join(dir, "locked.json"), "utf8"));
     assert.match(locked.rows.q_row, /^[a-f0-9]{64}$/);
     assert.match(locked.rows.gone_row, /^[a-f0-9]{64}$/);
-  });
-});
-
-describe("lint.ts", () => {
-  it("flags all banned TS/Playwright cheats and C# skip attributes", () => {
-    const cases: Array<{ name: string; code: string; rule: string }> = [
-      { name: ".first()", code: 'page.getByRole("button").first().click();', rule: "no-positional-first" },
-      { name: ".last()", code: 'page.getByRole("button").last().click();', rule: "no-positional-last" },
-      { name: ".nth()", code: 'page.getByRole("button").nth(0).click();', rule: "no-positional-nth" },
-      { name: "force: true", code: 'btn.click({ force: true });', rule: "no-force-true" },
-      { name: "waitForTimeout", code: 'await page.waitForTimeout(500);', rule: "no-wait-for-timeout" },
-      { name: "keyboard.press", code: 'await page.keyboard.press("Escape");', rule: "no-keyboard-press" },
-      { name: ".skip", code: 'test.skip("a", () => {});', rule: "no-skip" },
-      { name: ".only", code: 'test.only("a", () => {});', rule: "no-only" },
-      { name: "test.fail", code: 'test.fail("a", () => {});', rule: "no-test-fail" },
-      { name: "test.fixme", code: 'test.fixme("a", () => {});', rule: "no-fixme" },
-      {
-        name: 'toHaveAttribute("data-status", ...)',
-        code: 'await expect(el).toHaveAttribute("data-status", "open");',
-        rule: "no-data-attribute-assertion",
-      },
-    ];
-
-    for (const tc of cases) {
-      const findings = lintTestFile("example.spec.ts", tc.code, {
-        kind: "browser",
-        allowKeyboard: false,
-      });
-      assert.ok(
-        findings.some((f) => f.rule === tc.rule),
-        `Expected ${tc.name} to trigger ${tc.rule}, got: ${JSON.stringify(findings)}`,
-      );
-    }
-
-    // Passes when allowKeyboard: true is locked
-    const keyboardAllowed = lintTestFile(
-      "example.spec.ts",
-      'await page.keyboard.press("Escape");',
-      { kind: "browser", allowKeyboard: true },
-    );
-    assert.equal(keyboardAllowed.length, 0);
-
-    // Non-browser kind ignores browser-only cheats but still bans .skip
-    const cliCode = 'const x = list.first(); test.skip("a", () => {});';
-    const cliFindings = lintTestFile("cli.test.ts", cliCode, { kind: "cli" });
-    assert.deepEqual(
-      cliFindings.map((f) => f.rule),
-      ["no-skip"],
-    );
-
-    // C# xUnit skip attributes
-    const csCode = '[Fact(Skip = "later")]\npublic void TestOne() {}\n// [Theory(Skip = "commented")]\n';
-    const csFindings = lintTestFile("ApiTests.cs", csCode, {
-      kind: "api-contract",
-    });
-    assert.equal(csFindings.length, 1);
-    assert.equal(csFindings[0]?.rule, "xunit-skip");
-    assert.equal(csFindings[0]?.line, 1);
-  });
-
-  it("flags suite-level test.describe.skip and test.describe.fixme when testName is set", () => {
-    const skipCode = [
-      'test.describe.skip("suite", () => {',
-      '  test("row_one", async () => {});',
-      "});",
-    ].join("\n");
-    const skipFindings = lintTestFile("suite.spec.ts", skipCode, {
-      kind: "browser",
-      testName: "row_one",
-    });
-    assert.ok(
-      skipFindings.some((f) => f.rule === "no-skip"),
-      `Expected test.describe.skip to trigger no-skip, got: ${JSON.stringify(skipFindings)}`,
-    );
-
-    const fixmeCode = [
-      'test.describe.fixme("suite", () => {',
-      '  test("row_one", async () => {});',
-      "});",
-    ].join("\n");
-    const fixmeFindings = lintTestFile("suite.spec.ts", fixmeCode, {
-      kind: "browser",
-      testName: "row_one",
-    });
-    assert.ok(
-      fixmeFindings.some((f) => f.rule === "no-fixme"),
-      `Expected test.describe.fixme to trigger no-fixme, got: ${JSON.stringify(fixmeFindings)}`,
-    );
   });
 });
 
@@ -624,26 +615,19 @@ describe("results, verify, and open", () => {
       ]),
     );
     assert.equal(
-      runLedger(["results", dir, junitA, "--tests", testsDir, "--slice", "a"])
-        .status,
+      runLedger(["results", dir, junitA, "--tests", testsDir, "--slice", "a"]).status,
       0,
     );
 
     // results for slice b preserves slice a in run-state.json
     const junitB = path.join(dir, "b.xml");
-    fs.writeFileSync(
-      junitB,
-      makeJUnitXml([{ name: "row_b", outcome: "green" }]),
-    );
+    fs.writeFileSync(junitB, makeJUnitXml([{ name: "row_b", outcome: "green" }]));
     assert.equal(
-      runLedger(["results", dir, junitB, "--tests", testsDir, "--slice", "b"])
-        .status,
+      runLedger(["results", dir, junitB, "--tests", testsDir, "--slice", "b"]).status,
       0,
     );
 
-    const runState = JSON.parse(
-      fs.readFileSync(path.join(dir, "run-state.json"), "utf8"),
-    );
+    const runState = JSON.parse(fs.readFileSync(path.join(dir, "run-state.json"), "utf8"));
     assert.equal(runState.rows.row_active.colour, "green");
     assert.equal(runState.rows.row_shortfall.colour, "red");
     assert.equal(runState.rows.row_b.colour, "green");
@@ -715,22 +699,18 @@ describe("results, verify, and open", () => {
     ]) {
       fs.writeFileSync(junitA, makeJUnitXml(badOutcomes));
       assert.equal(
-        runLedger(["results", dir, junitA, "--tests", testsDir, "--slice", "a"])
-          .status,
+        runLedger(["results", dir, junitA, "--tests", testsDir, "--slice", "a"]).status,
         1,
       );
     }
 
     // Tampering with locked YAML makes both results and open exit 1
-    const yamlA = YAML.parse(
-      fs.readFileSync(path.join(dir, "a.oracle.yaml"), "utf8"),
-    );
+    const yamlA = YAML.parse(fs.readFileSync(path.join(dir, "a.oracle.yaml"), "utf8"));
     yamlA.rows[0].expect = "Tampered expectation";
     writeYaml(path.join(dir, "a.oracle.yaml"), yamlA);
 
     assert.equal(
-      runLedger(["results", dir, junitA, "--tests", testsDir, "--slice", "a"])
-        .status,
+      runLedger(["results", dir, junitA, "--tests", testsDir, "--slice", "a"]).status,
       1,
     );
     assert.equal(runLedger(["open", dir]).status, 1);
@@ -764,10 +744,7 @@ describe("results, verify, and open", () => {
     assert.equal(runLedger(["lock", dir]).status, 0);
 
     const junitPath = path.join(dir, "res.xml");
-    fs.writeFileSync(
-      junitPath,
-      makeJUnitXml([{ name: "unique_row", outcome: "green" }]),
-    );
+    fs.writeFileSync(junitPath, makeJUnitXml([{ name: "unique_row", outcome: "green" }]));
 
     // Unresolvable (no file mentions unique_row)
     const missing = runLedger(["results", dir, junitPath, "--tests", testsDir]);
@@ -816,10 +793,7 @@ describe("results, verify, and open", () => {
     assert.equal(runLedger(["lock", dir]).status, 0);
 
     const junitPath = path.join(dir, "modal.xml");
-    fs.writeFileSync(
-      junitPath,
-      makeJUnitXml([{ name: "close_modal", outcome: "green" }]),
-    );
+    fs.writeFileSync(junitPath, makeJUnitXml([{ name: "close_modal", outcome: "green" }]));
 
     // Without allowKeyboard: true -> results fails with exit 1
     const denied = runLedger(["results", dir, junitPath, "--tests", testsDir]);
@@ -845,10 +819,7 @@ describe("results, verify, and open", () => {
       ],
     });
     assert.equal(runLedger(["lock", dir]).status, 0);
-    assert.equal(
-      runLedger(["results", dir, junitPath, "--tests", testsDir]).status,
-      0,
-    );
+    assert.equal(runLedger(["results", dir, junitPath, "--tests", testsDir]).status, 0);
   });
 
   it("resolves matched test files from JUnit testcase/@file without --tests matches", () => {
@@ -902,18 +873,10 @@ describe("results, verify, and open", () => {
       ]),
     );
 
-    const res = runLedger([
-      "results",
-      dir,
-      junitPath,
-      "--tests",
-      emptyTestsDir,
-    ]);
+    const res = runLedger(["results", dir, junitPath, "--tests", emptyTestsDir]);
     assert.equal(res.status, 0);
 
-    const runState = JSON.parse(
-      fs.readFileSync(path.join(dir, "run-state.json"), "utf8"),
-    );
+    const runState = JSON.parse(fs.readFileSync(path.join(dir, "run-state.json"), "utf8"));
     assert.equal(runState.rows.abs_row.testFile, "abs.test.ts");
     assert.equal(runState.rows.rel_row.testFile, "rel.test.ts");
   });
@@ -973,10 +936,7 @@ describe("results, verify, and open", () => {
       ]),
     );
     // results exits 1 and writes run-state.json with red colour + lint finding
-    assert.equal(
-      runLedger(["results", dir, junitPath, "--tests", testsDir]).status,
-      1,
-    );
+    assert.equal(runLedger(["results", dir, junitPath, "--tests", testsDir]).status, 1);
 
     const claimsPath = path.join(dir, "claims.yaml");
     writeYaml(claimsPath, {
@@ -988,14 +948,8 @@ describe("results, verify, and open", () => {
 
     const verifyRes = runLedger(["verify", dir, claimsPath]);
     assert.equal(verifyRes.status, 1);
-    assert.match(
-      verifyRes.stderr,
-      /\[row_wrong_colour\] \(active\): expected green, got red/,
-    );
-    assert.match(
-      verifyRes.stderr,
-      /\[row_cheat_lint\]: has 1 cheat-lint finding/,
-    );
+    assert.match(verifyRes.stderr, /\[row_wrong_colour\] \(active\): expected green, got red/);
+    assert.match(verifyRes.stderr, /\[row_cheat_lint\]: has 1 cheat-lint finding/);
   });
 
   it("resolves prefix-overlapping row IDs in separate test files without ambiguity", () => {
@@ -1003,10 +957,7 @@ describe("results, verify, and open", () => {
     const testsDir = path.join(dir, "tests");
     fs.mkdirSync(testsDir, { recursive: true });
 
-    fs.writeFileSync(
-      path.join(testsDir, "users.test.ts"),
-      'test("create_user", () => {});\n',
-    );
+    fs.writeFileSync(path.join(testsDir, "users.test.ts"), 'test("create_user", () => {});\n');
     fs.writeFileSync(
       path.join(testsDir, "admin.test.ts"),
       'test("create_user_admin", () => {});\n',
@@ -1056,9 +1007,7 @@ describe("results, verify, and open", () => {
     const res = runLedger(["results", dir, junitPath, "--tests", testsDir]);
     assert.equal(res.status, 0, res.stderr);
 
-    const runState = JSON.parse(
-      fs.readFileSync(path.join(dir, "run-state.json"), "utf8"),
-    );
+    const runState = JSON.parse(fs.readFileSync(path.join(dir, "run-state.json"), "utf8"));
     assert.equal(runState.rows.create_user.testFile, "tests/users.test.ts");
     assert.equal(runState.rows.create_user_admin.testFile, "tests/admin.test.ts");
   });
@@ -1068,10 +1017,7 @@ describe("results, verify, and open", () => {
     const testsDir = path.join(dir, "tests");
     fs.mkdirSync(testsDir, { recursive: true });
 
-    fs.writeFileSync(
-      path.join(testsDir, "a.test.ts"),
-      'test("dup_row", () => {});\n',
-    );
+    fs.writeFileSync(path.join(testsDir, "a.test.ts"), 'test("dup_row", () => {});\n');
 
     writeJson(path.join(dir, "oracle.conf.json"), {
       kind: "cli",
@@ -1159,10 +1105,7 @@ describe("results, verify, and open", () => {
         { name: "row_b", outcome: "green" },
       ]),
     );
-    assert.equal(
-      runLedger(["results", dir, junitPath, "--tests", testsDir]).status,
-      0,
-    );
+    assert.equal(runLedger(["results", dir, junitPath, "--tests", testsDir]).status, 0);
 
     const claimsPath = path.join(dir, "claims.yaml");
     writeYaml(claimsPath, {
@@ -1180,9 +1123,7 @@ describe("results, verify, and open", () => {
     });
     assert.equal(runLedger(["verify", dir, claimsPath]).status, 1);
 
-    const runState = JSON.parse(
-      fs.readFileSync(path.join(dir, "run-state.json"), "utf8"),
-    );
+    const runState = JSON.parse(fs.readFileSync(path.join(dir, "run-state.json"), "utf8"));
     assert.equal(runState.rows.row_b.claimed, false);
     assert.equal(runState.rows.row_b.redCondition, undefined);
     assert.equal(runState.rows.row_b.verifiedFileHash, undefined);
@@ -1207,5 +1148,546 @@ describe("schema", () => {
     assert.equal(fileRes.status, 0);
     const fromFile = JSON.parse(fs.readFileSync(outPath, "utf8"));
     assert.deepEqual(fromFile, parsed);
+  });
+});
+
+describe("io helpers", () => {
+  it("readJsonFile reports missing files and invalid JSON as structured errors", () => {
+    const dir = makeTempDir("io-json");
+    const missing = readJsonFile(
+      path.join(dir, "missing.json"),
+      OracleConfSchema,
+      "oracle.conf.json",
+    );
+    assert.equal(missing.ok, false);
+    if (!missing.ok) {
+      assert.match(missing.error, /oracle\.conf\.json not found:/);
+    }
+
+    const badPath = path.join(dir, "bad.json");
+    fs.writeFileSync(badPath, "{not valid json", "utf8");
+    const invalid = readJsonFile(badPath, OracleConfSchema, "oracle.conf.json");
+    assert.equal(invalid.ok, false);
+    if (!invalid.ok) {
+      assert.match(invalid.error, /oracle\.conf\.json is not valid JSON:/);
+    }
+  });
+
+  it("readTypedYamlFile reports missing files and schema validation failures", () => {
+    const dir = makeTempDir("io-yaml");
+    const missing = readTypedYamlFile(
+      path.join(dir, "missing.yaml"),
+      ClaimsFileSchema,
+      "claims.yaml",
+    );
+    assert.equal(missing.ok, false);
+    if (!missing.ok) {
+      assert.match(missing.error, /claims\.yaml not found:/);
+    }
+
+    const invalidPath = path.join(dir, "invalid.yaml");
+    fs.writeFileSync(invalidPath, "claims: not-an-array\n", "utf8");
+    const invalid = readTypedYamlFile(invalidPath, ClaimsFileSchema, "claims.yaml");
+    assert.equal(invalid.ok, false);
+    if (!invalid.ok) {
+      assert.match(invalid.error, /claims\.yaml failed schema validation:/);
+    }
+  });
+
+  it("writeJsonAtomic cleans up the sibling .tmp file when rename fails", () => {
+    const parent = makeTempDir("io-atomic-cleanup");
+    const targetDir = path.join(parent, "existing-dir");
+    fs.mkdirSync(targetDir);
+
+    assert.throws(() => writeJsonAtomic(targetDir, { ok: true }));
+    assert.deepEqual(fs.readdirSync(parent), ["existing-dir"]);
+  });
+
+  it("loadOracleFiles returns an error when caseDir is missing or not a directory", () => {
+    const dir = makeTempDir("io-load-dir");
+    const missing = loadOracleFiles(path.join(dir, "nope"));
+    assert.equal(missing.ok, false);
+    if (!missing.ok) {
+      assert.match(missing.errors[0] ?? "", /Case directory not found:/);
+    }
+
+    const filePath = path.join(dir, "plain.txt");
+    fs.writeFileSync(filePath, "hi", "utf8");
+    const notDir = loadOracleFiles(filePath);
+    assert.equal(notDir.ok, false);
+    if (!notDir.ok) {
+      assert.match(notDir.errors[0] ?? "", /Case directory not found:/);
+    }
+  });
+
+  it("collectCandidateFiles recurses into subdirectories and skips nonexistent paths and IGNORED_DIRS while accepting direct files", () => {
+    const dir = makeTempDir("io-collect");
+    const directFile = path.join(dir, "direct.test.ts");
+    const subDir = path.join(dir, "suite");
+    const subFile = path.join(subDir, "kept.test.ts");
+    const deepFile = path.join(subDir, "nested", "deep.test.ts");
+    const ignoredNodeModules = path.join(subDir, "node_modules", "skip.test.ts");
+    const ignoredDist = path.join(subDir, "dist", "skip2.test.ts");
+
+    fs.writeFileSync(directFile, "", "utf8");
+    fs.mkdirSync(path.dirname(deepFile), { recursive: true });
+    fs.mkdirSync(path.dirname(ignoredNodeModules), { recursive: true });
+    fs.mkdirSync(path.dirname(ignoredDist), { recursive: true });
+    fs.writeFileSync(subFile, "", "utf8");
+    fs.writeFileSync(deepFile, "", "utf8");
+    fs.writeFileSync(ignoredNodeModules, "", "utf8");
+    fs.writeFileSync(ignoredDist, "", "utf8");
+
+    const found = collectCandidateFiles([path.join(dir, "does-not-exist"), directFile, subDir]);
+    assert.deepEqual(found, [directFile, subFile, deepFile].sort());
+  });
+
+  it("resolveTestFile falls back to candidate token-scanning when tc.file does not exist", () => {
+    const dir = makeTempDir("io-resolve-missing-attr");
+    const testFile = path.join(dir, "alpha.test.ts");
+    fs.writeFileSync(testFile, 'test("row_alpha", () => {});\n', "utf8");
+
+    const res = resolveTestFile(
+      dir,
+      { name: "row_alpha", colour: "green", file: "nonexistent/stale.test.ts" },
+      "row_alpha",
+      [testFile],
+      new Map(),
+    );
+    assert.deepEqual(res, { ok: true, absPath: testFile });
+  });
+
+  it("resolveTestFile falls back to matching rowId when rowId differs from tc.name", () => {
+    const dir = makeTempDir("io-resolve-fallback");
+    const testFile = path.join(dir, "alpha.test.ts");
+    fs.writeFileSync(testFile, "// covers row_alpha\n", "utf8");
+
+    const res = resolveTestFile(
+      dir,
+      { name: "Row-Alpha", colour: "green" },
+      "row_alpha",
+      [testFile],
+      new Map(),
+    );
+    assert.deepEqual(res, { ok: true, absPath: testFile });
+  });
+
+  it("readJUnitFiles returns a structured error when an XML file is missing", () => {
+    const dir = makeTempDir("io-junit-missing");
+    const res = readJUnitFiles([path.join(dir, "missing.xml")]);
+    assert.equal(res.ok, false);
+    if (!res.ok) {
+      assert.match(res.error, /JUnit XML file not found:/);
+    }
+  });
+});
+
+describe("command error branches", () => {
+  it("freeze and rows exit 2 when oracle.conf.json is missing", () => {
+    const emptyDir = makeTempDir("cmd-missing-conf");
+
+    const freezeRes = runLedger(["freeze", emptyDir, "--words", "scope"]);
+    assert.equal(freezeRes.status, 2);
+    assert.match(freezeRes.stderr, /freeze: oracle\.conf\.json not found:/);
+
+    const rowsRes = runLedger(["rows", emptyDir, "--draft"]);
+    assert.equal(rowsRes.status, 2);
+    assert.match(rowsRes.stderr, /rows: oracle\.conf\.json not found:/);
+  });
+
+  it("rows exits 1 when the frozen script is deleted from disk", () => {
+    const dir = makeTempDir("rows-missing-frozen-script");
+    const scriptPath = path.join(dir, "rows.mjs");
+    fs.writeFileSync(scriptPath, 'console.log(JSON.stringify({ id: "r1" }));\n');
+    writeJson(path.join(dir, "oracle.conf.json"), {
+      kind: "cli",
+      rows: ["node", "rows.mjs"],
+    });
+    assert.equal(runLedger(["freeze", dir, "--words", "scope"]).status, 0);
+
+    fs.rmSync(scriptPath);
+    const res = runLedger(["rows", dir]);
+    assert.equal(res.status, 1);
+    assert.match(res.stderr, /rows: frozen script missing:/);
+  });
+
+  it("rows exits 2 on spawn error, non-zero script exit, invalid JSON, schema error, and corrupt existing YAML", () => {
+    const spawnDir = makeTempDir("rows-spawn-err");
+    writeJson(path.join(spawnDir, "oracle.conf.json"), {
+      kind: "cli",
+      rows: ["nonexistent-oracle-binary-xyz", "rows.mjs"],
+    });
+    const spawnRes = runLedger(["rows", spawnDir, "--draft"]);
+    assert.equal(spawnRes.status, 2);
+    assert.match(spawnRes.stderr, /rows: failed to run row script:/);
+
+    const exitDir = makeTempDir("rows-nonzero");
+    fs.writeFileSync(path.join(exitDir, "rows.mjs"), "process.exit(3);\n");
+    writeJson(path.join(exitDir, "oracle.conf.json"), {
+      kind: "cli",
+      rows: ["node", "rows.mjs"],
+    });
+    const exitRes = runLedger(["rows", exitDir, "--draft"]);
+    assert.equal(exitRes.status, 2);
+    assert.match(exitRes.stderr, /rows: row script exited with code 3/);
+
+    const badJsonDir = makeTempDir("rows-bad-json");
+    fs.writeFileSync(path.join(badJsonDir, "rows.mjs"), 'console.log("{not json");\n');
+    writeJson(path.join(badJsonDir, "oracle.conf.json"), {
+      kind: "cli",
+      rows: ["node", "rows.mjs"],
+    });
+    const badJsonRes = runLedger(["rows", badJsonDir, "--draft"]);
+    assert.equal(badJsonRes.status, 2);
+    assert.match(badJsonRes.stderr, /rows: stdout line 1 is not valid JSON:/);
+
+    const badSchemaDir = makeTempDir("rows-bad-schema");
+    fs.writeFileSync(path.join(badSchemaDir, "rows.mjs"), 'console.log("{}");\n');
+    writeJson(path.join(badSchemaDir, "oracle.conf.json"), {
+      kind: "cli",
+      rows: ["node", "rows.mjs"],
+    });
+    const badSchemaRes = runLedger(["rows", badSchemaDir, "--draft"]);
+    assert.equal(badSchemaRes.status, 2);
+    assert.match(badSchemaRes.stderr, /rows: stdout line 1 failed schema validation:/);
+
+    const badExistingDir = makeTempDir("rows-bad-existing");
+    fs.writeFileSync(
+      path.join(badExistingDir, "rows.mjs"),
+      'console.log(JSON.stringify({ id: "r1", slice: "s" }));\n',
+    );
+    writeJson(path.join(badExistingDir, "oracle.conf.json"), {
+      kind: "cli",
+      rows: ["node", "rows.mjs"],
+    });
+    fs.writeFileSync(
+      path.join(badExistingDir, "s.oracle.yaml"),
+      "kind: invalid-kind\nslice: s\nrows: []\n",
+      "utf8",
+    );
+    const badExistingRes = runLedger(["rows", badExistingDir, "--draft"]);
+    assert.equal(badExistingRes.status, 2);
+    assert.match(badExistingRes.stderr, /rows: s\.oracle\.yaml failed schema validation:/);
+  });
+
+  it("results covers missing conf, invalid YAML, unknown --slice, missing JUnit XML, and missing-from-JUnit row", () => {
+    const emptyDir = makeTempDir("results-no-conf");
+    const testsDir = path.join(emptyDir, "tests");
+    fs.mkdirSync(testsDir);
+    const noConfRes = runLedger([
+      "results",
+      emptyDir,
+      path.join(emptyDir, "res.xml"),
+      "--tests",
+      testsDir,
+    ]);
+    assert.equal(noConfRes.status, 2);
+    assert.match(noConfRes.stderr, /results: oracle\.conf\.json not found:/);
+
+    const badFilesDir = makeTempDir("results-bad-yaml");
+    writeJson(path.join(badFilesDir, "oracle.conf.json"), {
+      kind: "cli",
+      rows: ["node", "rows.mjs"],
+    });
+    fs.writeFileSync(
+      path.join(badFilesDir, "s.oracle.yaml"),
+      "kind: invalid-kind\nslice: s\nrows: []\n",
+      "utf8",
+    );
+    const badFilesRes = runLedger([
+      "results",
+      badFilesDir,
+      path.join(badFilesDir, "res.xml"),
+      "--tests",
+      testsDir,
+    ]);
+    assert.equal(badFilesRes.status, 1);
+    assert.match(badFilesRes.stderr, /results: s\.oracle\.yaml failed schema validation:/);
+
+    const dir = makeTempDir("results-errors");
+    const dirTests = path.join(dir, "tests");
+    fs.mkdirSync(dirTests);
+    fs.writeFileSync(path.join(dirTests, "a.test.ts"), 'test("row_a", () => {});\n');
+    writeJson(path.join(dir, "oracle.conf.json"), {
+      kind: "cli",
+      rows: ["node", "rows.mjs"],
+    });
+    writeYaml(path.join(dir, "s.oracle.yaml"), {
+      kind: "cli",
+      slice: "s",
+      rows: [
+        {
+          id: "row_a",
+          status: "active",
+          when: "Run a",
+          expect: "Passes",
+          source: "written",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+      ],
+    });
+    assert.equal(runLedger(["lock", dir]).status, 0);
+
+    const emptyJunit = path.join(dir, "empty.xml");
+    fs.writeFileSync(emptyJunit, makeJUnitXml([]));
+
+    const badSliceRes = runLedger([
+      "results",
+      dir,
+      emptyJunit,
+      "--tests",
+      dirTests,
+      "--slice",
+      "nope",
+    ]);
+    assert.equal(badSliceRes.status, 2);
+    assert.match(badSliceRes.stderr, /results: slice "nope" not found/);
+
+    const missingXmlRes = runLedger([
+      "results",
+      dir,
+      path.join(dir, "missing.xml"),
+      "--tests",
+      dirTests,
+    ]);
+    assert.equal(missingXmlRes.status, 2);
+    assert.match(missingXmlRes.stderr, /results: JUnit XML file not found:/);
+
+    const missingRowRes = runLedger(["results", dir, emptyJunit, "--tests", dirTests]);
+    assert.equal(missingRowRes.status, 1);
+    assert.match(missingRowRes.stderr, /\[row_a\] \(active\): missing from JUnit results/);
+  });
+
+  it("verify covers missing conf, invalid YAML, missing lock, missing run-state, missing runRow, and deleted test file", () => {
+    const emptyDir = makeTempDir("verify-no-conf");
+    const claimsPath = path.join(emptyDir, "claims.yaml");
+    writeYaml(claimsPath, { claims: [] });
+
+    const noConfRes = runLedger(["verify", emptyDir, claimsPath]);
+    assert.equal(noConfRes.status, 1);
+    assert.match(noConfRes.stderr, /verify: oracle\.conf\.json not found:/);
+
+    const dir = makeTempDir("verify-errors");
+    const dirClaims = path.join(dir, "claims.yaml");
+    writeJson(path.join(dir, "oracle.conf.json"), {
+      kind: "cli",
+      rows: ["node", "rows.mjs"],
+    });
+    fs.writeFileSync(
+      path.join(dir, "s.oracle.yaml"),
+      "kind: invalid-kind\nslice: s\nrows: []\n",
+      "utf8",
+    );
+    writeYaml(dirClaims, { claims: [{ id: "row_a", redCondition: "Break a" }] });
+
+    const badFilesRes = runLedger(["verify", dir, dirClaims]);
+    assert.equal(badFilesRes.status, 1);
+    assert.match(badFilesRes.stderr, /verify: s\.oracle\.yaml failed schema validation:/);
+
+    writeYaml(path.join(dir, "s.oracle.yaml"), {
+      kind: "cli",
+      slice: "s",
+      rows: [
+        {
+          id: "row_a",
+          status: "active",
+          when: "Run a",
+          expect: "Passes",
+          source: "written",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+        {
+          id: "row_b",
+          status: "active",
+          when: "Run b",
+          expect: "Passes",
+          source: "written",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+      ],
+    });
+    const noLockRes = runLedger(["verify", dir, dirClaims]);
+    assert.equal(noLockRes.status, 1);
+    assert.match(noLockRes.stderr, /verify: locked\.json not found:/);
+
+    assert.equal(runLedger(["lock", dir]).status, 0);
+    const noRunStateRes = runLedger(["verify", dir, dirClaims]);
+    assert.equal(noRunStateRes.status, 1);
+    assert.match(noRunStateRes.stderr, /verify: run-state\.json not found:/);
+
+    const testsDir = path.join(dir, "tests");
+    fs.mkdirSync(testsDir);
+    const testFile = path.join(testsDir, "a.test.ts");
+    fs.writeFileSync(testFile, 'test("row_a", () => {});\n');
+    const junitPath = path.join(dir, "res.xml");
+    fs.writeFileSync(junitPath, makeJUnitXml([{ name: "row_a", outcome: "green" }]));
+    // results exits 1 because row_b is missing from JUnit, but still writes run-state.json with row_a
+    assert.equal(runLedger(["results", dir, junitPath, "--tests", testsDir]).status, 1);
+
+    writeYaml(dirClaims, {
+      claims: [
+        { id: "row_a", redCondition: "Break a" },
+        { id: "row_b", redCondition: "Break b" },
+      ],
+    });
+    const missingRunRowRes = runLedger(["verify", dir, dirClaims]);
+    assert.equal(missingRunRowRes.status, 1);
+    assert.match(missingRunRowRes.stderr, /\[row_b\]: not present in run-state\.json/);
+
+    fs.rmSync(testFile);
+    const missingTestFileRes = runLedger(["verify", dir, dirClaims]);
+    assert.equal(missingTestFileRes.status, 1);
+    assert.match(missingTestFileRes.stderr, /\[row_a\]: test file missing on disk:/);
+  });
+
+  it("open covers missing conf, invalid YAML, and prints Lock issues, Unresolved gone, and Live unplaced", () => {
+    const emptyDir = makeTempDir("open-no-conf");
+    const noConfRes = runLedger(["open", emptyDir]);
+    assert.equal(noConfRes.status, 1);
+    assert.match(noConfRes.stderr, /open: oracle\.conf\.json not found:/);
+
+    const dir = makeTempDir("open-sections");
+    writeJson(path.join(dir, "oracle.conf.json"), {
+      kind: "cli",
+      rows: ["node", "rows.mjs"],
+    });
+    fs.writeFileSync(
+      path.join(dir, "s.oracle.yaml"),
+      "kind: invalid-kind\nslice: s\nrows: []\n",
+      "utf8",
+    );
+    const badFilesRes = runLedger(["open", dir]);
+    assert.equal(badFilesRes.status, 1);
+    assert.match(badFilesRes.stderr, /open: s\.oracle\.yaml failed schema validation:/);
+
+    writeYaml(path.join(dir, "s.oracle.yaml"), {
+      kind: "cli",
+      slice: "s",
+      rows: [
+        {
+          id: "gone_row",
+          gone: true,
+          status: "active",
+          when: "Old command",
+          expect: "Prints old output",
+          source: "written",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+      ],
+      unplaced: [{ id: "mystery_branch", reason: "dynamic dispatch" }],
+    });
+    const openRes = runLedger(["open", dir]);
+    assert.equal(openRes.status, 1);
+    assert.match(openRes.stdout, /Lock issues:/);
+    assert.match(openRes.stdout, /Unresolved gone \(1\): s:gone_row/);
+    assert.match(openRes.stdout, /Live unplaced \(1\):/);
+    assert.match(openRes.stdout, /s:mystery_branch \(dynamic dispatch\)/);
+  });
+
+  it("results and verify skip non-runnable rows, results ignores unmatched JUnit testcases, and open flags deleted test files", () => {
+    const dir = makeTempDir("cmd-nonrunnable-and-deleted");
+    const testsDir = path.join(dir, "tests");
+    fs.mkdirSync(testsDir);
+    const testFile = path.join(testsDir, "a.test.ts");
+    fs.writeFileSync(testFile, 'test("row_a", () => {});\n', "utf8");
+
+    writeJson(path.join(dir, "oracle.conf.json"), {
+      kind: "cli",
+      rows: ["node", "rows.mjs"],
+    });
+    writeYaml(path.join(dir, "s.oracle.yaml"), {
+      kind: "cli",
+      slice: "s",
+      rows: [
+        {
+          id: "row_a",
+          status: "active",
+          when: "Run a",
+          expect: "Passes",
+          source: "written",
+          shortfall: null,
+          reason: null,
+          question: null,
+        },
+        {
+          id: "row_cant",
+          status: "cant-happen",
+          when: "Impossible input",
+          expect: "Unreachable",
+          source: "written",
+          shortfall: null,
+          reason: "Guarded by schema",
+          question: null,
+        },
+        {
+          id: "row_other",
+          status: "other-level",
+          when: "Handled upstream",
+          expect: "Checked in unit suite",
+          source: "written",
+          shortfall: null,
+          reason: "Covered by unit test",
+          question: null,
+        },
+        {
+          id: "row_struck",
+          status: "struck",
+          when: "Obsolete path",
+          expect: "Removed",
+          source: "written",
+          shortfall: null,
+          reason: "No longer supported",
+          question: null,
+        },
+      ],
+    });
+    assert.equal(runLedger(["lock", dir]).status, 0);
+
+    const junitPath = path.join(dir, "res.xml");
+    fs.writeFileSync(
+      junitPath,
+      makeJUnitXml([
+        { name: "unrelated_helper_test", outcome: "green" },
+        { name: "row_a", outcome: "green" },
+      ]),
+      "utf8",
+    );
+
+    const resultsRes = runLedger(["results", dir, junitPath, "--tests", testsDir]);
+    assert.equal(resultsRes.status, 0, resultsRes.stderr);
+    assert.match(resultsRes.stdout, /Results recorded: 1 matched row\(s\) passed/);
+
+    const runStateRes = readJsonFile(
+      path.join(dir, "run-state.json"),
+      RunStateSchema,
+      "run-state.json",
+    );
+    assert.equal(runStateRes.ok, true);
+    if (runStateRes.ok) {
+      assert.deepEqual(Object.keys(runStateRes.data.rows), ["row_a"]);
+    }
+
+    const claimsPath = path.join(dir, "claims.yaml");
+    writeYaml(claimsPath, {
+      claims: [{ id: "row_a", redCondition: "Return non-zero on a" }],
+    });
+    const verifyRes = runLedger(["verify", dir, claimsPath]);
+    assert.equal(verifyRes.status, 0, verifyRes.stderr);
+
+    const closedOpenRes = runLedger(["open", dir]);
+    assert.equal(closedOpenRes.status, 0, closedOpenRes.stdout + closedOpenRes.stderr);
+
+    fs.rmSync(testFile);
+    const deletedOpenRes = runLedger(["open", dir]);
+    assert.equal(deletedOpenRes.status, 1);
+    assert.match(deletedOpenRes.stdout, /s:row_a \(active\): test file missing on disk/);
   });
 });

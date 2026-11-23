@@ -15,34 +15,37 @@ export type LintFinding = {
   detail: string;
 };
 
-const TS_JS_EXTENSIONS = new Set([
-  ".ts",
-  ".tsx",
-  ".mts",
-  ".cts",
-  ".js",
-  ".jsx",
-  ".mjs",
-  ".cjs",
-]);
+const TS_JS_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]);
 
 const TEST_ROOT_NAMES = new Set(["test", "it", "describe", "suite", "t"]);
 
 const scriptKindFor = (ext: string): ts.ScriptKind => {
-  if (ext === ".tsx") return ts.ScriptKind.TSX;
-  if (ext === ".jsx") return ts.ScriptKind.JSX;
-  if (ext === ".js" || ext === ".mjs" || ext === ".cjs") return ts.ScriptKind.JS;
+  if (ext === ".tsx") {
+    return ts.ScriptKind.TSX;
+  }
+  if (ext === ".jsx") {
+    return ts.ScriptKind.JSX;
+  }
+  if (ext === ".js" || ext === ".mjs" || ext === ".cjs") {
+    return ts.ScriptKind.JS;
+  }
   return ts.ScriptKind.TS;
 };
 
 const rootIdentifierName = (expr: ts.Expression): string | null => {
-  if (ts.isIdentifier(expr)) return expr.text;
-  if (ts.isPropertyAccessExpression(expr)) return rootIdentifierName(expr.expression);
+  if (ts.isIdentifier(expr)) {
+    return expr.text;
+  }
+  if (ts.isPropertyAccessExpression(expr)) {
+    return rootIdentifierName(expr.expression);
+  }
   return null;
 };
 
 const staticStringArg = (node: ts.Expression | undefined): string | null => {
-  if (!node) return null;
+  if (!node) {
+    return null;
+  }
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
     return node.text;
   }
@@ -50,7 +53,9 @@ const staticStringArg = (node: ts.Expression | undefined): string | null => {
 };
 
 const startsWithDataPrefix = (node: ts.Expression | undefined): boolean => {
-  if (!node) return false;
+  if (!node) {
+    return false;
+  }
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
     return node.text.startsWith("data-");
   }
@@ -61,15 +66,14 @@ const startsWithDataPrefix = (node: ts.Expression | undefined): boolean => {
 };
 
 const isTestCallNode = (node: ts.Node): string | null => {
-  if (!ts.isCallExpression(node)) return null;
+  if (!ts.isCallExpression(node)) {
+    return null;
+  }
   const callee = node.expression;
   let isTestCall = false;
   if (ts.isIdentifier(callee) && (callee.text === "test" || callee.text === "it")) {
     isTestCall = true;
-  } else if (
-    ts.isPropertyAccessExpression(callee) &&
-    ts.isIdentifier(callee.expression)
-  ) {
+  } else if (ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression)) {
     const root = callee.expression.text;
     if (
       (root === "test" || root === "it") &&
@@ -81,13 +85,19 @@ const isTestCallNode = (node: ts.Node): string | null => {
       isTestCall = true;
     }
   }
-  if (!isTestCall) return null;
+  if (!isTestCall) {
+    return null;
+  }
   return staticStringArg(node.arguments[0]);
 };
 
 const isKeyboardReceiver = (expr: ts.Expression): boolean => {
-  if (ts.isIdentifier(expr) && expr.text === "keyboard") return true;
-  if (ts.isPropertyAccessExpression(expr) && expr.name.text === "keyboard") return true;
+  if (ts.isIdentifier(expr) && expr.text === "keyboard") {
+    return true;
+  }
+  if (ts.isPropertyAccessExpression(expr) && expr.name.text === "keyboard") {
+    return true;
+  }
   return false;
 };
 
@@ -108,7 +118,9 @@ const stripCSharpCommentsPreservingLines = (source: string): string => {
         i += 2;
         continue;
       }
-      if (ch === '"') inVerbatim = false;
+      if (ch === '"') {
+        inVerbatim = false;
+      }
       i += 1;
       continue;
     }
@@ -120,7 +132,9 @@ const stripCSharpCommentsPreservingLines = (source: string): string => {
         i += 2;
         continue;
       }
-      if (ch === '"') inString = false;
+      if (ch === '"') {
+        inString = false;
+      }
       i += 1;
       continue;
     }
@@ -206,8 +220,7 @@ export const lintTestFile = (
     scriptKindFor(ext),
   );
 
-  const targetNorm =
-    options.testName !== undefined ? normaliseId(options.testName) : null;
+  const targetNorm = options.testName !== undefined ? normaliseId(options.testName) : null;
   const findings: LintFinding[] = [];
 
   const lineOf = (node: ts.Node): number =>
@@ -218,9 +231,7 @@ export const lintTestFile = (
     const activeTestName = callTestName ?? enclosingTestName;
 
     const inScope =
-      targetNorm === null ||
-      activeTestName === null ||
-      normaliseId(activeTestName) === targetNorm;
+      targetNorm === null || activeTestName === null || normaliseId(activeTestName) === targetNorm;
 
     if (ts.isCallExpression(node)) {
       const callee = node.expression;
@@ -278,10 +289,7 @@ export const lintTestFile = (
                 rule: "no-wait-for-timeout",
                 detail: "waitForTimeout() is banned in browser tests",
               });
-            } else if (
-              prop === "toHaveAttribute" &&
-              startsWithDataPrefix(node.arguments[0])
-            ) {
+            } else if (prop === "toHaveAttribute" && startsWithDataPrefix(node.arguments[0])) {
               findings.push({
                 file: filePath,
                 line: lineOf(node),
@@ -297,8 +305,7 @@ export const lintTestFile = (
                 file: filePath,
                 line: lineOf(node),
                 rule: "no-keyboard-press",
-                detail:
-                  "keyboard.press() is banned unless the locked row sets allowKeyboard: true",
+                detail: "keyboard.press() is banned unless the locked row sets allowKeyboard: true",
               });
             }
           }
@@ -316,19 +323,10 @@ export const lintTestFile = (
           detail: "waitForTimeout() is banned in browser tests",
         });
       }
-    } else if (
-      inScope &&
-      options.kind === "browser" &&
-      ts.isPropertyAssignment(node)
-    ) {
+    } else if (inScope && options.kind === "browser" && ts.isPropertyAssignment(node)) {
       const propName =
-        ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)
-          ? node.name.text
-          : null;
-      if (
-        propName === "force" &&
-        node.initializer.kind === ts.SyntaxKind.TrueKeyword
-      ) {
+        ts.isIdentifier(node.name) || ts.isStringLiteral(node.name) ? node.name.text : null;
+      if (propName === "force" && node.initializer.kind === ts.SyntaxKind.TrueKeyword) {
         findings.push({
           file: filePath,
           line: lineOf(node),

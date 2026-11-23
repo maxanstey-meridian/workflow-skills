@@ -8,9 +8,15 @@ importers:
 
   .:
     dependencies:
+      '@xmldom/xmldom':
+        specifier: 0.9.12
+        version: 0.9.12
       commander:
         specifier: 15.1.0
         version: 15.1.0
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
       yaml:
         specifier: 2.9.1
         version: 2.9.1
@@ -30,9 +36,6 @@ importers:
       oxlint:
         specifier: 1.83.0
         version: 1.83.0
-      typescript:
-        specifier: 6.0.3
-        version: 6.0.3
 
 packages:
 
@@ -439,6 +442,10 @@ packages:
   '@types/node@26.6.6':
     resolution: {integrity: sha512-MzQj+8Kx3XI40OmUAE6Qoh58ZMNstNNMwn2nfd3qWsfe7nDNSqJNzes4njhz6AHwrSHOffSLwXU6yb474Q4aog==}
 
+  '@xmldom/xmldom@0.9.12':
+    resolution: {integrity: sha512-5AXjrcMClTryPe9LgZrygpB1lj7s0S9E0+W+AHaVKAVyHanafK86iPSvG5xHVSp/jC+VH1UXu0TAEmY279xH7A==}
+    engines: {node: '>=14.6'}
+
   commander@15.1.0:
     resolution: {integrity: sha512-cgnQ88TRrWcC7pVq46RzJVRMktu3W2RcbnoidnfBsl1bmDCBwJS/udcIZpKoCrbAYYaCqsz1yZCVIgbIaU3ddQ==}
     engines: {node: '>=22.12.0'}
@@ -691,6 +698,8 @@ snapshots:
   '@types/node@26.6.6':
     dependencies:
       undici-types: 8.9.0
+
+  '@xmldom/xmldom@0.9.12': {}
 
   commander@15.1.0: {}
 

@@ -13,12 +13,7 @@ export const RowStatusSchema = z.enum([
 ]);
 export type RowStatus = z.infer<typeof RowStatusSchema>;
 
-export const RowSourceSchema = z.enum([
-  "written",
-  "meridian",
-  "ruling",
-  "today",
-]);
+export const RowSourceSchema = z.enum(["written", "meridian", "ruling", "today"]);
 export type RowSource = z.infer<typeof RowSourceSchema>;
 
 export const UiStateSchema = z
@@ -165,6 +160,12 @@ export const OracleFileSchema = z.discriminatedUnion("kind", [
 ]);
 export type OracleFile = z.infer<typeof OracleFileSchema>;
 
+export type LoadedOracleFile = {
+  fileName: string;
+  filePath: string;
+  data: OracleFile;
+};
+
 export const ClaimSchema = z
   .object({
     id: z.string().min(1),
@@ -232,8 +233,15 @@ export const RunStateSchema = z
   .strict();
 export type RunState = z.infer<typeof RunStateSchema>;
 
-export const normaliseId = (value: string): string =>
-  value.toLowerCase().replace(/[^a-z0-9]/g, "");
+export const formatZodError = (err: z.ZodError): string =>
+  err.issues
+    .map((issue) => {
+      const loc = issue.path.length > 0 ? issue.path.join(".") : "(root)";
+      return `${loc}: ${issue.message}`;
+    })
+    .join("; ");
+
+export const normaliseId = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 export const rowLockHash = (row: OracleRow): string => {
   const expectCanonical =
@@ -244,8 +252,7 @@ export const rowLockHash = (row: OracleRow): string => {
           ...(row.expect.api !== undefined ? { api: row.expect.api } : {}),
         };
 
-  const allowKeyboard =
-    "allowKeyboard" in row ? (row.allowKeyboard ?? false) : false;
+  const allowKeyboard = "allowKeyboard" in row ? (row.allowKeyboard ?? false) : false;
 
   const canonical = {
     when: row.when,
