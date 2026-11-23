@@ -49,6 +49,16 @@ if [ -f "$marker" ] && [ "$(cat "$marker" 2>/dev/null || true)" = "$checkpoint_s
   exit 0
 fi
 
+# Never fire retroactively on an old compaction if the model has already responded since.
+last_planner_line=$(grep '"type":"PLANNER_RESPONSE"' "$transcript" 2>/dev/null | tail -1 || true)
+last_planner_step=$(printf '%s' "$last_planner_line" | jq -r '.step_index // empty' 2>/dev/null || true)
+if [ -n "$last_planner_step" ] && [ "$last_planner_step" -gt "$checkpoint_step" ] 2>/dev/null; then
+  mkdir -p "$marker_dir"
+  printf '%s\n' "$checkpoint_step" > "$marker"
+  printf '{}\n'
+  exit 0
+fi
+
 mkdir -p "$marker_dir"
 printf '%s\n' "$checkpoint_step" > "$marker"
 
