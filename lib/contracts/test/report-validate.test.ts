@@ -357,105 +357,186 @@ describe("report schemas", () => {
       true,
     );
 
-    const invalidNeeds = [
-      // fewer than 2 options
+    const invalidNeeds: ReadonlyArray<{
+      label: string;
+      need: unknown;
+      expectedPath: ReadonlyArray<PropertyKey>;
+      expectedMessage: RegExp;
+    }> = [
       {
-        item: "Single option",
-        whatItIs: "Only one choice.",
-        options: [{ label: "A", summary: "Do A.", recommended: true }],
+        label: "fewer than 2 options",
+        need: {
+          item: "Single option",
+          whatItIs: "Only one choice.",
+          options: [{ label: "A", summary: "Do A.", recommended: true }],
+        },
+        expectedPath: ["needsFromYou", 0, "options"],
+        expectedMessage: /Too small|>=2/,
       },
-      // duplicate option labels (case-insensitive and trimmed)
       {
-        item: "Duplicate labels",
-        whatItIs: "Labels collide after trimming and lowercasing.",
-        options: [
-          { label: " A ", summary: "Do A.", recommended: true },
-          { label: "a", summary: "Do B." },
-        ],
+        label: "duplicate option labels (case-insensitive and trimmed)",
+        need: {
+          item: "Duplicate labels",
+          whatItIs: "Labels collide after trimming and lowercasing.",
+          options: [
+            { label: " A ", summary: "Do A.", recommended: true },
+            { label: "a", summary: "Do B." },
+          ],
+        },
+        expectedPath: ["needsFromYou", 0, "options", 1, "label"],
+        expectedMessage: /Duplicate option label "a"/,
       },
-      // 0 recommended options (omitted)
       {
-        item: "No recommendation",
-        whatItIs: "Neither option is recommended.",
-        options: [
-          { label: "A", summary: "Do A." },
-          { label: "B", summary: "Do B." },
-        ],
+        label: "whitespace-only option label",
+        need: {
+          item: "Blank label",
+          whatItIs: "First option label is spaces only.",
+          options: [
+            { label: "   ", summary: "Do A.", recommended: true },
+            { label: "B", summary: "Do B." },
+          ],
+        },
+        expectedPath: ["needsFromYou", 0, "options", 0, "label"],
+        expectedMessage: /Option label must not be blank/,
       },
-      // 0 recommended options (explicit false)
       {
-        item: "All false recommendation",
-        whatItIs: "Both options set recommended: false.",
-        options: [
-          { label: "A", summary: "Do A.", recommended: false },
-          { label: "B", summary: "Do B.", recommended: false },
-        ],
+        label: "0 recommended options (omitted)",
+        need: {
+          item: "No recommendation",
+          whatItIs: "Neither option is recommended.",
+          options: [
+            { label: "A", summary: "Do A." },
+            { label: "B", summary: "Do B." },
+          ],
+        },
+        expectedPath: ["needsFromYou", 0, "options"],
+        expectedMessage: /Expected exactly one recommended option, found 0/,
       },
-      // 2 recommended options
       {
-        item: "Two recommendations",
-        whatItIs: "Both options are marked recommended.",
-        options: [
-          { label: "A", summary: "Do A.", recommended: true },
-          { label: "B", summary: "Do B.", recommended: true },
-        ],
+        label: "0 recommended options (explicit false)",
+        need: {
+          item: "All false recommendation",
+          whatItIs: "Both options set recommended: false.",
+          options: [
+            { label: "A", summary: "Do A.", recommended: false },
+            { label: "B", summary: "Do B.", recommended: false },
+          ],
+        },
+        expectedPath: ["needsFromYou", 0, "options"],
+        expectedMessage: /Expected exactly one recommended option, found 0/,
       },
-      // missing whatItIs
       {
-        item: "Missing context",
-        options: [
-          { label: "A", summary: "Do A.", recommended: true },
-          { label: "B", summary: "Do B." },
-        ],
+        label: "2 recommended options",
+        need: {
+          item: "Two recommendations",
+          whatItIs: "Both options are marked recommended.",
+          options: [
+            { label: "A", summary: "Do A.", recommended: true },
+            { label: "B", summary: "Do B.", recommended: true },
+          ],
+        },
+        expectedPath: ["needsFromYou", 0, "options"],
+        expectedMessage: /Expected exactly one recommended option, found 2/,
       },
-      // mixing rec with options
       {
-        item: "Mixed fields",
-        rec: "A",
-        whatItIs: "Carries both rec and options.",
-        options: [
-          { label: "A", summary: "Do A.", recommended: true },
-          { label: "B", summary: "Do B." },
-        ],
+        label: "missing whatItIs",
+        need: {
+          item: "Missing context",
+          options: [
+            { label: "A", summary: "Do A.", recommended: true },
+            { label: "B", summary: "Do B." },
+          ],
+        },
+        expectedPath: ["needsFromYou", 0, "whatItIs"],
+        expectedMessage: /expected string/i,
       },
-      // mixing detail with structured decision
       {
-        item: "Decision with detail",
-        whatItIs: "Has extra detail key.",
-        detail: "Not allowed on decision items.",
-        options: [
-          { label: "A", summary: "Do A.", recommended: true },
-          { label: "B", summary: "Do B." },
-        ],
+        label: "mixing rec with options",
+        need: {
+          item: "Mixed fields",
+          rec: "A",
+          whatItIs: "Carries both rec and options.",
+          options: [
+            { label: "A", summary: "Do A.", recommended: true },
+            { label: "B", summary: "Do B." },
+          ],
+        },
+        expectedPath: ["needsFromYou", 0],
+        expectedMessage: /Unrecognized key.*"rec"/,
       },
-      // unknown key on option
       {
-        item: "Unknown option field",
-        whatItIs: "Option has extra key.",
-        options: [
-          { label: "A", summary: "Do A.", recommended: true, extra: "nope" },
-          { label: "B", summary: "Do B." },
-        ],
+        label: "mixing detail with structured decision",
+        need: {
+          item: "Decision with detail",
+          whatItIs: "Has extra detail key.",
+          detail: "Not allowed on decision items.",
+          options: [
+            { label: "A", summary: "Do A.", recommended: true },
+            { label: "B", summary: "Do B." },
+          ],
+        },
+        expectedPath: ["needsFromYou", 0],
+        expectedMessage: /Unrecognized key.*"detail"/,
+      },
+      {
+        label: "unknown key on option",
+        need: {
+          item: "Unknown option field",
+          whatItIs: "Option has extra key.",
+          options: [
+            { label: "A", summary: "Do A.", recommended: true, extra: "nope" },
+            { label: "B", summary: "Do B." },
+          ],
+        },
+        expectedPath: ["needsFromYou", 0, "options", 0],
+        expectedMessage: /Unrecognized key.*"extra"/,
+      },
+      {
+        label: "missing rec on simple action item",
+        need: {
+          item: "Run /cycle",
+        },
+        expectedPath: ["needsFromYou", 0, "rec"],
+        expectedMessage: /expected string/i,
       },
     ];
 
-    for (const invalidNeed of invalidNeeds) {
-      assert.equal(
-        GoAuditReportSchema.safeParse({
-          ...makeGoAudit(),
-          needsFromYou: [invalidNeed],
-        }).success,
-        false,
-        `GoAuditReportSchema should reject: ${invalidNeed.item}`,
-      );
-      assert.equal(
-        CycleAuditReportSchema.safeParse({
-          ...makeCycleAudit(),
-          needsFromYou: [invalidNeed],
-        }).success,
-        false,
-        `CycleAuditReportSchema should reject: ${invalidNeed.item}`,
-      );
+    for (const { label, need, expectedPath, expectedMessage } of invalidNeeds) {
+      const goResult = GoAuditReportSchema.safeParse({
+        ...makeGoAudit(),
+        needsFromYou: [need],
+      });
+      assert.equal(goResult.success, false, `GoAuditReportSchema should reject: ${label}`);
+      if (!goResult.success) {
+        const matched = goResult.error.issues.some(
+          (issue) =>
+            JSON.stringify(issue.path) === JSON.stringify(expectedPath) &&
+            expectedMessage.test(issue.message),
+        );
+        assert.equal(
+          matched,
+          true,
+          `GoAuditReportSchema (${label}) expected path ${JSON.stringify(expectedPath)} matching ${expectedMessage}, got: ${JSON.stringify(goResult.error.issues)}`,
+        );
+      }
+
+      const cycleResult = CycleAuditReportSchema.safeParse({
+        ...makeCycleAudit(),
+        needsFromYou: [need],
+      });
+      assert.equal(cycleResult.success, false, `CycleAuditReportSchema should reject: ${label}`);
+      if (!cycleResult.success) {
+        const matched = cycleResult.error.issues.some(
+          (issue) =>
+            JSON.stringify(issue.path) === JSON.stringify(expectedPath) &&
+            expectedMessage.test(issue.message),
+        );
+        assert.equal(
+          matched,
+          true,
+          `CycleAuditReportSchema (${label}) expected path ${JSON.stringify(expectedPath)} matching ${expectedMessage}, got: ${JSON.stringify(cycleResult.error.issues)}`,
+        );
+      }
     }
   });
 });

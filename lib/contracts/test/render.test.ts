@@ -428,6 +428,28 @@ describe("renderGoAudit", () => {
 
     assert.equal(renderGoAudit(audit), expected);
   });
+
+  it("trims padded option labels when rendering structured decision items", () => {
+    const audit = GoAuditReportSchema.parse({
+      tldr: "P1 awaits a decision.",
+      needsFromYou: [
+        {
+          item: "Option spacing (P1)",
+          whatItIs: "Labels may arrive with surrounding spaces.",
+          options: [
+            { label: " A ", summary: "Trim recommended label.", recommended: true },
+            { label: "  B  ", summary: "Trim regular label." },
+          ],
+        },
+      ],
+      pieces: [{ id: "P1", status: "needs-user" }],
+      builtPieces: [],
+    });
+
+    const rendered = renderGoAudit(audit);
+    assert.match(rendered, /\n {5}- \*\*A \(Rec\):\*\* Trim recommended label\.\n/);
+    assert.match(rendered, /\n {5}- \*\*B:\*\* Trim regular label\.\n/);
+  });
 });
 
 describe("renderCycleAudit", () => {

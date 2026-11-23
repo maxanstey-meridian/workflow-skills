@@ -51,11 +51,12 @@ const renderNeedsFromYou = (needs: ReadonlyArray<AuditNeed>): string => {
   }
   const lines = needs.map((need, index) => {
     if ("options" in need) {
-      const optionLines = need.options.map((opt) =>
-        opt.recommended === true
-          ? `     - **${opt.label} (Rec):** ${opt.summary}`
-          : `     - **${opt.label}:** ${opt.summary}`,
-      );
+      const optionLines = need.options.map((opt) => {
+        const label = opt.label.trim();
+        return opt.recommended === true
+          ? `     - **${label} (Rec):** ${opt.summary}`
+          : `     - **${label}:** ${opt.summary}`;
+      });
       return [
         `${index + 1}. **${need.item}**`,
         `   - **What it is:** ${need.whatItIs}`,

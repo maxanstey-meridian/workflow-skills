@@ -264,7 +264,12 @@ export type AuditFinding = z.infer<typeof AuditFindingSchema>;
 
 export const AuditNeedOptionSchema = z
   .object({
-    label: z.string().min(1),
+    label: z
+      .string()
+      .min(1)
+      .refine((value) => value.trim().length > 0, {
+        message: "Option label must not be blank",
+      }),
     summary: z.string().min(1),
     recommended: z.boolean().optional(),
   })
@@ -313,8 +318,29 @@ const AuditNeedDecisionSchema = z
     }
   });
 
-export const AuditNeedSchema = z.union([AuditNeedActionSchema, AuditNeedDecisionSchema]);
-export type AuditNeed = z.infer<typeof AuditNeedSchema>;
+const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+export type AuditNeed =
+  | z.infer<typeof AuditNeedActionSchema>
+  | z.infer<typeof AuditNeedDecisionSchema>;
+
+export const AuditNeedSchema = z.custom<AuditNeed>().superRefine((value, ctx) => {
+  const raw: unknown = value;
+  const isDecision = isPlainRecord(raw) && ("options" in raw || "whatItIs" in raw);
+  const parsed = isDecision
+    ? AuditNeedDecisionSchema.safeParse(raw)
+    : AuditNeedActionSchema.safeParse(raw);
+  if (!parsed.success) {
+    for (const issue of parsed.error.issues) {
+      ctx.addIssue({
+        code: "custom",
+        path: issue.path,
+        message: issue.message,
+      });
+    }
+  }
+});
 
 export const AuditPieceSchema = z
   .object({
