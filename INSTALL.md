@@ -108,11 +108,37 @@ sh ~/src/workflow-skills/install.sh gemini
 sh ~/src/workflow-skills/install.sh antigravity
 ```
 
-- **Skills:** linked into `~/.gemini/antigravity-cli/skills`.
+- **Skills:** linked into `~/.gemini/antigravity-cli/skills` (Antigravity 2.0 also discovers global skills in `~/.gemini/config/skills`).
 - **Rules:** linked as `~/.gemini/antigravity-cli/rules/workflow-skills.md`, which loads beside your own rules; if `~/.gemini/AGENTS.md` already leads to the clone (from a Gemini install), the install uses that instead. If you already have a `workflow-skills.md` there, rename yours and rerun.
+- **After a compaction:** Antigravity has no `compact` `SessionStart` matcher, so add the `PreInvocation` hook the install prints under "To finish" to `~/.gemini/config/hooks.json`:
+
+  ```json
+  {
+    "after-compaction": {
+      "PreInvocation": [
+        {
+          "type": "command",
+          "command": "sh \"~/src/workflow-skills/hooks/agy-after-compaction.sh\"",
+          "timeout": 10
+        }
+      ]
+    }
+  }
+  ```
+
+  `hooks/agy-after-compaction.sh` watches `transcriptPath` for a new `CHECKPOINT` step (recording the last handled `step_index` in `$artifactDirectoryPath/.after-compaction-step`), delegates to `hooks/after-compaction.sh`, and returns the waypoint and mandatory reads via `injectSteps`. See [After a compaction](README.md#after-a-compaction).
 - **Call a skill:** `/name`.
 - **Check:** start a new session: `/skills` lists the workflow skills, and `/context` lists `~/.gemini/antigravity-cli/rules/workflow-skills.md` under System files, or `~/.gemini/AGENTS.md` when the install used that.
-- Checked against Antigravity's docs only, not in a live session.
+
+## DeepSeek Harness (`dsh`)
+
+```bash
+sh ~/src/workflow-skills/install.sh dsh
+```
+
+- **Skills:** linked into `~/.dsh/skills`.
+- **After a compaction:** DeepSeek Harness has no native post-compaction hook, so this repo ships a Cordis plugin at `hooks/dsh-after-compaction` that watches for new `compact-checkpoint` entries and delegates to `hooks/after-compaction.sh`. Add `"dsh-after-compaction": "link:~/src/workflow-skills/hooks/dsh-after-compaction"` to `dependencies` and `"dsh-after-compaction"` to `dsh.profile.bundles` in `~/.dsh/profiles/<profile>/package.json`, then run `pnpm install` in that profile folder. See [After a compaction](README.md#after-a-compaction).
+- **Check:** start a new `dsh` session: the workflow skills appear in the skills list, and after a compaction the waypoint and rules are re-injected.
 
 ## Other agent
 

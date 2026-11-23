@@ -1,6 +1,6 @@
 #!/bin/sh
 # Installs this repo's skills and shared rules (AGENTS.md) as links into this checkout, so `git pull` updates them.
-# Usage: sh install.sh <agent>                        claude-code, codex, cursor, copilot, opencode, gemini, or antigravity
+# Usage: sh install.sh <agent>                        claude-code, codex, cursor, copilot, opencode, gemini, antigravity, or dsh
 #        sh install.sh <skills folder> [<rules file>]  any other agent
 #        sh install.sh uninstall [<path>…]              removes every link into this checkout
 # Never replaces a real file, a folder, or a link it didn't make (broken or not), and never edits a config file.
@@ -11,7 +11,7 @@ if [ ! -f "$repo/skills/meridian/SKILL.md" ] || [ ! -f "$repo/AGENTS.md" ] || [ 
   exit 1
 fi
 usage() {
-  echo "usage: sh install.sh <agent>   (claude-code, codex, cursor, copilot, opencode, gemini, or antigravity)"
+  echo "usage: sh install.sh <agent>   (claude-code, codex, cursor, copilot, opencode, gemini, antigravity, or dsh)"
   echo "       sh install.sh <skills folder> [<rules file>]   (a path, such as ~/.myagent/skills)"
   echo "       sh install.sh uninstall [<path>…]"
   exit 2
@@ -248,8 +248,8 @@ case $1 in
     shift
     for target in "$HOME/.claude/skills" "$HOME/.agents/skills" "$codex_home/skills" "$HOME/.cursor/skills" \
       "$copilot_home/skills" "$opencode_home/skills" "$HOME/.gemini/skills" "$HOME/.gemini/antigravity-cli/skills" \
-      "$HOME/.claude/rules" "$codex_home/AGENTS.md" "$HOME/.gemini/AGENTS.md" "$HOME/.cursor/rules" "$copilot_home/instructions" \
-      "$HOME/.gemini/antigravity-cli/rules" "$@"; do
+      "$HOME/.dsh/skills" "$HOME/.claude/rules" "$codex_home/AGENTS.md" "$HOME/.gemini/AGENTS.md" "$HOME/.cursor/rules" \
+      "$copilot_home/instructions" "$HOME/.gemini/antigravity-cli/rules" "$@"; do
       if ! unlink_into_repo "$target" && [ -d "$target" ]; then
         find "$target/" -mindepth 1 -maxdepth 1 -type l | while IFS= read -r entry; do unlink_into_repo "$entry"; done
       fi
@@ -352,7 +352,24 @@ case $1 in
       link_rules_in_folder "$HOME/.gemini/antigravity-cli/rules" workflow-skills.md '*.md' 1 "rename yours and rerun"
       ag_rules=$HOME/.gemini/antigravity-cli/rules/workflow-skills.md
     fi
+    agy_hook=$repo/hooks/agy-after-compaction.sh
+    if grep -qF -e "$agy_hook" -e "$repo_from_home/hooks/agy-after-compaction.sh" "$HOME/.gemini/config/hooks.json" 2>/dev/null; then
+      echo "already installed: $HOME/.gemini/config/hooks.json runs $agy_hook on PreInvocation"
+    else
+      add_todo "add this PreInvocation hook to $HOME/.gemini/config/hooks.json, so the waypoint comes back after a compaction: { \"after-compaction\": { \"PreInvocation\": [{ \"type\": \"command\", \"command\": \"sh \\\"$agy_hook\\\"\", \"timeout\": 10 }] } }"
+    fi
     check="start a new session: /skills lists the workflow skills, and /context lists $ag_rules under System files"
+    ;;
+  dsh)
+    [ $# -eq 1 ] || usage
+    link_skills "$HOME/.dsh/skills"
+    dsh_plugin=$repo/hooks/dsh-after-compaction
+    if grep -qF -e "link:$dsh_plugin" -e "link:$repo_from_home/hooks/dsh-after-compaction" "$HOME/.dsh/profiles"/*/package.json 2>/dev/null; then
+      echo "already installed: a dsh profile links dsh-after-compaction"
+    else
+      add_todo "in your dsh profile's package.json (~/.dsh/profiles/<profile>/package.json), add \"dsh-after-compaction\": \"link:$dsh_plugin\" to dependencies and \"dsh-after-compaction\" to dsh.profile.bundles, then run pnpm install in that profile folder"
+    fi
+    check="start a new dsh session: the workflow skills appear in the skills list, and after a compaction the waypoint and rules are re-injected"
     ;;
   "~"*)
     echo "skipped $1: the shell didn't expand the ~, so write it unquoted or use \$HOME"
