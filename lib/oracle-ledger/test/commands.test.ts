@@ -1151,7 +1151,7 @@ describe("results, verify, and open", () => {
         { name: "row_cheat_lint", outcome: "green" },
       ]),
     );
-    // results exits 1 and writes run-state.json with red colour + lint finding
+    // results exits 1 and writes run-state/s.json with red colour + lint finding
     assert.equal(runLedger(["results", dir, junitPath, "--tests", testsDir]).status, 1);
 
     const claimsPath = path.join(dir, "claims.yaml");
@@ -1751,7 +1751,8 @@ describe("command error branches", () => {
     fs.writeFileSync(testFile, 'test("row_a", () => {});\n');
     const junitPath = path.join(dir, "res.xml");
     fs.writeFileSync(junitPath, makeJUnitXml([{ name: "row_a", outcome: "green" }]));
-    // results exits 1 because row_b is missing from JUnit, but still writes run-state/s.json with row_a
+    // results exits 1 because row_b is missing from JUnit, but still writes
+    // run-state/s.json with row_a
     assert.equal(runLedger(["results", dir, junitPath, "--tests", testsDir]).status, 1);
 
     writeYaml(dirClaims, {
@@ -1817,7 +1818,7 @@ describe("command error branches", () => {
     assert.match(openRes.stdout, /s:mystery_branch \(dynamic dispatch\)/);
   });
 
-  it("results and verify skip non-runnable rows, results ignores unmatched JUnit testcases, and open flags deleted test files", () => {
+  it("results and verify skip non-runnable rows and non-runnable slices, results ignores unmatched JUnit testcases, and open flags deleted test files", () => {
     const dir = makeTempDir("cmd-nonrunnable-and-deleted");
     const testsDir = path.join(dir, "tests");
     fs.mkdirSync(testsDir);
@@ -1878,6 +1879,45 @@ describe("command error branches", () => {
         },
       ],
     });
+    writeYaml(path.join(dir, "empty.oracle.yaml"), {
+      kind: "cli",
+      slice: "empty",
+      rows: [
+        {
+          id: "empty_cant",
+          status: "cant-happen",
+          when: "Impossible input in empty slice",
+          expect: "Unreachable",
+          source: "written",
+          sourceRef: "oracle.conf.json",
+          shortfall: null,
+          reason: "Guarded by schema",
+          question: null,
+        },
+        {
+          id: "empty_other",
+          status: "other-level",
+          when: "Handled upstream in empty slice",
+          expect: "Checked in unit suite",
+          source: "written",
+          sourceRef: "oracle.conf.json",
+          shortfall: null,
+          reason: "Covered by unit test",
+          question: null,
+        },
+        {
+          id: "empty_struck",
+          status: "struck",
+          when: "Obsolete path in empty slice",
+          expect: "Removed",
+          source: "written",
+          sourceRef: "oracle.conf.json",
+          shortfall: null,
+          reason: "No longer supported",
+          question: null,
+        },
+      ],
+    });
     assert.equal(runLedger(["lock", dir]).status, 0);
 
     const junitPath = path.join(dir, "res.xml");
@@ -1890,9 +1930,10 @@ describe("command error branches", () => {
       "utf8",
     );
 
-    const resultsRes = runLedger(["results", dir, junitPath, "--tests", testsDir]);
+    const resultsRes = runLedger(["results", dir, junitPath, "--tests", testsDir, "--slice", "s"]);
     assert.equal(resultsRes.status, 0, resultsRes.stderr);
     assert.match(resultsRes.stdout, /Results recorded: 1 matched row\(s\) passed/);
+    assert.equal(fs.existsSync(path.join(dir, "run-state", "empty.json")), false);
 
     const runStateRes = readJsonFile(
       path.join(dir, "run-state", "s.json"),
@@ -1910,6 +1951,10 @@ describe("command error branches", () => {
     });
     const verifyRes = runLedger(["verify", dir, claimsPath]);
     assert.equal(verifyRes.status, 0, verifyRes.stderr);
+
+    const verifyEmptySliceRes = runLedger(["verify", dir, claimsPath, "--slice", "empty"]);
+    assert.equal(verifyEmptySliceRes.status, 1);
+    assert.match(verifyEmptySliceRes.stderr, /verify: run-state\/empty\.json not found:/);
 
     const closedOpenRes = runLedger(["open", dir]);
     assert.equal(closedOpenRes.status, 0, closedOpenRes.stdout + closedOpenRes.stderr);

@@ -18,7 +18,7 @@ Rather than mocking the pipeline with throwaway fixtures, every file here was pr
 | [`__oracle__/frozen.json`](__oracle__/frozen.json) | Scope words (`"ticket lifecycle decider"`) and the SHA-256 hash of `rows.ts`, written by `ledger.mjs freeze` so the row script cannot drift silently. |
 | [`__oracle__/lifecycle.oracle.yaml`](__oracle__/lifecycle.oracle.yaml) | Human-reviewed source of truth for all 9 rows: 8 `active` rows and 1 `shortfall` (`paused_close`), each confirmed as `source: ruling`. |
 | [`__oracle__/locked.json`](__oracle__/locked.json) | Per-row SHA-256 hashes of canonical `(when, expect, status, shortfall)` fields, written by `ledger.mjs lock` so a builder cannot weaken expectations after lock. |
-| [`__oracle__/.gitignore`](__oracle__/.gitignore) | Keeps ephemeral run artifacts (`run-state.json`, `claims.yaml`, `reports/`, `results.xml`) out of git while committing the oracle definition and lock files. |
+| [`__oracle__/.gitignore`](__oracle__/.gitignore) | Keeps ephemeral run artifacts (`run-state/`, `claims*.yaml`, `reports/`, `results.xml`) out of git while committing the oracle definition and lock files. |
 | [`test/ticket.test.ts`](test/ticket.test.ts) | The 9 `node:test` cases generated from the locked oracle. Eight pass today; `paused_close` asserts `{ ok: true, next: "closed" }` and fails plainly until `ticket.ts` is fixed. |
 
 ## Run it
@@ -39,7 +39,7 @@ node ../scripts/ledger.mjs results __oracle__ __oracle__/results.xml --tests tes
 
 This exits `0`. The ledger checks `locked.json` against `lifecycle.oracle.yaml`, confirms the 8 green / 1 red colour matches `active` / `shortfall`, and runs the AST cheat-linter on `test/ticket.test.ts` (no `.skip`, `.only`, `test.fail`, or `test.fixme`).
 
-On a fresh checkout, `node ../scripts/ledger.mjs open __oracle__` will report the rows as unclaimed until `claims.yaml` is verified via `ledger.mjs verify` (because `claims.yaml` and `run-state.json` are gitignored).
+On a fresh checkout, `node ../scripts/ledger.mjs open __oracle__` will report the rows as unclaimed until `claims*.yaml` is verified via `ledger.mjs verify` (because `claims*.yaml` and `run-state/` are gitignored).
 
 ## Documentation
 
