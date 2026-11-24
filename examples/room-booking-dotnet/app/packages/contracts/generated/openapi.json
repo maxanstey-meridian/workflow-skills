@@ -1,0 +1,627 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Cowork Room Booking API",
+    "version": "1.0.0"
+  },
+  "tags": [
+    {
+      "name": "Bookings"
+    },
+    {
+      "name": "Rooms"
+    }
+  ],
+  "paths": {
+    "/api/bookings": {
+      "post": {
+        "x-rivet-contract": "bookings",
+        "x-rivet-endpoint": "book",
+        "operationId": "bookings_book",
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Book a room",
+        "description": "A member books a room for a time slot.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookRoomRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookRoomResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Room not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The room is already booked for an overlapping time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookings/mine": {
+      "get": {
+        "x-rivet-contract": "bookings",
+        "x-rivet-endpoint": "listMine",
+        "operationId": "bookings_listMine",
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "List my bookings",
+        "description": "The signed-in member\u0027s bookings, each with the actions still open to them.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyBookingsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookings/{id}/cancel": {
+      "post": {
+        "x-rivet-contract": "bookings",
+        "x-rivet-endpoint": "cancel",
+        "operationId": "bookings_cancel",
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Cancel my booking",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingStateResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The booking can no longer be cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookings/{id}/check-in": {
+      "post": {
+        "x-rivet-contract": "bookings",
+        "x-rivet-endpoint": "checkIn",
+        "operationId": "bookings_checkIn",
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Check in to my booking",
+        "description": "Check-in opens when the booking starts and closes 15 minutes later.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingStateResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Check-in is not open",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rooms/available": {
+      "get": {
+        "x-rivet-contract": "bookings",
+        "x-rivet-endpoint": "availableRooms",
+        "operationId": "bookings_availableRooms",
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "List rooms free for a slot",
+        "description": "Rooms with no active booking overlapping the given time slot.",
+        "parameters": [
+          {
+            "name": "startsAt",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "x-rivet-csharp-type": "DateTimeOffset"
+            }
+          },
+          {
+            "name": "endsAt",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "x-rivet-csharp-type": "DateTimeOffset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvailableRoomsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rooms": {
+      "post": {
+        "x-rivet-contract": "rooms",
+        "x-rivet-endpoint": "add",
+        "operationId": "rooms_add",
+        "tags": [
+          "Rooms"
+        ],
+        "summary": "Add a room",
+        "description": "Staff add a room to the space\u0027s bookable inventory.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddRoomRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddRoomResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "x-rivet-contract": "rooms",
+        "x-rivet-endpoint": "list",
+        "operationId": "rooms_list",
+        "tags": [
+          "Rooms"
+        ],
+        "summary": "List rooms",
+        "description": "Every bookable room, plus the limits the add-room form validates against.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "devUser": []
+    }
+  ],
+  "components": {
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "errors": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "BookRoomResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "BookRoomRequest": {
+        "type": "object",
+        "properties": {
+          "roomId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "startsAt": {
+            "type": "string",
+            "format": "date-time",
+            "x-rivet-csharp-type": "DateTimeOffset"
+          },
+          "endsAt": {
+            "type": "string",
+            "format": "date-time",
+            "x-rivet-csharp-type": "DateTimeOffset"
+          }
+        },
+        "required": [
+          "roomId",
+          "startsAt",
+          "endsAt"
+        ]
+      },
+      "BookingResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "roomId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "roomName": {
+            "type": "string"
+          },
+          "startsAt": {
+            "type": "string",
+            "format": "date-time",
+            "x-rivet-csharp-type": "DateTimeOffset"
+          },
+          "endsAt": {
+            "type": "string",
+            "format": "date-time",
+            "x-rivet-csharp-type": "DateTimeOffset"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BookingStatusValue"
+          },
+          "availableActions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookingActionValue"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "roomId",
+          "roomName",
+          "startsAt",
+          "endsAt",
+          "status",
+          "availableActions"
+        ]
+      },
+      "MyBookingsResponse": {
+        "type": "object",
+        "properties": {
+          "bookings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookingResponse"
+            }
+          }
+        },
+        "required": [
+          "bookings"
+        ]
+      },
+      "BookingStateResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BookingStatusValue"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ]
+      },
+      "AvailableRoomResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "capacity"
+        ]
+      },
+      "AvailableRoomsResponse": {
+        "type": "object",
+        "properties": {
+          "rooms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AvailableRoomResponse"
+            }
+          }
+        },
+        "required": [
+          "rooms"
+        ]
+      },
+      "AddRoomResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "capacity"
+        ]
+      },
+      "AddRoomRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "name",
+          "capacity"
+        ]
+      },
+      "RoomResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "capacity"
+        ]
+      },
+      "RoomLimitsResponse": {
+        "type": "object",
+        "properties": {
+          "nameMaxLength": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "capacityMin": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "capacityMax": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "nameMaxLength",
+          "capacityMin",
+          "capacityMax"
+        ]
+      },
+      "RoomsResponse": {
+        "type": "object",
+        "properties": {
+          "rooms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoomResponse"
+            }
+          },
+          "limits": {
+            "$ref": "#/components/schemas/RoomLimitsResponse"
+          }
+        },
+        "required": [
+          "rooms",
+          "limits"
+        ]
+      },
+      "BookingStatusValue": {
+        "type": "string",
+        "enum": [
+          "booked",
+          "checkedIn",
+          "cancelled",
+          "released"
+        ]
+      },
+      "BookingActionValue": {
+        "type": "string",
+        "enum": [
+          "cancel",
+          "checkIn"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "devUser": {
+        "description": "Development persona header: \u0027\u003Crole\u003E:\u003Cemail\u003E\u0027, e.g. staff:maya@cowork.test or member:alex@cowork.test.",
+        "type": "apiKey",
+        "name": "X-Dev-User",
+        "in": "header"
+      }
+    }
+  }
+}

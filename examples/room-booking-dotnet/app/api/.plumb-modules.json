@@ -1,0 +1,5 @@
+{
+  "Bookings": {
+    "Rooms": "a booking cannot keep its rules without rooms: a booking references an existing room and its read models name it, so Bookings consumes Rooms' published RoomDirectory contract"
+  }
+}

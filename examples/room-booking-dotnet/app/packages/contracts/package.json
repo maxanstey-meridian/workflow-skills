@@ -1,0 +1,19 @@
+{
+  "name": "@cowork/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.14.0"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.6.1",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "generate": "openapi-typescript ./generated/openapi.json -o ./generated/schema.d.ts"
+  }
+}

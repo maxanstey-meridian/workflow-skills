@@ -1,0 +1,94 @@
+version: "3"
+
+tasks:
+  api:build:
+    desc: Build the .NET API
+    dir: api
+    cmds:
+      - dotnet build Cowork.slnx
+
+  api:test:
+    desc: Run the API tests (uses Postgres at localhost:55471, or COWORK_TEST_DATABASE)
+    dir: api
+    cmds:
+      - dotnet test Cowork.slnx
+
+  api:run:
+    desc: Run the API in development (migrates the dev database, http://localhost:5199)
+    dir: api/src/Api
+    cmds:
+      - dotnet run
+
+  contracts:generate:
+    desc: Regenerate the OpenAPI spec and the TypeScript schema
+    cmds:
+      - dotnet rivet --project api/src/Api/Api.csproj --output packages/contracts/generated --title "Cowork Room Booking API" --version 1.0.0 -q
+      - pnpm --dir packages/contracts install
+      - pnpm --dir packages/contracts generate
+
+  contracts:check:
+    desc: Rivet coverage and drift gates
+    cmds:
+      - dotnet rivet --project api/src/Api/Api.csproj --check -q
+      - dotnet rivet --project api/src/Api/Api.csproj --output packages/contracts/generated --title "Cowork Room Booking API" --version 1.0.0 --verify -q
+
+  web:dev:
+    desc: Run the Nuxt frontend (http://localhost:3000)
+    dir: web
+    cmds:
+      - pnpm dev
+
+  web:build:
+    desc: Build the Nuxt frontend
+    dir: web
+    cmds:
+      - pnpm build
+
+  web:typecheck:
+    desc: Typecheck the Nuxt frontend
+    dir: web
+    cmds:
+      - pnpm typecheck
+
+  web:lint:
+    desc: Lint and format-check the Nuxt frontend
+    dir: web
+    cmds:
+      - pnpm lint
+
+  web:test:
+    desc: Run the frontend unit tests
+    dir: web
+    cmds:
+      - pnpm test
+
+  install:
+    desc: Restore dotnet tools and pnpm packages
+    cmds:
+      - dotnet tool restore
+      - pnpm install
+
+  format:
+    desc: Apply analyser fixes, then CSharpier layout (C# only)
+    dir: api
+    cmds:
+      - dotnet format Cowork.slnx analyzers --severity warn
+      - dotnet csharpier format .
+
+  format:check:
+    desc: Check formatting (C# here; the frontend checks its own in web:lint)
+    dir: api
+    cmds:
+      - dotnet csharpier check .
+      - dotnet format Cowork.slnx analyzers --severity warn --verify-no-changes
+
+  gate:
+    desc: The full check the repo would run
+    cmds:
+      - task: contracts:check
+      - task: api:test
+      - task: web:typecheck
+      - task: web:lint
+      - task: web:test
+      - task: web:build
+      - task: format:check

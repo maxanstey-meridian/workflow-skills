@@ -1,0 +1,38 @@
+invariants:
+  - id: BOOK-STATE-001
+    title: A booking is cancelled only while it is booked
+    rule: A member can cancel a booking only while its status is Booked; cancelled, released, and checked-in bookings refuse the action.
+    why: Cancelling a booking that no longer holds the room would corrupt the room's availability history and the member's record.
+    owner:
+      - CancelBookingUseCase
+      - BookingLifecycle
+    proof:
+      - CancelBookingTests
+  - id: BOOK-STATE-002
+    title: Check-in opens at the booking's start and closes 15 minutes after it
+    rule: A member can check in only while the booking is Booked and the current time is within [starts at, start + 15 minutes].
+    why: The room is held for 15 minutes after the start; after that the sweep releases it and the slot must free up for others.
+    owner:
+      - CheckInBookingUseCase
+      - BookingLifecycle
+    proof:
+      - CheckInBookingTests
+  - id: BOOK-STATE-003
+    title: A released slot can be rebooked
+    rule: Cancelled and released bookings stop holding the room, so a new booking may take the same slot.
+    why: Releasing no-shows only protects availability if the slot can actually be booked again.
+    owner:
+      - ReleaseExpiredBookingsUseCase
+      - BookingLifecycle
+    proof:
+      - BookingRepositoryBehaviorTests.CancelledBookingFreesTheSlot
+  - id: BOOK-REMIND-001
+    title: A booking gets at most one reminder email
+    rule: The evening-before reminder is marked sent by a conditional write on reminder_sent_at, so a rerun never sends a second email for the same booking.
+    why: Duplicate reminders train members to ignore the emails.
+    owner:
+      - SendBookingRemindersUseCase
+      - EfBookingRepository.MarkReminderSentAsync
+    proof:
+      - SendBookingRemindersTests.NeverSendsASecondReminder
+      - BookingRepositoryBehaviorTests.MarkReminderSentHappensOnce
