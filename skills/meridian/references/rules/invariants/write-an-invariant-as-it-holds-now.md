@@ -2,7 +2,7 @@
 
 **Default:** Write the rule as it holds now and edit the entry when it changes; history lives in version control, and the file is not a decision log.
 
-**When:** Editing a module's `INVARIANTS.md`.
+**When:** Editing a module's `invariants.yaml`.
 
-Bad: "Update 2026-04: we now also allow archived forms..." appended under the entry.
-Good: The `Rule` paragraph rewritten to the current rule.
+Bad: "Update 2026-04: we now also allow archived forms..." appended to `rule`.
+Good: The `rule` field rewritten to the current rule.

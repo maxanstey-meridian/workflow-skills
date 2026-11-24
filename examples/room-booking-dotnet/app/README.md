@@ -79,7 +79,7 @@ when they are not — computed by the same domain decider the write paths use.
   carries a PostgreSQL exclusion constraint
   (`EXCLUDE USING gist (room_id WITH =, tstzrange(starts_at, ends_at, '[)') WITH &&) WHERE
   (status IN ('Booked','CheckedIn'))`). The write itself decides; a conflict comes back to
-  the member as `409 room_already_booked`. See `Modules/Bookings/INVARIANTS.md`.
+  the member as `409 room_already_booked`. See `Modules/Bookings/invariants.yaml`.
 - **Release.** A booked hold not checked in within 15 minutes of its start is released by a
   background sweep that runs every minute; the room is bookable again immediately.
 - **Reminder email.** A daily-rule dispatcher ticks every five minutes and sends a member a
@@ -113,7 +113,7 @@ Layout:
 src/Api/                 the .NET API
   Contracts/             Rivet transport contracts (routes + wire types)
   Modules/Rooms/         room directory (domain, application, infrastructure)
-  Modules/Bookings/      bookings, including its INVARIANTS.md
+  Modules/Bookings/      bookings, including its invariants.yaml
   Infrastructure/        DbContext, dev auth, adapters, background jobs
   Migrations/            EF Core migrations
 src/Api.Tests/           unit + use-case + PostgreSQL (Testcontainers) + real-host tests

@@ -26,7 +26,7 @@ Use this skill for Meridian-style engineering doctrine across backend, frontend,
 The doctrine is in six rule files in `references/`. Read `references/rules-core.md` first, for every task, in full. Then read, in full, the file for each area the task touches:
 
 - `references/rules-core.md`: the Laws, what each rule strength means, and the rules every stack shares: root causes and gaps, libraries before hand-rolled machinery, abstractions, naming, type safety, review, tool choices every stack shares, running Plumb, and the commit and version convention
-- `references/rules-invariants.md`: invariant ownership, deciders, recording invariants (INVARIANTS.md), concurrency, transactions, locks, queues, and outboxes
+- `references/rules-invariants.md`: invariant ownership, deciders, recording invariants (invariants.yaml), concurrency, transactions, locks, queues, and outboxes
 - `references/rules-backend.md`: the Backend Laws, backend structure, module boundaries, ports and adapters, use cases, results and errors, validation, security, and scheduled work
 - `references/rules-backend-tooling.md`: the .NET and TypeScript backend tool defaults, and Rivet: the .NET server's transport contracts and endpoints, and Azure Functions
 - `references/rules-frontend.md`: the Frontend Laws, frontend structure, page composition roots, provide/inject, ports, composables, presentational components, outcome-oriented UI, information hierarchy, form journeys, progressive disclosure, accessibility, formatting, or validation details the spec leaves open, and the Rivet TypeScript client package UIs consume

@@ -230,81 +230,88 @@ Good: A test running the query and decider over the same rows and asserting agre
 <!-- rule: invariants/record-a-modules-invariants-beside-its-code.md -->
 ## Record a module's invariants beside its code
 
-**Default:** Record a module's invariants in `INVARIANTS.md` at the module root, beside the code a change would break.
+**Default:** Record a module's invariants in `invariants.yaml` at the module root, beside the code a change would break.
 
-**When:** Any backend module (`Modules/<Feature>`) owning at least one invariant worth an entry. Cross-repo decisions (deployment topology, contract codegen, release policy) do not go in any `INVARIANTS.md`.
+**When:** Any backend module (`Modules/<Feature>`) owning at least one invariant worth an entry. Cross-repo decisions (deployment topology, contract codegen, release policy) do not go in any `invariants.yaml`.
 
 Bad: Recording the forms module's rules on a wiki page.
-Good: `Modules/Forms/INVARIANTS.md`.
+Good: `Modules/Forms/invariants.yaml`.
 <!-- rule: invariants/record-only-invariants-a-newcomer-could-break.md -->
 ## Record only invariants a newcomer could break
 
 **Default:** Give an invariant an entry only when a capable newcomer could break it with a reasonable-looking change; a rule a type makes unrepresentable, or a database constraint arbitrates, needs none.
 
-**When:** Deciding what goes in a module's `INVARIANTS.md`.
+**When:** Deciding what goes in a module's `invariants.yaml`.
 
 Bad: An entry "an email is unique" when a unique index already enforces it.
 Good: No entry for the unique email, and an entry for "a published form never changes", which only a use case guards.
 <!-- rule: invariants/record-only-rules-that-are-enforced-and-proved.md -->
 ## Record only rules that are enforced and proved
 
-**Default:** Add an `INVARIANTS.md` entry only when the rule is both enforced and proved; otherwise it is not an invariant yet.
+**Default:** Add an `invariants.yaml` entry only when the rule is both enforced and proved, with non-empty `owner` and `proof` lists of bare symbol or path strings, and never loosen the schema for unproved rules.
 
-**When:** Deciding whether a rule belongs in `INVARIANTS.md` (each entry requires a real `Owner` and `Proof`).
+**When:** Deciding whether a rule belongs in `invariants.yaml`. `owner` lists only authoritative enforcing boundaries (`Type`, `Type.Member`, SQL trigger/index/constraint name, analyzer ID, or config path — using the EF configuration type for unnamed indexes, the options type for config keys, and the contract, controller, or use case for HTTP routes, omitting downstream UI and read-model helpers). `proof` lists the narrowest failing test or build check (`TestClass.TestMethod`, `TestClass`, `File.feature`, `*.spec.ts`, `*.nuxt.spec.ts`, or build/analyzer config path).
 
-Bad: Adding an entry for "a published form never changes" with no guard or test.
-Good: Writing the guard and test first, then adding the entry.
+Bad: Adding an entry for "a published form never changes" with no guard or test, or leaving `proof: []` until tests exist.
+Good: Writing the guard and failing test first, then adding the entry with bare `owner` and `proof` symbols.
 <!-- rule: invariants/give-every-invariant-entry-an-id-and-five-fields.md -->
 ## Give every invariant entry an id and five fields
 
-**Default:** Each entry has a stable, repo-unique heading id (never renumbered once cited) and present-tense title, followed by `Rule`, `Why`, `Accepts`, `Owner`, and `Proof` — no status, author, date, or tag fields, and no minimum count of alternatives or consequences.
+**Default:** Each `invariants.yaml` file holds a top-level `invariants` sequence with no file-level intro prose and no unknown keys, where every entry has required `id` (`[A-Z]+(?:-[A-Z]+)*-\d{3}`, repo-unique and never renumbered once cited), present-tense `title`, `rule`, `why`, and non-empty bare symbol/path lists `owner` and `proof`, plus optional `accepts` and `related`.
 
-**When:** Writing a module's `INVARIANTS.md`. `Owner` names the authoritative boundary (not every caller); omit `Accepts` when there is no chosen cost.
+**When:** Writing a module's `invariants.yaml`. No status, author, date, or tag fields, and no prose mixed into `owner` or `proof`; omit `accepts` when there is no deliberate trade-off and omit `related` when no cross-module rule IDs apply.
 
-Bad: `## Publishing rules (draft, owner: Sam, 2026-03)` followed by free prose.
+Bad: Top-level intro prose, `status: draft`, or `owner: "PublishFormUseCase checks status before saving"`.
 Good:
-```markdown
-## FORM-RULES-001: A published form never changes
-**Rule:** what must hold, in one paragraph.
-**Why:** the harm it prevents; the alternative rejected, if one was weighed.
-**Accepts:** the known cost of the rule, if any.
-**Owner:** `PublishFormUseCase`
-**Proof:** `PublishFormTests`
+```yaml
+invariants:
+  - id: FORM-RULES-001
+    title: A published form never changes
+    rule: Once a form is published, its fields and settings cannot be edited.
+    why: Submissions reference the published structure; editing in place would corrupt historical answers.
+    accepts: Authors must create a new draft version to change a published form.
+    owner:
+      - PublishFormUseCase
+      - EditFormUseCase
+    proof:
+      - EditFormTests.EditPublishedFormIsRejected
+    related:
+      - SUB-001
 ```
 <!-- rule: invariants/write-an-invariant-as-it-holds-now.md -->
 ## Write an invariant as it holds now
 
 **Default:** Write the rule as it holds now and edit the entry when it changes; history lives in version control, and the file is not a decision log.
 
-**When:** Editing a module's `INVARIANTS.md`.
+**When:** Editing a module's `invariants.yaml`.
 
-Bad: "Update 2026-04: we now also allow archived forms..." appended under the entry.
-Good: The `Rule` paragraph rewritten to the current rule.
+Bad: "Update 2026-04: we now also allow archived forms..." appended to `rule`.
+Good: The `rule` field rewritten to the current rule.
 <!-- rule: invariants/record-only-chosen-trade-offs-under-accepts.md -->
 ## Record only chosen trade-offs under Accepts
 
 **Law:** `Accepts` holds only a deliberate trade-off chosen over a working alternative for a stated reason — never a known defect or unchecked promise.
 
-**When:** Writing the `Accepts` field in `INVARIANTS.md` (which prevents later changes from "fixing" a deliberate cost).
+**When:** Writing the optional `accepts` field in `invariants.yaml` (which prevents later changes from "fixing" a deliberate cost).
 
-Bad: "Accepts: uniqueness is not enforced across tenants".
-Good: Enforcing cross-tenant uniqueness with a unique index and omitting `Accepts`.
+Bad: `accepts: "Uniqueness is not enforced across tenants."`
+Good: Enforcing cross-tenant uniqueness with a unique index and omitting `accepts`.
 <!-- rule: invariants/confirm-the-proof-fails-without-the-owner.md -->
 ## Confirm the proof fails without the owner
 
-**Default:** Before writing `Owner` or `Proof`, open both and confirm the proof fails if the owner stops enforcing the rule.
+**Default:** Before listing symbols in `owner` or `proof`, open both and confirm each `proof` check fails if its `owner` boundary stops enforcing the rule.
 
-**When:** Writing or editing an `INVARIANTS.md` entry (`Owner` = enforcing code, `Proof` = proving test); an unbacked claim is worse than no entry.
+**When:** Writing or editing an `invariants.yaml` entry (`owner` = bare authoritative enforcing boundary symbols/paths, omitting downstream UI or read-model helpers; `proof` = narrowest failing test or build/analyzer check, never prose and never loosened for unproved rules); an unbacked claim is worse than no entry.
 
-Bad: Writing `Proof: PublishFormTests` from memory when those tests never try to edit a published form.
-Good: Removing the guard locally, seeing the test fail, then writing the entry.
+Bad: Listing `PublishFormTests` in `proof` from memory when those tests never try to edit a published form, or listing a UI helper in `owner`.
+Good: Removing the guard in `EditFormUseCase` locally, seeing `EditFormTests.EditPublishedFormIsRejected` fail, then listing both bare symbols.
 <!-- rule: invariants/record-a-cross-module-invariant-in-each-owner.md -->
 ## Record a cross-module invariant in each owner
 
-**Default:** A rule that spans modules is recorded by each module that enforces part of it, each entry naming its own boundary and pointing at the others.
+**Default:** A rule that spans modules is recorded by each module that enforces part of it, with each entry naming its own `owner` boundary and listing the other modules' rule IDs in `related`.
 
-**When:** An invariant enforced in more than one module, when writing its entries in those modules' `INVARIANTS.md` files.
+**When:** An invariant enforced in more than one module, when writing its entries in those modules' `invariants.yaml` files.
 
 Bad: One entry in the forms module claiming the whole "submission closes when the form is withdrawn" rule.
-Good: An entry in forms and one in submissions, each naming its own owner and the other's id.
+Good: An entry in forms and one in submissions, each naming its own `owner` and listing the other's ID under `related`.
 <!-- end of spec/references/rules-invariants.md -->

@@ -1,0 +1,67 @@
+invariants:
+  - id: BKG-001
+    title: Two bookings never hold the same room at overlapping times
+    rule: >-
+      A room is held by at most one booking at any instant. Only Booked and CheckedIn
+      bookings hold the room; Cancelled and Released do not. Adjacent holds are allowed:
+      a booking ending at 10:00 and one starting at 10:00 do not conflict (the range is
+      half-open).
+    why: >-
+      A room cannot serve two members at once; a double hold breaks every promise the
+      booking page makes.
+    owner:
+      - bookings_no_double_hold
+      - PostgresBookingRepository.AddAsync
+    proof:
+      - BookingRepositoryTests.A_second_hold_on_the_same_room_at_overlapping_times_is_refused_by_the_write
+      - BookingRepositoryTests.An_adjacent_hold_is_allowed_because_neither_includes_its_end
+      - BookingRepositoryTests.A_cancelled_booking_frees_the_room_for_a_new_hold
+
+  - id: BKG-002
+    title: Every booking transition goes through the one decider
+    rule: >-
+      A booking moves between Booked, CheckedIn, Cancelled, and Released only when
+      BookingDecider allows it, and no code elsewhere answers the same question.
+    why: >-
+      The check-in window (15 minutes before the start) and the release grace (15 minutes
+      after it) are one set of numbers; a second copy of the rule drifts and the read
+      model's availableActions stops matching what the API would actually accept.
+    owner:
+      - BookingDecider
+      - Booking.Cancel
+      - Booking.CheckIn
+      - Booking.Release
+    proof:
+      - BookingDeciderTests
+      - BookingLifecycleUseCaseTests
+
+  - id: BKG-003
+    title: The release sweep's query is the decider's rule in SQL
+    rule: >-
+      The sweep loads candidates with status = 'Booked' AND starts_at < now - 15 minutes
+      — exactly the bookings BookingDecider.IsReleasable would release, no more, and each
+      loaded row still passes through the decider before it is released.
+    why: >-
+      The sweep's SQL is a copy of a domain rule, and a copy that drifts releases rooms
+      early or keeps stale holds.
+    owner:
+      - PostgresBookingRepository.ListExpiredAsync
+    proof:
+      - BookingRepositoryTests.ListExpiredAsync_returns_exactly_the_bookings_the_decider_releases
+
+  - id: BKG-004
+    title: A reminder is marked sent only after its send succeeds
+    rule: >-
+      ReminderSentAt is set after the reminder adapter's send returns, and never for a
+      booking whose send failed; a failed send is retried on the next tick.
+    why: >-
+      Marking before sending loses reminders; not marking double-sends only in the narrow
+      crash window below, which is the cheaper failure.
+    accepts: >-
+      A send that succeeds but crashes before the mark is persisted is sent again on the
+      next tick — one duplicate email in that window, chosen over durable per-message
+      acknowledgement machinery at this scale.
+    owner:
+      - SendBookingRemindersUseCase
+    proof:
+      - SendBookingRemindersUseCaseTests.A_failed_send_is_not_marked_so_the_next_tick_retries

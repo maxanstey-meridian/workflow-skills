@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -135,6 +136,27 @@ export const getUncommittedList = (
   return { ok: true, files: sortLex(combined) };
 };
 
+const getCachedDeletedFiles = (
+  repoRoot: string,
+): { ok: true; files: string[] } | { ok: false; error: string } => {
+  const res = runGit(
+    [
+      "-c",
+      "core.quotepath=off",
+      "diff",
+      "--cached",
+      "--name-only",
+      "--diff-filter=D",
+      "--no-renames",
+    ],
+    { cwd: repoRoot },
+  );
+  if (!res.ok) {
+    return res;
+  }
+  return { ok: true, files: splitLines(res.stdout) };
+};
+
 const intentToAddUntracked = (
   repoRoot: string,
   paths: ReadonlyArray<string>,
@@ -148,8 +170,16 @@ const intentToAddUntracked = (
     return untrackedRes;
   }
 
+  const cachedDeletedRes = getCachedDeletedFiles(repoRoot);
+  if (!cachedDeletedRes.ok) {
+    return cachedDeletedRes;
+  }
+
   const pathSet = new Set(paths);
-  const toMark = untrackedRes.files.filter((filePath) => pathSet.has(filePath));
+  const cachedDeletedSet = new Set(cachedDeletedRes.files);
+  const toMark = untrackedRes.files.filter(
+    (filePath) => pathSet.has(filePath) && !cachedDeletedSet.has(filePath),
+  );
   if (toMark.length === 0) {
     return { ok: true };
   }
@@ -200,21 +230,103 @@ export const commitPaths = (
     return { ok: false, error: `Refusing to commit empty list: ${listFilePath}` };
   }
 
-  const markRes = intentToAddUntracked(repoRoot, paths);
-  if (!markRes.ok) {
-    return markRes;
+  const cachedDeletedRes = getCachedDeletedFiles(repoRoot);
+  if (!cachedDeletedRes.ok) {
+    return cachedDeletedRes;
   }
 
-  const commitRes = runGit(
-    ["commit", "-F", messageFilePath, `--pathspec-from-file=${listFilePath}`],
-    {
-      cwd: repoRoot,
-      env: { ...process.env, GIT_LITERAL_PATHSPECS: "1" },
-    },
+  const cachedDeletedSet = new Set(cachedDeletedRes.files);
+  const cachedDeletedInPaths = paths.filter((filePath) => cachedDeletedSet.has(filePath));
+
+  if (cachedDeletedInPaths.length === 0) {
+    const markRes = intentToAddUntracked(repoRoot, paths);
+    if (!markRes.ok) {
+      return markRes;
+    }
+
+    const commitRes = runGit(
+      ["commit", "-F", messageFilePath, `--pathspec-from-file=${listFilePath}`],
+      {
+        cwd: repoRoot,
+        env: { ...process.env, GIT_LITERAL_PATHSPECS: "1" },
+      },
+    );
+    if (!commitRes.ok) {
+      return commitRes;
+    }
+
+    return { ok: true, summary: commitRes.stdout.trim() };
+  }
+
+  // `git commit --pathspec-from-file` implicitly runs in `--only` mode, which reads
+  // working-tree files and drops `git rm --cached` deletions when the file still
+  // exists on disk. Build a temporary index from HEAD, stage working-tree changes
+  // for the other paths, apply the cached removals, commit, and sync the real index.
+  const gitDirRes = runGit(["rev-parse", "--path-format=absolute", "--git-dir"], {
+    cwd: repoRoot,
+  });
+  if (!gitDirRes.ok) {
+    return gitDirRes;
+  }
+
+  const tmpIndexPath = path.join(
+    gitDirRes.stdout.trim(),
+    `index.cycle-ctl-${process.pid}-${crypto.randomBytes(6).toString("hex")}`,
   );
-  if (!commitRes.ok) {
-    return commitRes;
-  }
+  const tmpEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    GIT_LITERAL_PATHSPECS: "1",
+    GIT_INDEX_FILE: tmpIndexPath,
+  };
+  const otherPaths = paths.filter((filePath) => !cachedDeletedSet.has(filePath));
 
-  return { ok: true, summary: commitRes.stdout.trim() };
+  try {
+    const readTreeRes = runGit(["read-tree", "HEAD"], { cwd: repoRoot, env: tmpEnv });
+    if (!readTreeRes.ok) {
+      return readTreeRes;
+    }
+
+    if (otherPaths.length > 0) {
+      const addRes = runGit(["add", "--all", "--pathspec-from-file=-"], {
+        cwd: repoRoot,
+        env: tmpEnv,
+        input: `${otherPaths.join("\n")}\n`,
+      });
+      if (!addRes.ok) {
+        return addRes;
+      }
+    }
+
+    const rmRes = runGit(["rm", "--cached", "--pathspec-from-file=-"], {
+      cwd: repoRoot,
+      env: tmpEnv,
+      input: `${cachedDeletedInPaths.join("\n")}\n`,
+    });
+    if (!rmRes.ok) {
+      return rmRes;
+    }
+
+    const commitRes = runGit(["commit", "-F", messageFilePath], {
+      cwd: repoRoot,
+      env: tmpEnv,
+    });
+    if (!commitRes.ok) {
+      return commitRes;
+    }
+
+    if (otherPaths.length > 0) {
+      const syncRes = runGit(["add", "--all", "--pathspec-from-file=-"], {
+        cwd: repoRoot,
+        env: { ...process.env, GIT_LITERAL_PATHSPECS: "1" },
+        input: `${otherPaths.join("\n")}\n`,
+      });
+      if (!syncRes.ok) {
+        return syncRes;
+      }
+    }
+
+    return { ok: true, summary: commitRes.stdout.trim() };
+  } finally {
+    fs.rmSync(tmpIndexPath, { force: true });
+  }
 };

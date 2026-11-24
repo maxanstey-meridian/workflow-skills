@@ -1,4 +1,4 @@
-# Invariants: ownership, deciders, concurrency, transactions, locks, queues, outboxes, and INVARIANTS.md.
+# Invariants: ownership, deciders, concurrency, transactions, locks, queues, outboxes, and invariants.yaml.
 invariants/state-the-invariant-before-choosing-enforcement.md
 invariants/enforce-an-invariant-at-its-authoritative-boundary.md
 invariants/enforce-at-the-narrowest-owner-with-enough-information.md
