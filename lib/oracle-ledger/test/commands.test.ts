@@ -805,7 +805,7 @@ describe("results, verify, and open", () => {
       0,
     );
 
-    // results for slice b preserves slice a in run-state.json
+    // results for slice b writes run-state/b.json without touching run-state/a.json
     const junitB = path.join(dir, "b.xml");
     fs.writeFileSync(junitB, makeJUnitXml([{ name: "row_b", outcome: "green" }]));
     assert.equal(
@@ -813,10 +813,11 @@ describe("results, verify, and open", () => {
       0,
     );
 
-    const runState = JSON.parse(fs.readFileSync(path.join(dir, "run-state.json"), "utf8"));
-    assert.equal(runState.rows.row_active.colour, "green");
-    assert.equal(runState.rows.row_shortfall.colour, "red");
-    assert.equal(runState.rows.row_b.colour, "green");
+    const runStateA = JSON.parse(fs.readFileSync(path.join(dir, "run-state", "a.json"), "utf8"));
+    const runStateB = JSON.parse(fs.readFileSync(path.join(dir, "run-state", "b.json"), "utf8"));
+    assert.equal(runStateA.rows.row_active.colour, "green");
+    assert.equal(runStateA.rows.row_shortfall.colour, "red");
+    assert.equal(runStateB.rows.row_b.colour, "green");
 
     // open still exits 1 while unclaimed
     const openUnclaimed = runLedger(["open", dir]);
@@ -824,7 +825,31 @@ describe("results, verify, and open", () => {
     assert.match(openUnclaimed.stdout, /unclaimed/);
     assert.match(openUnclaimed.stdout, /Today \(1\): b:row_b/);
 
-    // verify rejects missing claim
+    // verify --slice rejects unknown slice with exit 2
+    const claimsAPath = path.join(dir, "claims-a.yaml");
+    writeYaml(claimsAPath, {
+      claims: [
+        { id: "row_active", redCondition: "Break ok output" },
+        { id: "row_shortfall", redCondition: "Fix sort bug" },
+      ],
+    });
+    assert.equal(runLedger(["verify", dir, claimsAPath, "--slice", "unknown"]).status, 2);
+
+    // verify --slice a verifies only slice a; open still exits 1 while slice b is unclaimed
+    assert.equal(runLedger(["verify", dir, claimsAPath, "--slice", "a"]).status, 0);
+    const openAfterSliceA = runLedger(["open", dir]);
+    assert.equal(openAfterSliceA.status, 1);
+    assert.match(openAfterSliceA.stdout, /b:row_b.*unclaimed/);
+
+    // verify --slice b verifies slice b while preserving slice a's claimed state -> open exits 0
+    const claimsBPath = path.join(dir, "claims-b.yaml");
+    writeYaml(claimsBPath, {
+      claims: [{ id: "row_b", redCondition: "Break b output" }],
+    });
+    assert.equal(runLedger(["verify", dir, claimsBPath, "--slice", "b"]).status, 0);
+    assert.equal(runLedger(["open", dir]).status, 0);
+
+    // verify without --slice still validates all slices together and rejects missing/empty claims
     const claimsPath = path.join(dir, "claims.yaml");
     writeYaml(claimsPath, {
       claims: [{ id: "row_active", redCondition: "Break ok output" }],
@@ -1065,12 +1090,12 @@ describe("results, verify, and open", () => {
     const res = runLedger(["results", dir, junitPath, "--tests", emptyTestsDir]);
     assert.equal(res.status, 0);
 
-    const runState = JSON.parse(fs.readFileSync(path.join(dir, "run-state.json"), "utf8"));
+    const runState = JSON.parse(fs.readFileSync(path.join(dir, "run-state", "s.json"), "utf8"));
     assert.equal(runState.rows.abs_row.testFile, "abs.test.ts");
     assert.equal(runState.rows.rel_row.testFile, "rel.test.ts");
   });
 
-  it("verify rejects wrong colour and cheat-lint findings recorded in run-state.json", () => {
+  it("verify rejects wrong colour and cheat-lint findings recorded in run-state", () => {
     const dir = makeTempDir("verify-colour-lint");
     const testsDir = path.join(dir, "tests");
     fs.mkdirSync(testsDir, { recursive: true });
@@ -1200,7 +1225,7 @@ describe("results, verify, and open", () => {
     const res = runLedger(["results", dir, junitPath, "--tests", testsDir]);
     assert.equal(res.status, 0, res.stderr);
 
-    const runState = JSON.parse(fs.readFileSync(path.join(dir, "run-state.json"), "utf8"));
+    const runState = JSON.parse(fs.readFileSync(path.join(dir, "run-state", "users.json"), "utf8"));
     assert.equal(runState.rows.create_user.testFile, "tests/users.test.ts");
     assert.equal(runState.rows.create_user_admin.testFile, "tests/admin.test.ts");
   });
@@ -1319,7 +1344,7 @@ describe("results, verify, and open", () => {
     });
     assert.equal(runLedger(["verify", dir, claimsPath]).status, 1);
 
-    const runState = JSON.parse(fs.readFileSync(path.join(dir, "run-state.json"), "utf8"));
+    const runState = JSON.parse(fs.readFileSync(path.join(dir, "run-state", "s.json"), "utf8"));
     assert.equal(runState.rows.row_b.claimed, false);
     assert.equal(runState.rows.row_b.redCondition, undefined);
     assert.equal(runState.rows.row_b.verifiedFileHash, undefined);
@@ -1718,7 +1743,7 @@ describe("command error branches", () => {
     assert.equal(runLedger(["lock", dir]).status, 0);
     const noRunStateRes = runLedger(["verify", dir, dirClaims]);
     assert.equal(noRunStateRes.status, 1);
-    assert.match(noRunStateRes.stderr, /verify: run-state\.json not found:/);
+    assert.match(noRunStateRes.stderr, /verify: run-state\/s\.json not found:/);
 
     const testsDir = path.join(dir, "tests");
     fs.mkdirSync(testsDir);
@@ -1726,7 +1751,7 @@ describe("command error branches", () => {
     fs.writeFileSync(testFile, 'test("row_a", () => {});\n');
     const junitPath = path.join(dir, "res.xml");
     fs.writeFileSync(junitPath, makeJUnitXml([{ name: "row_a", outcome: "green" }]));
-    // results exits 1 because row_b is missing from JUnit, but still writes run-state.json with row_a
+    // results exits 1 because row_b is missing from JUnit, but still writes run-state/s.json with row_a
     assert.equal(runLedger(["results", dir, junitPath, "--tests", testsDir]).status, 1);
 
     writeYaml(dirClaims, {
@@ -1737,7 +1762,7 @@ describe("command error branches", () => {
     });
     const missingRunRowRes = runLedger(["verify", dir, dirClaims]);
     assert.equal(missingRunRowRes.status, 1);
-    assert.match(missingRunRowRes.stderr, /\[row_b\]: not present in run-state\.json/);
+    assert.match(missingRunRowRes.stderr, /\[row_b\]: not present in run-state\/s\.json/);
 
     fs.rmSync(testFile);
     const missingTestFileRes = runLedger(["verify", dir, dirClaims]);
@@ -1870,9 +1895,9 @@ describe("command error branches", () => {
     assert.match(resultsRes.stdout, /Results recorded: 1 matched row\(s\) passed/);
 
     const runStateRes = readJsonFile(
-      path.join(dir, "run-state.json"),
+      path.join(dir, "run-state", "s.json"),
       RunStateSchema,
-      "run-state.json",
+      "run-state/s.json",
     );
     assert.equal(runStateRes.ok, true);
     if (runStateRes.ok) {

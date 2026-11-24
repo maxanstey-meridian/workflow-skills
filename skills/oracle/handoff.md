@@ -22,15 +22,13 @@ Add these five entries to `decisions[]` (`decidedBy: agreed`):
 2. **Locked YAML is read-only.** No piece owns or edits `<case>/*.oracle.yaml`, `frozen.json`, or `locked.json`. If a locked expectation turns out to be wrong, stop and report it rather than editing the oracle.
 3. **Shortfalls stay plainly red.** Write every `shortfall` test against the intended `expect` so it fails plainly today. Never wrap it in `.skip`, `.only`, `test.fail`, `test.fixme`, or `[Fact(Skip = ...)]`, and never assert today's bug to make it pass.
 4. **Test names match row IDs.** Name each test so its lowercase alphanumeric characters equal the row's `id` (`ledger.mjs results` matches by lowercase-alphanumeric equality and resolves each test file).
-5. **Each test piece proves itself through `ledger.mjs results`.** Split test pieces in `pieces[]` by slice (or test file) with non-overlapping `owns`. Each test piece's `proof` runs its tests with JUnit XML output and passes the XML to:
-   `node <oracle-skill>/scripts/ledger.mjs results <case> <junit-xml...> --tests <test-files...> --slice <slice>`
-   (omit `--slice` if the case has a single slice). `results` enforces lock integrity, expected green/red colour, and AST cheat-lint.
+5. **Each test piece owns its slice's claims and proves itself through `ledger.mjs results` and `verify`.** Split test pieces in `pieces[]` by slice (or test file) with non-overlapping `owns`. Each test piece owns both its test file(s) and `<case>/claims-<slice>.yaml` (or `<case>/claims.yaml` when the case has a single slice), writing `{ claims: [{ id, redCondition }] }` naming the exact product breakage that would make each test fail. Each test piece's `proof` runs its tests with JUnit XML output and passes the XML and claims file to:
+   `node <oracle-skill>/scripts/ledger.mjs results <case> <junit-xml...> --tests <test-files...> --slice <slice> && node <oracle-skill>/scripts/ledger.mjs verify <case> <case>/claims-<slice>.yaml --slice <slice>`
+   (omit `--slice <slice>` and use `claims.yaml` if the case has a single slice). `results` enforces lock integrity, expected green/red colour, and AST cheat-lint, and writes `<case>/run-state/<slice>.json`; `verify` binds each row's `redCondition` and test-file hash in that slice's run-state file.
+   - **Reuse existing runner config and namespace test folders by case:** Before adding a JUnit reporter or editing the repo's base test config, search the repo for an existing oracle runner config (such as `playwright.oracle.config.*`). For `browser` cases with none, create a dedicated `playwright.oracle.config.ts` extending the base config rather than modifying `playwright.config.*`. Put generated oracle tests under a case-scoped folder (e.g. `e2e/oracle/<case>/`) so multiple `__oracle__` cases in one repo never collide.
 
-## Final confirmation piece in `pieces[]`
+## Grading and closing the case
 
-Add one final piece to `pieces[]` (`after` listing all test piece IDs) with `owns: [<case>/claims.yaml]` (and nothing else):
-
-- **Builder:** reads every locked `active` and `shortfall` row and its test, writes `<case>/claims.yaml` with `{ claims: [{ id, redCondition }] }` naming the exact product breakage that would make each test fail, and runs:
-  `node <oracle-skill>/scripts/ledger.mjs verify <case> <case>/claims.yaml && node <oracle-skill>/scripts/ledger.mjs open <case>`
-  as its `proof` (must exit `0`).
-- **Critic:** `/go`'s critic adversarially grades every test against its locked row in `<slice>.oracle.yaml` and its entry in `<case>/claims.yaml`. Return `VERDICT: FAIL` if any test asserts today's bug instead of `expect`, weakens `expect` (or omits `expect.ui` in `browser`), skips `when`, or would not actually turn red under its claimed `redCondition`.
+- **No separate `claims.yaml` piece:** Do not create a trailing piece that owns only `claims.yaml` without the test files — split ownership prevents the builder from fixing weak tests caught by the critic.
+- **Per-slice critic:** `/go`'s critic adversarially grades every row in the slice as a triangle: locked `<slice>.oracle.yaml` `expect` ↔ test assertions ↔ `<case>/claims-<slice>.yaml` `redCondition`. Return `verdict: FAIL` (`shrunkCheck`) if any test or `redCondition` is narrower than the locked `expect`, asserts today's bug, omits `expect.ui` in `browser`, skips `when`, or would not actually turn red under its claimed `redCondition`.
+- **Closure in `doneMeans`:** Include `node <oracle-skill>/scripts/ledger.mjs open <case>` in `doneMeans[]` (must exit `0`), proving every `active` and `shortfall` row across all slices is locked, ran its expected colour, passed cheat-lint, and is verified with an unchanged test-file hash.

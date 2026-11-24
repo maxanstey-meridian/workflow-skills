@@ -29,6 +29,9 @@ import {
   RunStateSchema,
 } from "../schema.ts";
 
+const sliceRunStatePath = (caseDir: string, slice: string): string =>
+  path.join(caseDir, "run-state", `${slice}.json`);
+
 const checkLockOnDisk = (
   caseDir: string,
   conf: OracleConf,
@@ -155,32 +158,21 @@ export const cmdResults = (
     });
   }
 
-  const runStatePath = path.join(caseDir, "run-state.json");
-  let existingRows: Record<string, RunRowState> = {};
-  if (fs.existsSync(runStatePath)) {
-    const prev = readJsonFile(runStatePath, RunStateSchema, "run-state.json");
-    if (prev.ok) {
-      existingRows = prev.data.rows;
+  const now = new Date().toISOString();
+  for (const file of scopedFiles) {
+    const slice = file.data.slice;
+    const sliceRows: Record<string, RunRowState> = {};
+    for (const [id, state] of matched.entries()) {
+      if (state.slice === slice) {
+        sliceRows[id] = state;
+      }
     }
+    const nextRunState: RunState = {
+      updatedAt: now,
+      rows: sliceRows,
+    };
+    writeJsonAtomic(sliceRunStatePath(caseDir, slice), nextRunState);
   }
-
-  const scopedIdSet = new Set(scopedRows.map((s) => s.row.id));
-  const mergedRows: Record<string, RunRowState> = {};
-
-  for (const [id, state] of Object.entries(existingRows)) {
-    if (!scopedIdSet.has(id)) {
-      mergedRows[id] = state;
-    }
-  }
-  for (const [id, state] of matched.entries()) {
-    mergedRows[id] = state;
-  }
-
-  const nextRunState: RunState = {
-    updatedAt: new Date().toISOString(),
-    rows: mergedRows,
-  };
-  writeJsonAtomic(runStatePath, nextRunState);
 
   const failures: string[] = [];
   for (const { row } of scopedRows) {
@@ -214,7 +206,7 @@ export const cmdResults = (
   return 0;
 };
 
-export const cmdVerify = (caseArg: string, claimsArg: string): number => {
+export const cmdVerify = (caseArg: string, claimsArg: string, sliceFilter?: string): number => {
   const caseDir = path.resolve(caseArg);
   const confRes = readJsonFile(
     path.join(caseDir, "oracle.conf.json"),
@@ -242,11 +234,14 @@ export const cmdVerify = (caseArg: string, claimsArg: string): number => {
     return 1;
   }
 
-  const runStatePath = path.join(caseDir, "run-state.json");
-  const runStateRes = readJsonFile(runStatePath, RunStateSchema, "run-state.json");
-  if (!runStateRes.ok) {
-    console.error(`verify: ${runStateRes.error}`);
-    return 1;
+  const scopedFiles =
+    sliceFilter !== undefined
+      ? filesRes.files.filter((f) => f.data.slice === sliceFilter)
+      : filesRes.files;
+
+  if (sliceFilter !== undefined && scopedFiles.length === 0) {
+    console.error(`verify: slice "${sliceFilter}" not found in ${caseDir}`);
+    return 2;
   }
 
   const claimsRes = readTypedYamlFile(
@@ -264,30 +259,43 @@ export const cmdVerify = (caseArg: string, claimsArg: string): number => {
     claimById.set(c.id, c.redCondition);
   }
 
-  const updatedRows: Record<string, RunRowState> = { ...runStateRes.data.rows };
-  const clearClaim = (rowId: string): void => {
-    const existing = updatedRows[rowId];
-    if (!existing) {
-      return;
-    }
-    updatedRows[rowId] = {
-      slice: existing.slice,
-      colour: existing.colour,
-      testName: existing.testName,
-      testFile: existing.testFile,
-      fileHash: existing.fileHash,
-      lintFindings: existing.lintFindings,
-      claimed: false,
-    };
-  };
   const failures: string[] = [];
 
-  for (const file of filesRes.files) {
-    for (const row of file.data.rows) {
-      if (row.status !== "active" && row.status !== "shortfall") {
-        continue;
-      }
+  for (const file of scopedFiles) {
+    const slice = file.data.slice;
+    const expectedRows = file.data.rows.filter(
+      (row) => row.status === "active" || row.status === "shortfall",
+    );
+    if (expectedRows.length === 0 && sliceFilter === undefined) {
+      continue;
+    }
 
+    const statePath = sliceRunStatePath(caseDir, slice);
+    const stateLabel = `run-state/${slice}.json`;
+    const runStateRes = readJsonFile(statePath, RunStateSchema, stateLabel);
+    if (!runStateRes.ok) {
+      failures.push(runStateRes.error);
+      continue;
+    }
+
+    const updatedRows: Record<string, RunRowState> = { ...runStateRes.data.rows };
+    const clearClaim = (rowId: string): void => {
+      const existing = updatedRows[rowId];
+      if (!existing) {
+        return;
+      }
+      updatedRows[rowId] = {
+        slice: existing.slice,
+        colour: existing.colour,
+        testName: existing.testName,
+        testFile: existing.testFile,
+        fileHash: existing.fileHash,
+        lintFindings: existing.lintFindings,
+        claimed: false,
+      };
+    };
+
+    for (const row of expectedRows) {
       const redCondition = claimById.get(row.id);
       if (redCondition === undefined || redCondition.trim().length === 0) {
         clearClaim(row.id);
@@ -297,7 +305,7 @@ export const cmdVerify = (caseArg: string, claimsArg: string): number => {
 
       const runRow = updatedRows[row.id];
       if (!runRow) {
-        failures.push(`[${row.id}]: not present in run-state.json`);
+        failures.push(`[${row.id}]: not present in ${stateLabel}`);
         continue;
       }
 
@@ -337,13 +345,13 @@ export const cmdVerify = (caseArg: string, claimsArg: string): number => {
         verifiedFileHash: diskHash,
       };
     }
-  }
 
-  const nextRunState: RunState = {
-    updatedAt: new Date().toISOString(),
-    rows: updatedRows,
-  };
-  writeJsonAtomic(runStatePath, nextRunState);
+    const nextRunState: RunState = {
+      updatedAt: new Date().toISOString(),
+      rows: updatedRows,
+    };
+    writeJsonAtomic(statePath, nextRunState);
+  }
 
   if (failures.length > 0) {
     for (const f of failures) {
@@ -352,7 +360,11 @@ export const cmdVerify = (caseArg: string, claimsArg: string): number => {
     return 1;
   }
 
-  console.log("Verified all active and shortfall rows");
+  console.log(
+    sliceFilter !== undefined
+      ? `Verified all active and shortfall rows in slice "${sliceFilter}"`
+      : "Verified all active and shortfall rows",
+  );
   return 0;
 };
 
@@ -379,12 +391,20 @@ export const cmdOpen = (caseArg: string): number => {
   const lockRes = checkLockOnDisk(caseDir, confRes.data, filesRes.files);
   const lockErrors = lockRes.ok ? [] : lockRes.errors;
 
-  const runStateRes = readJsonFile(
-    path.join(caseDir, "run-state.json"),
-    RunStateSchema,
-    "run-state.json",
-  );
-  const runRows = runStateRes.ok ? runStateRes.data.rows : {};
+  const runRows: Record<string, RunRowState> = {};
+  for (const file of filesRes.files) {
+    const slice = file.data.slice;
+    const runStateRes = readJsonFile(
+      sliceRunStatePath(caseDir, slice),
+      RunStateSchema,
+      `run-state/${slice}.json`,
+    );
+    if (runStateRes.ok) {
+      for (const [id, rowState] of Object.entries(runStateRes.data.rows)) {
+        runRows[id] = rowState;
+      }
+    }
+  }
 
   const diskHashes: Record<string, string | null> = {};
   for (const runRow of Object.values(runRows)) {

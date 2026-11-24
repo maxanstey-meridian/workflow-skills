@@ -42,7 +42,7 @@ program
 
 program
   .command("results")
-  .description("Ingest JUnit XML results, cheat-lint tests, and update run-state.json")
+  .description("Ingest JUnit XML results, cheat-lint tests, and update run-state/<slice>.json")
   .argument("<case>", "Path to the __oracle__ case directory")
   .argument("<junit...>", "One or more JUnit XML report files")
   .requiredOption("--tests <paths...>", "Test files or directories to resolve and lint")
@@ -53,11 +53,12 @@ program
 
 program
   .command("verify")
-  .description("Validate claims.yaml against locked rows and bind test file hashes")
+  .description("Validate claims YAML against locked rows and bind test file hashes")
   .argument("<case>", "Path to the __oracle__ case directory")
-  .argument("<claims>", "Path to claims.yaml")
-  .action((caseArg: string, claimsArg: string) => {
-    process.exitCode = cmdVerify(caseArg, claimsArg);
+  .argument("<claims>", "Path to claims YAML (e.g. claims.yaml or claims-<slice>.yaml)")
+  .option("--slice <slice>", "Limit claim verification to one slice")
+  .action((caseArg: string, claimsArg: string, opts: { slice?: string }) => {
+    process.exitCode = cmdVerify(caseArg, claimsArg, opts.slice);
   });
 
 program

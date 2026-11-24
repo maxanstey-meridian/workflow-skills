@@ -23,10 +23,10 @@ Names used below:
 ├── frozen.json             # written by freeze (command + row script SHA-256)
 ├── locked.json             # written by lock (SHA-256 per row)
 ├── <slice>.oracle.yaml     # human-edited source of truth (one file per slice)
-└── .gitignore              # ignores run-state.json, claims.yaml, reports/, results.xml
+└── .gitignore              # ignores run-state/, claims*.yaml, reports/, results.xml
 ```
 
-Commit `oracle.conf.json`, `frozen.json`, `locked.json`, `<slice>.oracle.yaml`, the row script, and `.gitignore`. Leave `run-state.json`, `claims.yaml`, `reports/`, and `results.xml` untracked.
+Commit `oracle.conf.json`, `frozen.json`, `locked.json`, `<slice>.oracle.yaml`, the row script, and `.gitignore`. Leave `run-state/`, `claims*.yaml`, `reports/`, and `results.xml` untracked.
 
 ## Row statuses and sources
 
@@ -48,8 +48,8 @@ All eight subcommands live in `<ledger>`:
 - `rows <case> [--draft]`: checks `frozen.json` (unless `--draft`), runs the row script with `<case>` appended, adds any `uiStates`, refuses normalised-ID collisions, and syncs `<slice>.oracle.yaml` while preserving human/filler fields and marking vanished rows `gone: true`.
 - `validate <case>`: checks `oracle.conf.json` and every `*.oracle.yaml` against the Zod schema and status rules.
 - `lock <case>`: runs `validate`, refuses unanswered `question` entries or unstruck `gone` rows, and writes SHA-256 hashes of canonical `(when, expect, status, shortfall, allowKeyboard)` to `locked.json`.
-- `results <case> <junit...> --tests <paths...> [--slice <slice>]`: verifies `locked.json`, reads JUnit XML, resolves and hashes each matched test file, runs the AST cheat-linter, updates `run-state.json`, and exits non-zero on colour mismatch or cheat-lint findings.
-- `verify <case> <claims.yaml>`: checks `locked.json`, `run-state.json`, and `<claims.yaml>`, confirms each `active`/`shortfall` row has a non-empty `redCondition` and unchanged test-file hash, and records `claimed: true`.
+- `results <case> <junit...> --tests <paths...> [--slice <slice>]`: verifies `locked.json`, reads JUnit XML, resolves and hashes each matched test file, runs the AST cheat-linter, writes `run-state/<slice>.json`, and exits non-zero on colour mismatch or cheat-lint findings.
+- `verify <case> <claims> [--slice <slice>]`: checks `locked.json`, `run-state/<slice>.json`, and `<claims>` (`claims.yaml` or `claims-<slice>.yaml`), confirms each `active`/`shortfall` row has a non-empty `redCondition` and unchanged test-file hash, and records `claimed: true`.
 - `open <case>`: prints status counts, `today` rows, lock issues, open `active`/`shortfall` rows, unresolved `gone` rows, and live `unplaced` items. Exits `0` only when every `active`/`shortfall` row is locked, ran the expected colour, passed cheat-lint, and is `claimed: true` with its test-file hash unchanged on disk.
 - `schema [--out <path>]`: prints or writes the JSON Schema for `<slice>.oracle.yaml`.
 
@@ -71,7 +71,7 @@ Store filler reports under `<case>/reports/fill-<slice>.md`.
 ### 1. Scope, kind, row script, and freeze
 
 1. Agree with the user on the scope words, the case folder `<case>`, and the kind (`api-contract`, `browser`, or `cli`). Read `<skill>/kinds/<kind>.md` in full.
-2. Create `<case>/oracle.conf.json` (`{ "kind": "...", "rows": [...] }`, plus `uiStates` when `kind` is `browser`), `<case>/.gitignore` (ignoring `run-state.json`, `claims.yaml`, `reports/`, `results.xml`), and the row script (or point `rows` at an existing shared script).
+2. Create `<case>/oracle.conf.json` (`{ "kind": "...", "rows": [...] }`, plus `uiStates` when `kind` is `browser`), `<case>/.gitignore` (ignoring `run-state/`, `claims*.yaml`, `reports/`, `results.xml`), and the row script (or point `rows` at an existing shared script).
 3. Test the row script with `<ledger> rows <case> --draft`. Inspect the generated `<slice>.oracle.yaml` stubs and any `unplaced:` entries with the user so the row inventory is right.
 4. Once the user agrees on the scope and row script, run `<ledger> freeze <case> --words "<words>"` and `<ledger> rows <case>`.
 
