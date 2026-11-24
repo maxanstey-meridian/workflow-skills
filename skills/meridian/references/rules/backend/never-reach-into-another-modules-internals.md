@@ -1,6 +1,6 @@
 ## Never reach into another module's internals
 
-**Law:** A module never imports a sibling's Domain or Infrastructure, queries its tables, entities, or DbSets, or uses its non-public Application types.
+**Law:** A module never imports a sibling's Domain, Application, or Infrastructure, or queries its tables, entities, or DbSets.
 
 **When:** Any code inside a .NET or TypeScript module.
 
