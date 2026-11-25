@@ -665,6 +665,178 @@ describe("validateColdRead", () => {
     assert.equal(rangeIssues[0]?.path, "laws[1].findingIndex");
     assert.match(rangeIssues[0]?.message ?? "", /out of range/);
   });
+
+  it("accepts multiple bearing laws per decision, including kept+broken and paired library laws", () => {
+    const spec = makeSpec();
+    const report: ColdReadReport = ColdReadReportSchema.parse({
+      findings: [{ section: "Decisions", quote: "Skip check", detail: "Breaks gap law." }],
+      laws: [
+        {
+          decisionId: "D1",
+          status: "kept",
+          lawPath: "coding/make-valid-input-work-never-refuse-it.md",
+          keptBy: "Schema accepts all valid inputs in report-schemas.ts.",
+        },
+        {
+          decisionId: "D1",
+          status: "broken",
+          lawPath: "coding/fix-a-gap-never-document-it.md",
+          findingIndex: 1,
+        },
+        {
+          decisionId: "D2",
+          status: "kept",
+          lawPath: "coding/record-why-no-library-fits-before-hand-rolling.md",
+          keptBy: "D2 names candidate libraries and why each failed.",
+        },
+        {
+          decisionId: "D2",
+          status: "kept",
+          lawPath: "coding/use-a-maintained-library-before-building-machinery.md",
+          keptBy: "Confirmed no maintained library handles this protocol.",
+        },
+      ],
+    });
+    assert.deepEqual(validateColdRead(report, spec), []);
+
+    const substantiveOnly: ColdReadReport = ColdReadReportSchema.parse({
+      laws: [
+        { decisionId: "D1", status: "none-bears" },
+        {
+          decisionId: "D2",
+          status: "kept",
+          lawPath: "coding/use-a-maintained-library-before-building-machinery.md",
+          keptBy: "Uses zod directly in report-schemas.ts.",
+        },
+      ],
+    });
+    assert.deepEqual(validateColdRead(substantiveOnly, spec), []);
+  });
+
+  it("rejects duplicate (decisionId, lawPath) pairs on the same decision", () => {
+    const spec = makeSpec();
+    const report: ColdReadReport = ColdReadReportSchema.parse({
+      findings: [{ section: "Decisions", quote: "Skip", detail: "Breaks law." }],
+      laws: [
+        {
+          decisionId: "D1",
+          status: "kept",
+          lawPath: "coding/fix-a-gap-never-document-it.md",
+          keptBy: "Verified in code.",
+        },
+        {
+          decisionId: "D1",
+          status: "broken",
+          lawPath: "coding/fix-a-gap-never-document-it.md",
+          findingIndex: 1,
+        },
+        { decisionId: "D2", status: "none-bears" },
+      ],
+    });
+    const issues = validateColdRead(report, spec);
+    assert.equal(issues.length, 1);
+    assert.equal(issues[0]?.path, "laws[1].lawPath");
+    assert.match(issues[0]?.message ?? "", /duplicate law check.*D1.*fix-a-gap-never-document-it/);
+  });
+
+  it("rejects mixing none-bears with kept or broken on the same decision", () => {
+    const spec = makeSpec();
+
+    const noneThenKept = ColdReadReportSchema.parse({
+      laws: [
+        { decisionId: "D1", status: "none-bears" },
+        {
+          decisionId: "D1",
+          status: "kept",
+          lawPath: "coding/fix-a-gap-never-document-it.md",
+          keptBy: "Verified.",
+        },
+        { decisionId: "D2", status: "none-bears" },
+      ],
+    });
+    const noneThenKeptIssues = validateColdRead(noneThenKept, spec);
+    assert.equal(noneThenKeptIssues.length, 1);
+    assert.equal(noneThenKeptIssues[0]?.path, "laws[1].status");
+    assert.match(noneThenKeptIssues[0]?.message ?? "", /none-bears/);
+
+    const keptThenNone = ColdReadReportSchema.parse({
+      laws: [
+        {
+          decisionId: "D1",
+          status: "kept",
+          lawPath: "coding/fix-a-gap-never-document-it.md",
+          keptBy: "Verified.",
+        },
+        { decisionId: "D1", status: "none-bears" },
+        { decisionId: "D2", status: "none-bears" },
+      ],
+    });
+    const keptThenNoneIssues = validateColdRead(keptThenNone, spec);
+    assert.equal(keptThenNoneIssues.length, 1);
+    assert.equal(keptThenNoneIssues[0]?.path, "laws[1].status");
+    assert.match(keptThenNoneIssues[0]?.message ?? "", /none-bears/);
+
+    const noneThenBroken = ColdReadReportSchema.parse({
+      findings: [{ section: "Decisions", quote: "Skip", detail: "Breaks law." }],
+      laws: [
+        { decisionId: "D1", status: "none-bears" },
+        {
+          decisionId: "D1",
+          status: "broken",
+          lawPath: "coding/fix-a-gap-never-document-it.md",
+          findingIndex: 1,
+        },
+        { decisionId: "D2", status: "none-bears" },
+      ],
+    });
+    const noneThenBrokenIssues = validateColdRead(noneThenBroken, spec);
+    assert.equal(noneThenBrokenIssues.length, 1);
+    assert.equal(noneThenBrokenIssues[0]?.path, "laws[1].status");
+    assert.match(noneThenBrokenIssues[0]?.message ?? "", /none-bears/);
+  });
+
+  it("rejects procedural library law without substantive library law on the same decision", () => {
+    const spec = makeSpec();
+
+    const keptProceduralOnly = ColdReadReportSchema.parse({
+      laws: [
+        {
+          decisionId: "D1",
+          status: "kept",
+          lawPath: "coding/record-why-no-library-fits-before-hand-rolling.md",
+          keptBy: "Rationale recorded in D1.",
+        },
+        { decisionId: "D2", status: "none-bears" },
+      ],
+    });
+    const keptIssues = validateColdRead(keptProceduralOnly, spec);
+    assert.equal(keptIssues.length, 1);
+    assert.equal(keptIssues[0]?.path, "laws");
+    assert.match(
+      keptIssues[0]?.message ?? "",
+      /record-why-no-library-fits-before-hand-rolling\.md.*D1.*use-a-maintained-library-before-building-machinery\.md/,
+    );
+
+    const brokenProceduralOnly = ColdReadReportSchema.parse({
+      findings: [{ section: "Decisions", quote: "Hand-roll", detail: "No rationale." }],
+      laws: [
+        {
+          decisionId: "D1",
+          status: "broken",
+          lawPath: "coding/record-why-no-library-fits-before-hand-rolling.md",
+          findingIndex: 1,
+        },
+        { decisionId: "D2", status: "none-bears" },
+      ],
+    });
+    const brokenIssues = validateColdRead(brokenProceduralOnly, spec);
+    assert.equal(brokenIssues.length, 1);
+    assert.equal(brokenIssues[0]?.path, "laws");
+    assert.match(
+      brokenIssues[0]?.message ?? "",
+      /record-why-no-library-fits-before-hand-rolling\.md.*D1.*use-a-maintained-library-before-building-machinery\.md/,
+    );
+  });
 });
 
 describe("validateGoCritic", () => {

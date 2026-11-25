@@ -27,13 +27,21 @@ const FAILING_CYCLE_CRITIC_VERDICTS = new Set([
   "MISSING",
 ]);
 
+const PROCEDURAL_LIBRARY_LAW = "coding/record-why-no-library-fits-before-hand-rolling.md";
+const SUBSTANTIVE_LIBRARY_LAW = "coding/use-a-maintained-library-before-building-machinery.md";
+
+type DecisionLawState = {
+  hasNoneBears: boolean;
+  lawPaths: Set<string>;
+};
+
 export const countReviewFixes = (report: ReviewReport): number =>
   report.findings.filter((finding) => finding.do === "fix").length;
 
 export const validateColdRead = (report: ColdReadReport, spec: Spec): ValidationIssue[] => {
   const issues: ValidationIssue[] = [];
   const specDecisionIds = new Set(spec.decisions.map((decision) => decision.id));
-  const seenDecisionIds = new Set<string>();
+  const decisionStates = new Map<string, DecisionLawState>();
 
   for (let i = 0; i < report.laws.length; i += 1) {
     const law = report.laws[i];
@@ -45,13 +53,44 @@ export const validateColdRead = (report: ColdReadReport, spec: Spec): Validation
         path: `laws[${i}].decisionId`,
         message: `unknown decision ID "${law.decisionId}" not present in spec`,
       });
-    } else if (seenDecisionIds.has(law.decisionId)) {
-      issues.push({
-        path: `laws[${i}].decisionId`,
-        message: `duplicate law check for decision ID "${law.decisionId}"`,
-      });
     } else {
-      seenDecisionIds.add(law.decisionId);
+      let state = decisionStates.get(law.decisionId);
+      if (state === undefined) {
+        state = { hasNoneBears: false, lawPaths: new Set<string>() };
+        decisionStates.set(law.decisionId, state);
+      }
+
+      if (law.status === "none-bears") {
+        if (state.hasNoneBears) {
+          issues.push({
+            path: `laws[${i}].decisionId`,
+            message: `duplicate law check for decision ID "${law.decisionId}"`,
+          });
+        } else if (state.lawPaths.size > 0) {
+          issues.push({
+            path: `laws[${i}].status`,
+            message: `decision ID "${law.decisionId}" cannot mix "none-bears" with "kept" or "broken" law checks`,
+          });
+          state.hasNoneBears = true;
+        } else {
+          state.hasNoneBears = true;
+        }
+      } else {
+        if (state.hasNoneBears) {
+          issues.push({
+            path: `laws[${i}].status`,
+            message: `decision ID "${law.decisionId}" cannot mix "none-bears" with "kept" or "broken" law checks`,
+          });
+        }
+        if (state.lawPaths.has(law.lawPath)) {
+          issues.push({
+            path: `laws[${i}].lawPath`,
+            message: `duplicate law check for decision ID "${law.decisionId}" and law "${law.lawPath}"`,
+          });
+        } else {
+          state.lawPaths.add(law.lawPath);
+        }
+      }
     }
 
     if (
@@ -66,10 +105,21 @@ export const validateColdRead = (report: ColdReadReport, spec: Spec): Validation
   }
 
   for (const decision of spec.decisions) {
-    if (!seenDecisionIds.has(decision.id)) {
+    const state = decisionStates.get(decision.id);
+    if (state === undefined) {
       issues.push({
         path: "laws",
         message: `missing law check for spec decision "${decision.id}"`,
+      });
+      continue;
+    }
+    if (
+      state.lawPaths.has(PROCEDURAL_LIBRARY_LAW) &&
+      !state.lawPaths.has(SUBSTANTIVE_LIBRARY_LAW)
+    ) {
+      issues.push({
+        path: "laws",
+        message: `"${PROCEDURAL_LIBRARY_LAW}" cannot stand alone for decision ID "${decision.id}" without also checking "${SUBSTANTIVE_LIBRARY_LAW}"`,
       });
     }
   }
