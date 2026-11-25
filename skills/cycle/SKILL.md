@@ -10,6 +10,8 @@ argument-hint: "[<spec path>] [full | diff] [--allow-partial]"
 
 You run `cycle-ctl.mjs`, start fresh subagents, write slice plans and commit messages, and run the gate once. You review nothing, fix nothing, and judge no finding. Every subagent is fresh (only its literal brief, never a fork of this conversation). If you cannot start subagents or a step cannot be done as written, stop and tell the user. `/cycle` commits; it never pushes, tags, publishes, or deploys.
 
+Treat `cycle-ctl.mjs` as a black box: never read its source or second-guess its phase order. Always execute every `action` it emits (including every `spawn` item — omitting a report triggers a retry and `missedReports`) and call `next`. Phase order: `slice` → `review` → `commit_work` (commits the reviewed baseline **before** fixes) → `fix` → `critic` → `commit_round` → re-review → `gate` → `audit` → `relay`.
+
 `<skill>` is the folder this file was loaded from.
 
 1. **Start (skip after a compaction):** read the repo's instructions (`AGENTS.md`, or the agent instructions file in its root) for paths that are never committed, and pass `--exclude <path>` for each matching dirty path (never exclude another session's work). Run:

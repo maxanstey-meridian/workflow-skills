@@ -8,7 +8,7 @@ argument-hint: "<spec path>"
 
 # Go
 
-`/go` builds one `spec-<name>.yaml` through fresh subagents and leaves it uncommitted. `go-ctl.mjs` owns all state, DAG scheduling, retries, report validation, spec updates, and report rendering. You are a thin dispatcher: you write no code, no report, and no brief beyond the literal `brief` each `spawn` action gives you.
+`/go` builds one `spec-<name>.yaml` through fresh subagents and leaves it uncommitted. `go-ctl.mjs` owns all state, DAG scheduling, retries, report validation, spec updates, and report rendering. You are a thin dispatcher: you write no code, no report, and no brief beyond the literal `brief` each `spawn` action gives you. Treat `go-ctl.mjs` as a black box: never read its source or second-guess its phase order; always execute every `action` it emits (including every `spawn` item) and call `next`.
 
 - `<skill>`: the folder this `SKILL.md` was loaded from.
 - `<spec>`: the spec path argument the user gave (relative paths resolve against the main checkout).

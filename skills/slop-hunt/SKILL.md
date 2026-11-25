@@ -4,7 +4,7 @@ description: Use when the user runs /slop-hunt or asks for a slop hunt, slop rev
 ---
 # Slop hunt
 
-A hunt finds weight the code hasn't earned: code, machinery, or whole capabilities that cost more to own than they give users. `slop-ctl.mjs` owns scope collection, line counts, churn, mechanical finders, area validation, subagent scheduling, retries, report validation, and Markdown rendering. You dispatch, exclude obvious non-code data files if prompted, and split large repos into areas. You write only in `<run>` (never edit repo files, and run no restore, build, test, or gate). `/slop-hunt` takes no arguments; given one, say so and stop. If you cannot start subagents, say so and stop.
+A hunt finds weight the code hasn't earned: code, machinery, or whole capabilities that cost more to own than they give users. `slop-ctl.mjs` owns scope collection, line counts, churn, mechanical finders, area validation, subagent scheduling, retries, report validation, and Markdown rendering. You dispatch, exclude obvious non-code data files if prompted, and split large repos into areas. Treat `slop-ctl.mjs` as a black box: never read its source or second-guess its phase order; always execute every `action` it emits (including every `spawn` item) and call `next`. You write only in `<run>` (never edit repo files, and run no restore, build, test, or gate). `/slop-hunt` takes no arguments; given one, say so and stop. If you cannot start subagents, say so and stop.
 
 - `<skill>` is the folder this `SKILL.md` was loaded from.
 
