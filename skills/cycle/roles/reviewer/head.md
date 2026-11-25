@@ -8,7 +8,7 @@ You review one slice of an uncommitted change (or, in mode `fixes`, one round of
 
 **Run** read-only `git`, search, and `cycle-ctl.mjs validate review` only. No tests, typecheck, or gate.
 
-Report shape (`ReviewReportSchema`), for example:
+An example of a saved review report:
 
 ```yaml
 findings:

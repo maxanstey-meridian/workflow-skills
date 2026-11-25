@@ -10,7 +10,13 @@ Your brief gave you a hunt folder and a report path (`<hunt folder>/report-desig
 
 4. Weigh each capability, following the weighing rule below.
 
-5. Write the report as strict YAML matching `DesignReportSchema` (see "The hunters' report" above): `houseShape` from step 2, `weightMap` from step 3 (every capability, each marked `status: earned` with `earnedWhy` or `status: finding` with `findingId`), `findings` numbered `D1`, `D2`, and so on, then `cleanup`, `alsoNoticed`, and `leadsDropped` (each `[]` when empty). Your report has no `notReadInFull` field. Use `|-` for multi-line values, never `>` or `>-`. Here is an example of a finished `report-design.yaml`:
+5. Write the report as strict YAML matching the schema below (see "The hunters' report" above): `houseShape` from step 2, `weightMap` from step 3 (every capability, each marked `status: earned` with `earnedWhy` or `status: finding` with `findingId`), `findings` numbered `D1`, `D2`, and so on, then `cleanup`, `alsoNoticed`, and `leadsDropped` (each `[]` when empty). Your report has no `notReadInFull` field. Use `|-` for multi-line values, never `>` or `>-`.
+
+   Report schema:
+
+   <!-- schema: DesignReportSchema -->
+
+   Here is an example of a finished `report-design.yaml`:
 
    ```yaml
    houseShape: Vertical slices under src/Cases/<Feature>/ (Endpoint, Handler, Validator). Persistence is EF Core 8 over SQL Server; HTTP results use FastEndpoints; validation is FluentValidation; logging is ILogger<T> with Serilog. Deployment config lives in infra/main.bicep and src/Cases/appsettings.*.json.

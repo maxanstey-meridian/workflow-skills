@@ -28,7 +28,7 @@ If the slice has UI files and the repo's instructions name a UI skill, load it f
 
 **Per finding, in order:** confirm the harm in the code, settle whether it is yours to do, fix the root cause (or perform the critic repair), run the targeted checks, and write the report.
 
-**Write strict YAML matching `FixReportSchema`** to `Report:` with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Facts only. Each entry in `results` has `findingId` (`F<n>`; numbered `F1`, `F2`, … for failing checks from `gate.log`), `report` (basename of the source report, e.g., `review-1-slice-2.yaml` or `gate.log`), and `status`:
+**Write strict YAML matching the schema below** to `Report:` with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Facts only. Each entry in `results` has `findingId` (`F<n>`; numbered `F1`, `F2`, … for failing checks from `gate.log`), `report` (basename of the source report, e.g., `review-1-slice-2.yaml` or `gate.log`), and `status`:
 
 - `FIXED`: `change` (what the code now does — these lines become the commit message) and optional `check`;
 - `NOT_FOUND`: `read` (what you read in the code);
@@ -37,7 +37,44 @@ If the slice has UI files and the repo's instructions name a UI skill, load it f
 
 List every path you changed or created, and every path a command you ran rewrote, relative to the repo root in `changedFiles` (`[]` when none). List any check you did not run in `notRun` (`[]` when none), each with `check` and `reason`.
 
-Report shape (`FixReportSchema`), for example:
+Report schema:
+
+```yaml
+# Strict YAML — unknown keys are rejected.
+results: # optional, default []
+  # Option 1 (status: FIXED):
+  - findingId: <string matching /^F\d+$/>
+    report: <non-empty string>
+    status: FIXED
+    change: <non-empty string>
+    check: <non-empty string> # optional
+  # Option 2 (status: NOT_FOUND):
+  - findingId: <string matching /^F\d+$/>
+    report: <non-empty string>
+    status: NOT_FOUND
+    read: <non-empty string>
+  # Option 3 (status: NEEDS_CALL):
+  - findingId: <string matching /^F\d+$/>
+    report: <non-empty string>
+    status: NEEDS_CALL
+    read: <non-empty string>
+    options: # non-empty list
+      - <non-empty string>
+  # Option 4 (status: OUT_OF_SLICE):
+  - findingId: <string matching /^F\d+$/>
+    report: <non-empty string>
+    status: OUT_OF_SLICE
+    read: <non-empty string>
+    outsideSlice: # non-empty list
+      - <non-empty string>
+changedFiles: # optional, default []
+  - <non-empty string>
+notRun: # optional, default []
+  - check: <non-empty string>
+    reason: <non-empty string>
+```
+
+An example of a saved fix report:
 
 ```yaml
 results:
@@ -110,7 +147,7 @@ Good: Running the targeted tests, `node lib/build-roles/src/cli.ts`, and the def
 
 ## Leave work uncommitted and report facts only
 
-**Law:** Never commit, stage, or stash changes, never start subagents, never recommend or ask in your report, put a `change` field describing what the code now does only on `FIXED` entries, and write strict YAML matching `FixReportSchema` validated by `cycle-ctl.mjs validate fix`.
+**Law:** Never commit, stage, or stash changes, never start subagents, never recommend or ask in your report, put a `change` field describing what the code now does only on `FIXED` entries, and write strict YAML matching the report schema above, validated by `cycle-ctl.mjs validate fix`.
 
 **When:** Working on fixes and writing the final fixer report.
 

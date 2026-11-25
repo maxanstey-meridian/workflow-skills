@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
@@ -379,6 +379,57 @@ describe("buildRoles", () => {
       );
       assert.ok(
         result.errors.some((e) => e.includes("core/keep-it-simple.md: in 2 lists")),
+        result.errors.join("\n"),
+      );
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("expands <!-- schema: Name --> placeholders preserving indentation", () => {
+    const { dir, cleanup } = createSyntheticRepo((root) => {
+      writeFileSync(
+        path.join(root, "skills/spec/roles/cold-reader/head.md"),
+        "# Cold reader\n\n   <!-- schema: GoCriticReportSchema -->\n",
+      );
+    });
+    try {
+      const result = buildRoles(dir);
+      assert.equal(result.exitCode, 0, result.errors.join("\n"));
+      const generated = readFileSync(
+        path.join(dir, "skills/spec/references/cold-reader.md"),
+        "utf8",
+      );
+      assert.match(generated, /\n   ```yaml\n   # Strict YAML/);
+      assert.match(generated, /\n   verdict: PASS \| FAIL\n/);
+      assert.doesNotMatch(generated, /GoCriticReportSchema/);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("rejects unknown <!-- schema: ... --> names and bare *Schema symbol leaks", () => {
+    const { dir, cleanup } = createSyntheticRepo((root) => {
+      writeFileSync(
+        path.join(root, "skills/spec/roles/cold-reader/head.md"),
+        "# Cold reader\n\nMatching `FakeReportSchema`.\n\n<!-- schema: MissingSchema -->\n",
+      );
+    });
+    try {
+      const result = buildRoles(dir);
+      assert.equal(result.exitCode, 1);
+      assert.ok(
+        result.errors.some((e) =>
+          e.includes("skills/spec/roles/cold-reader/head.md: names unknown schema 'MissingSchema'"),
+        ),
+        result.errors.join("\n"),
+      );
+      assert.ok(
+        result.errors.some((e) =>
+          e.includes(
+            "skills/spec/references/cold-reader.md: references internal symbol 'FakeReportSchema'",
+          ),
+        ),
         result.errors.join("\n"),
       );
     } finally {

@@ -1,6 +1,6 @@
 ## Touch only the report and run read-only checks
 
-**Law:** Never edit any file except your report, never run tests, a typecheck, or the gate, never start subagents, and never add fields or recommendations outside `ReviewReportSchema`.
+**Law:** Never edit any file except your report, never run tests, a typecheck, or the gate, never start subagents, and never add fields or recommendations outside the report schema above.
 
 **When:** Reviewing a slice or a stack; run only read-only `git`, search, and `cycle-ctl.mjs validate review` commands (plus the repo's doctrine checker or linter over your files when reviewing a stack and the repo's instructions name one).
 

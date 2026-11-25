@@ -223,7 +223,31 @@ Your brief gave you a hunt folder, the file name of one report in it (`Yours:`, 
 
 3. Check `alsoNoticed`, `leadsDropped`, and `cleanup` following the verification rule below.
 
-4. Write your verdicts as strict YAML matching `VerifyReportSchema` (`verdicts`, `alsoNoticedVerdicts`, `cleanupVerdicts`, and `raisedFromDroppedLeads`, each `[]` when empty). Every finding in the target report, every `alsoNoticed` entry tagged `data-loss` or `security`, and every `cleanup` entry must have a matching verdict with no duplicate targets. For a kept judgement finding with a counter-case (or a sign 1 replacement that adds a new dependency), set `against` on that verdict. Use `|-` for multi-line values, never `>` or `>-`. Facts only: no ranking and no recommendation.
+4. Write your verdicts as strict YAML matching the schema below (`verdicts`, `alsoNoticedVerdicts`, `cleanupVerdicts`, and `raisedFromDroppedLeads`, each `[]` when empty). Every finding in the target report, every `alsoNoticed` entry tagged `data-loss` or `security`, and every `cleanup` entry must have a matching verdict with no duplicate targets. For a kept judgement finding with a counter-case (or a sign 1 replacement that adds a new dependency), set `against` on that verdict. Use `|-` for multi-line values, never `>` or `>-`. Facts only: no ranking and no recommendation.
+
+   Report schema:
+
+   ```yaml
+   # Strict YAML — unknown keys are rejected.
+   verdicts: # optional, default []
+     - target: <non-empty string>
+       verdict: kept | dropped
+       why: <non-empty string>
+       against: <non-empty string> # optional
+   alsoNoticedVerdicts: # optional, default []
+     - where: <non-empty string>
+       verdict: kept | dropped
+       why: <non-empty string>
+   cleanupVerdicts: # optional, default []
+     - where: <non-empty string>
+       verdict: kept | dropped
+       why: <non-empty string>
+   raisedFromDroppedLeads: # optional, default []
+     - where: <non-empty string>
+       sign: <integer 1..13>
+       kind: proven | judgement
+       why: <non-empty string>
+   ```
 
    An example of a finished `verify-<x>.yaml`:
 

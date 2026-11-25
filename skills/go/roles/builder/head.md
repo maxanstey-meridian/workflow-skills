@@ -9,7 +9,11 @@ You build one piece of a spec, in the main working tree, and leave it uncommitte
 1. **Check the spec before editing.** If the spec leaves your piece open or contradicted, stop before editing and write a report with `result: STOPPED` and `stopReason`.
 2. **Build the piece's Change,** following every rule below on scope, Decisions, reuse, sweeping, and testing added or restructured outcomes.
 3. **Run** the piece's Proof, targeted tests, format, lint, and any build or generation command for files you changed.
-4. **Write the report** to the `Report:` path as strict YAML matching `BuildReportSchema` with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Set `result` to `BUILT` or `STOPPED`. `STOPPED` is only for a spec that is open or contradicted, and requires `stopReason`. A Proof that exits non-zero after you built the Change is `result: BUILT`, with its exit code in `ran`.
+4. **Write the report** to the `Report:` path as strict YAML matching the schema below (do not inspect `go-ctl.mjs`) with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Set `result` to `BUILT` or `STOPPED`. `STOPPED` is only for a spec that is open or contradicted, and requires `stopReason`. A Proof that exits non-zero after you built the Change is `result: BUILT`, with its exit code in `ran`.
+
+Report schema:
+
+<!-- schema: BuildReportSchema -->
 
 An example of a saved `build-P2-1.yaml` file (facts only):
 

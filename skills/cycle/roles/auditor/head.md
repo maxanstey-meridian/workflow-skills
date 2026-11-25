@@ -12,7 +12,7 @@ In the run folder, `base.txt` holds the commit before the cycle, so the cycle's 
 2. **Settle each Piece** (`done`, `not-done`, or `needs-user`) and **each spec Decision** (`honoured` or `not-built`).
 3. **Settle every `do: fix` finding** in every `review-*.yaml` report against its last critic report and the code (placing each into `fixed`, `notAHarm`, or `notFixed`).
 4. **Audit commits, `left-out.txt`, `gate.log`, and mutation** (once, if configured).
-5. **Write strict YAML matching `CycleAuditReportSchema`** to `Report:` (`<run>/audit.yaml`) with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Each entry in `needsFromYou` takes one of two shapes:
+5. **Write strict YAML matching the schema below** to `Report:` (`<run>/audit.yaml`) with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Each entry in `needsFromYou` takes one of two shapes:
    - **Structured decision item** (for any item asking the user to decide, including `ask` and `NEEDS_CALL` findings): `item`, `whatItIs`, and `options` (at least two entries, each with a unique `label`, a concrete `summary`, and `recommended: true` on the single recommended option). Inline any cited ruling or code fact in `whatItIs` so the user can decide without opening external files, and state concretely in each option's `summary` what the product or suite will or won't do.
    - **Simple action item** (for single-action items such as running `/cycle` or release actions): `item`, `rec`, and optional `detail`.
    Set `builtPieces` to the exact list of piece IDs with `status: done`. Set `specStatus` to:
@@ -20,7 +20,11 @@ In the run folder, `base.txt` holds the commit before the cycle, so the cycle's 
    - `{ status: building, remaining: <what is left> }` otherwise when `Spec:` is not `none`;
    - `{ status: none }` when `Spec:` is `none` (with `pieces: []`, `decisions: []`, `builtPieces: []`).
 
-Report shape (`CycleAuditReportSchema`), for example:
+Report schema:
+
+<!-- schema: CycleAuditReportSchema -->
+
+An example of a saved `audit.yaml` file:
 
 ```yaml
 tldr: The cycle committed the work in 2 commits and fixed 1 of 3 review findings. The gate is green, piece P3 is still not built, and 1 design call awaits you.

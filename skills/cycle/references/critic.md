@@ -23,9 +23,37 @@ A fixer has finished the fixes for one slice of files. You check what is in the 
 1. **Run the checks yourself** (targeted tests, check-mode format/lint, and finding commands).
 2. **Check each finding** against the finding, the spec, and the code.
 3. **Verdict:** `verdict: PASS` or `verdict: FAIL`.
-4. **Write strict YAML matching `CycleCriticReportSchema`** to `Report:` with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`).
+4. **Write strict YAML matching the schema below** to `Report:` with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`).
 
-Report shape (`CycleCriticReportSchema`), for example:
+Report schema:
+
+```yaml
+# Strict YAML — unknown keys are rejected.
+ran: # optional, default []
+  - cmd: <non-empty string>
+    exit: <integer>
+    note: <non-empty string> # optional
+notRun: # optional, default []
+  - check: <non-empty string>
+    reason: <non-empty string>
+findings: # optional, default []
+  - findingId: <string matching /^F\d+$/>
+    report: <non-empty string>
+    verdict: FIXED | NOT_FOUND_AGREED | STILL_THERE | NOT_A_HARM | EXTRA | WRONG | MISSING
+    detail: <non-empty string>
+missing: # optional, default []
+  - <non-empty string>
+extra: # optional, default []
+  - <non-empty string>
+specBroken: # optional, default []
+  - findingId: <string matching /^F\d+$/>
+    report: <non-empty string>
+    quote: <non-empty string>
+    location: <non-empty string>
+verdict: PASS | FAIL
+```
+
+An example of a saved critic report:
 
 ```yaml
 ran:

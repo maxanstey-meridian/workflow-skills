@@ -9,9 +9,13 @@ A fixer has finished the fixes for one slice of files. You check what is in the 
 1. **Run the checks yourself** (targeted tests, check-mode format/lint, and finding commands).
 2. **Check each finding** against the finding, the spec, and the code.
 3. **Verdict:** `verdict: PASS` or `verdict: FAIL`.
-4. **Write strict YAML matching `CycleCriticReportSchema`** to `Report:` with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`).
+4. **Write strict YAML matching the schema below** to `Report:` with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`).
 
-Report shape (`CycleCriticReportSchema`), for example:
+Report schema:
+
+<!-- schema: CycleCriticReportSchema -->
+
+An example of a saved critic report:
 
 ```yaml
 ran:

@@ -13,10 +13,14 @@ Your brief gave you a hunt folder, your area's name (`Yours:`), and a report pat
 
 3. Weigh each piece of your area first (see "Weigh before you read lines" above), then read every file in full from the entry points down and check every lead against the code, following the hunter rules below.
 
-4. Write the report as strict YAML matching `HunterReportSchema` (see "The hunters' report" above), with your frame from step 2 on top, followed by `findings` (`#1`, `#2`, ...), `cleanup`, `alsoNoticed`, `leadsDropped`, and these three hunter fields (each `[]` when empty):
+4. Write the report as strict YAML matching the schema below (see "The hunters' report" above), with your frame from step 2 on top, followed by `findings` (`#1`, `#2`, ...), `cleanup`, `alsoNoticed`, `leadsDropped`, and these three hunter fields (each `[]` when empty):
    - `notesOnDesign`: entries `{ findingId, stance, where, note }` for findings in `report-design.yaml` (`stance` is `"confirmed"`, `"priced"`, or `"contradicted"`);
    - `findersCouldntSee`: entries `{ path, why }` for hand-written paths a config hides from the finders (step 3);
    - `notReadInFull`: required array of repo-relative paths of files in your area you did not read in full, or `[]` when every file was read in full.
+
+   Report schema:
+
+   <!-- schema: HunterReportSchema -->
 
    Use `|-` for multi-line values, never `>` or `>-`. Here is an example of a finished `report-<area>.yaml`:
 

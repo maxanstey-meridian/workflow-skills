@@ -8,17 +8,17 @@ Your brief gave you a hunt folder and a report path (`<hunt folder>/audit.yaml`)
 
 3. Rank the settled findings by weight and churn, following the ranking rule below.
 
-4. Write strict YAML matching `SlopAuditSchema` to `Report:` (`<hunt folder>/audit.yaml`). Use `|-` for multi-line values, never `>` or `>-`. A hunt over a lean codebase may find little, and `tldr` says so plainly, but `weightMap` always shows where the lines go so "nothing found" is a claim the user can check against it. `weightMap` comes from `report-design.yaml` (each entry with `capability`, `lines`, `sharePct`, `status: "earned" | "finding"`, and `earnedWhy` or your new `findingId`), or from the hunters' weight maps joined when no `report-design.yaml` exists. `slop-ctl.mjs` renders `audit.yaml` into the 9-section Markdown report (`## TLDR`, `## Findings`, `## Needs from you`, `## Weight map`, `## Design`, `## Code`, `## Cleanup`, `## Also noticed`, `## Hunted`), omitting empty optional sections and showing the top 25 `code` findings in full with any remaining `code` findings as bullets grouped by sign.
+4. Write strict YAML matching the schema below to `Report:` (`<hunt folder>/audit.yaml`). Use `|-` for multi-line values, never `>` or `>-`. A hunt over a lean codebase may find little, and `tldr` says so plainly, but `weightMap` always shows where the lines go so "nothing found" is a claim the user can check against it. `weightMap` comes from `report-design.yaml` (each entry with `capability`, `lines`, `sharePct`, `status: "earned" | "finding"`, and `earnedWhy` or your new `findingId`), or from the hunters' weight maps joined when no `report-design.yaml` exists. `slop-ctl.mjs` renders `audit.yaml` into the 9-section Markdown report (`## TLDR`, `## Findings`, `## Needs from you`, `## Weight map`, `## Design`, `## Code`, `## Cleanup`, `## Also noticed`, `## Hunted`), omitting empty optional sections and showing the top 25 `code` findings in full with any remaining `code` findings as bullets grouped by sign.
 
-   Schema fields (`SlopAuditSchema`):
+   Report schema:
+
+   <!-- schema: SlopAuditSchema -->
+
+   Notes:
    - `tldr`: non-empty plain-English summary (where the weight is, how much is earned, and the biggest thing that isn't).
-   - `findings`: array of strings (`[]` when empty) for picture-changing items stated in full (broken premise, verifier-kept `data-loss`/`security` bugs, missing area reports, files not read in full, finder blind spots).
-   - `needsFromYou`: non-empty array of `{ item, rec? }` — one item per design finding with `rec`, plus which code findings and any `alsoNoticed` bugs to take on, telling the user to run `/spec` in this conversation (which takes no arguments).
-   - `weightMap`: non-empty array of `{ capability, lines, sharePct, status: "earned" | "finding", earnedWhy?, findingId? }`.
-   - `design` and `code`: arrays of findings (`id`, `sign`, `kind`, `risk`, `where`, `what`, `replaceWith`, `removes`, `usersLose`, `proof`, `against?` required iff `kind === "judgement"`, `verifierAdds?`, `protectedBy`, `hunterNotes?`, `unverified?`, `raisedByVerifier?`, `mootIf?`), with unique `id`s across `design` and `code`.
-   - `cleanup`: array of `{ id?, where, what, replaceWith }` (`[]` when empty).
-   - `alsoNoticed`: array of `{ where, what, tag?: "data-loss" | "security", verification: "kept" | "unchecked" }` (`[]` when empty).
-   - `hunted`: `{ repo, head, notReadInFull, leftOut, findersRun, skipped: [{ name, why }] }`.
+   - `findings`: picture-changing items stated in full (broken premise, verifier-kept `data-loss`/`security` bugs, missing area reports, files not read in full, finder blind spots).
+   - `needsFromYou`: non-empty list — one item per design finding with `rec`, plus which code findings and any `alsoNoticed` bugs to take on, telling the user to run `/spec` in this conversation (which takes no arguments).
+   - `design` and `code`: unique `id`s across `design` and `code`.
 
    Here is a short finished `audit.yaml`:
 

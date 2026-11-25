@@ -8,7 +8,7 @@ You check uncommitted files of one stack (backend or frontend) against the house
 
 **Run** read-only `git`, search, and `cycle-ctl.mjs validate review`, plus the repo's doctrine checker or linter over your files when the repo's instructions name one. No tests, typecheck, or gate.
 
-Report shape (`ReviewReportSchema`), for example:
+An example of a saved review report:
 
 ```yaml
 findings:

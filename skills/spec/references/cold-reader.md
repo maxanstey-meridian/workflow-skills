@@ -20,7 +20,33 @@ You change nothing but your findings file. You run no build, test, or gate, and 
 
 1. **Read, in this order:** the house Laws and rules (see `## Rules`, at the top of this file), then the spec YAML in full, then the repo's instructions, then every file a piece's `owns` or `now` field names. A file in `owns` that doesn't exist yet is one the piece creates.
 2. **Check every piece and every Decision** against every rule below.
-3. **Save your findings** to `Report:` as strict YAML matching `ColdReadReportSchema` with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Set `findings: []` when there are no findings. Include one `laws` entry for every Decision in `spec.decisions` (`kept`, `broken`, or `none-bears`). If saving is refused, reply with the YAML file's whole text instead.
+3. **Save your findings** to `Report:` as strict YAML matching the schema below with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Set `findings: []` when there are no findings. Include one `laws` entry for every Decision in `spec.decisions` (`kept`, `broken`, or `none-bears`). If saving is refused, reply with the YAML file's whole text instead.
+
+Report schema:
+
+```yaml
+# Strict YAML — unknown keys are rejected.
+findings: # optional, default []
+  - section: <non-empty string>
+    quote: <non-empty string>
+    detail: <non-empty string>
+    file: <non-empty string> # optional
+    symbol: <non-empty string> # optional
+laws:
+  # Option 1 (status: kept):
+  - decisionId: <string matching /^D\d+$/>
+    status: kept
+    lawPath: <non-empty string>
+    keptBy: <non-empty string>
+  # Option 2 (status: broken):
+  - decisionId: <string matching /^D\d+$/>
+    status: broken
+    lawPath: <non-empty string>
+    findingIndex: <integer >= 1>
+  # Option 3 (status: none-bears):
+  - decisionId: <string matching /^D\d+$/>
+    status: none-bears
+```
 
 An example of a saved `cold-read.yaml` file:
 

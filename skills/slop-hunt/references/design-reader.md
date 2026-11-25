@@ -324,7 +324,56 @@ Your brief gave you a hunt folder and a report path (`<hunt folder>/report-desig
 
 4. Weigh each capability, following the weighing rule below.
 
-5. Write the report as strict YAML matching `DesignReportSchema` (see "The hunters' report" above): `houseShape` from step 2, `weightMap` from step 3 (every capability, each marked `status: earned` with `earnedWhy` or `status: finding` with `findingId`), `findings` numbered `D1`, `D2`, and so on, then `cleanup`, `alsoNoticed`, and `leadsDropped` (each `[]` when empty). Your report has no `notReadInFull` field. Use `|-` for multi-line values, never `>` or `>-`. Here is an example of a finished `report-design.yaml`:
+5. Write the report as strict YAML matching the schema below (see "The hunters' report" above): `houseShape` from step 2, `weightMap` from step 3 (every capability, each marked `status: earned` with `earnedWhy` or `status: finding` with `findingId`), `findings` numbered `D1`, `D2`, and so on, then `cleanup`, `alsoNoticed`, and `leadsDropped` (each `[]` when empty). Your report has no `notReadInFull` field. Use `|-` for multi-line values, never `>` or `>-`.
+
+   Report schema:
+
+   ```yaml
+   # Strict YAML — unknown keys are rejected.
+   houseShape: <non-empty string>
+   weightMap:
+     # Option 1 (status: earned):
+     - capability: <non-empty string>
+       files: <non-empty string>
+       lines: <integer >= 0>
+       sharePct: <number 0..100>
+       status: earned
+       earnedWhy: <non-empty string>
+     # Option 2 (status: finding):
+     - capability: <non-empty string>
+       files: <non-empty string>
+       lines: <integer >= 0>
+       sharePct: <number 0..100>
+       status: finding
+       findingId: <non-empty string>
+   findings: # optional, default []
+     # against is required when kind is "judgement" and must be omitted when kind is "proven"
+     - id: <string matching /^D\d+$/>
+       sign: <integer 1..13>
+       kind: proven | judgement
+       risk: low | med | high
+       where: <non-empty string>
+       what: <non-empty string>
+       replaceWith: <non-empty string>
+       removes: <non-empty string>
+       usersLose: <non-empty string>
+       proof: <non-empty string>
+       against: <non-empty string> # optional
+       protectedBy: <non-empty string>
+   cleanup: # optional, default []
+     - where: <non-empty string>
+       what: <non-empty string>
+       replaceWith: <non-empty string>
+   alsoNoticed: # optional, default []
+     - where: <non-empty string>
+       what: <non-empty string>
+       tag: data-loss | security # optional
+   leadsDropped: # optional, default []
+     - lead: <non-empty string>
+       why: <non-empty string>
+   ```
+
+   Here is an example of a finished `report-design.yaml`:
 
    ```yaml
    houseShape: Vertical slices under src/Cases/<Feature>/ (Endpoint, Handler, Validator). Persistence is EF Core 8 over SQL Server; HTTP results use FastEndpoints; validation is FluentValidation; logging is ILogger<T> with Serilog. Deployment config lives in infra/main.bicep and src/Cases/appsettings.*.json.

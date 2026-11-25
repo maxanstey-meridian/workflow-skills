@@ -26,10 +26,56 @@ The run folder holds `build-<id>-<n>.yaml`, `critic-<id>-<n>.yaml`, and `status-
 2. **Settle each Piece** in `spec.pieces` as `done`, `not-done`, or `needs-user`.
 3. **Settle each spec Decision** in `spec.decisions` as `honoured` (naming the piece whose diff honours it in `note`) or `not-built`.
 4. **Look for gaps, then park** what is real, non-trivial, and outside this work under `parked` (`rec: fold-in` or `rec: leave`).
-5. **Write the report** to the `Report:` path as strict YAML matching `GoAuditReportSchema` with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Write plain English and gloss jargon. Put picture-changing blockers in `findings`. Each entry in `needsFromYou` takes one of two shapes:
+5. **Write the report** to the `Report:` path as strict YAML matching the schema below with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Write plain English and gloss jargon. Put picture-changing blockers in `findings`. Each entry in `needsFromYou` takes one of two shapes:
    - **Structured decision item** (for any item asking the user to decide): `item`, `whatItIs`, and `options` (at least two entries, each with a unique `label`, a concrete `summary`, and `recommended: true` on the single recommended option). Inline any cited ruling or code fact in `whatItIs` so the user can decide without opening external files, and state concretely in each option's `summary` what the product or suite will or won't do.
    - **Simple action item** (for single-action items such as running `/cycle` or release actions): `item`, `rec`, and optional `detail`.
    Set `builtPieces` to the exact list of piece IDs you settled as `done` (including pieces marked "done in an earlier run (not re-checked)"), or `[]` when none are done — `go-ctl.mjs` copies `builtPieces` into `spec.yaml` and renders `<run>/report.md` from your YAML.
+
+Report schema:
+
+```yaml
+# Strict YAML — unknown keys are rejected.
+tldr: <non-empty string>
+findings: # optional, default []
+  - title: <non-empty string>
+    detail: <non-empty string>
+needsFromYou: # optional, default []
+  # Option 1 — Options must have unique labels and exactly one option with recommended: true:
+  - item: <non-empty string>
+    whatItIs: <non-empty string>
+    options: # at least 2 items
+      - label: <non-empty string>
+        summary: <non-empty string>
+        recommended: <boolean> # optional
+  # Option 2:
+  - item: <non-empty string>
+    rec: <non-empty string>
+    detail: <non-empty string> # optional
+pieces: # non-empty list
+  - id: <string matching /^P\d+$/>
+    status: done | not-done | needs-user
+    note: <non-empty string> # optional
+decisions: # optional, default []
+  - id: <string matching /^D\d+$/>
+    status: honoured | not-built
+    note: <non-empty string> # optional
+checked: # optional, default []
+  - cmd: <non-empty string>
+    exit: <integer>
+    note: <non-empty string> # optional
+    pieces: # optional
+      - <string matching /^P\d+$/>
+notChecked: # optional, default []
+  - check: <non-empty string>
+    reason: <non-empty string>
+parked: # optional, default []
+  - item: <non-empty string>
+    detail: <non-empty string>
+    rec: fold-in | leave
+    why: <non-empty string>
+builtPieces: # optional, default []
+  - <string matching /^P\d+$/>
+```
 
 An example of a saved `audit.yaml` file:
 
@@ -156,7 +202,7 @@ Good: Adding a `findings` entry for the untested branch, marking P2 `not-done` w
 
 **Law:** Never edit any file other than your report, never fix, revert, commit, or stage anything, never start subagents, and set `builtPieces` to the exact list of piece IDs settled as `done` (including pieces marked "done in an earlier run (not re-checked)"), or `[]` when none are done.
 
-**When:** Completing the `/go` audit, writing `<run>/audit.yaml` matching `GoAuditReportSchema`, and validating it with `go-ctl.mjs validate go-audit "<report>" --spec "<spec>"` (from which `go-ctl.mjs` updates `spec.builtPieces` and renders `<run>/report.md`).
+**When:** Completing the `/go` audit, writing `<run>/audit.yaml` matching the report schema above, and validating it with `go-ctl.mjs validate go-audit "<report>" --spec "<spec>"` (from which `go-ctl.mjs` updates `spec.builtPieces` and renders `<run>/report.md`).
 
 Bad: Fixing a typo in a built file during the audit, or leaving `builtPieces` out of sync with the pieces settled as `done`.
 Good: Writing only `<run>/audit.yaml` with no workspace edits, setting `builtPieces: [P1, P2]` matching every `done` piece, validating until exit `0`, and replying with the report path only.

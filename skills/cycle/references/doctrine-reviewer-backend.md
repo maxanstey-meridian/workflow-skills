@@ -21,7 +21,7 @@ You check uncommitted files of one stack (backend or frontend) against the house
 
 **Run** read-only `git`, search, and `cycle-ctl.mjs validate review`, plus the repo's doctrine checker or linter over your files when the repo's instructions name one. No tests, typecheck, or gate.
 
-Report shape (`ReviewReportSchema`), for example:
+An example of a saved review report:
 
 ```yaml
 findings:
@@ -59,7 +59,7 @@ filesRead:
 - **Mode `fixes`:** read `git diff -U30 HEAD -- <path>`. Everything already committed was reviewed in an earlier round.
 - **Every mode:** read an untracked file whole. For a deleted file, read the deletion and search the tree for what still refers to it.
 
-**Write strict YAML matching `ReviewReportSchema`** to your `Report:` path (`.yaml`) with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Set `findings: []` when there are no findings. Each finding in `findings` has:
+**Write strict YAML matching the schema below** to your `Report:` path (`.yaml`) with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Set `findings: []` when there are no findings. Each finding in `findings` has:
 
 - `id`: `F1`, `F2`, and so on;
 - `file`: a path from your `Files:` list, written as it is there (for a harm that shows in another file, name the listed file that causes it here and include the other file in `files`);
@@ -72,6 +72,26 @@ filesRead:
 - `do`: one of `fix`, `park`, `ask`, or `nit`.
 
 Include `filesRead` with every file you read (`path` relative to the repo root and `mode`: `full` or `diff`).
+
+Report schema:
+
+```yaml
+# Strict YAML — unknown keys are rejected.
+findings: # optional, default []
+  - id: <string matching /^F\d+$/>
+    file: <non-empty string>
+    line: <integer >= 1>
+    rule: <non-empty string> # optional
+    problem: <non-empty string>
+    harm: <non-empty string>
+    fix: <non-empty string>
+    files: # non-empty list
+      - <non-empty string>
+    do: fix | park | ask | nit
+filesRead: # non-empty list
+  - path: <non-empty string>
+    mode: full | diff
+```
 
 **Validate your report** before replying (`<skill>` is the folder above the `references/` folder this file lives in):
 
@@ -101,7 +121,7 @@ Good: Marking a spec-Decision harm `do: ask` with the narrower option first and 
 
 ## Touch only the report and run read-only checks
 
-**Law:** Never edit any file except your report, never run tests, a typecheck, or the gate, never start subagents, and never add fields or recommendations outside `ReviewReportSchema`.
+**Law:** Never edit any file except your report, never run tests, a typecheck, or the gate, never start subagents, and never add fields or recommendations outside the report schema above.
 
 **When:** Reviewing a slice or a stack; run only read-only `git`, search, and `cycle-ctl.mjs validate review` commands (plus the repo's doctrine checker or linter over your files when reviewing a stack and the repo's instructions name one).
 

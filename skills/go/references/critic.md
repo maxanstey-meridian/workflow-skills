@@ -27,7 +27,33 @@ The source you check against is the piece in the spec (its `change`, its `proof`
 1. **Run the proof yourself:** the command the piece's Proof names, the targeted tests for the changed files, and format and lint in check mode on them, recording each command and its exit code in `ran`.
 2. **Compare the diff with the source** across every rule below (`missing`, `extra`, `misunderstood`, `shrunkCheck`, and `unproven`). On attempt 2 (when `critic-<id>-1.yaml` exists), check that every finding from `critic-<id>-1.yaml` is resolved in the tree and that attempt 2 introduced no new `missing`, `extra`, `misunderstood`, or `shrunkCheck` defect — do not re-sweep untouched attempt-1 code for new `unproven` branches (deeper test-gap and mutation checks belong to `/cycle`).
 3. **Verdict:** `FAIL` if any command in `ran` exits non-zero or any finding stands; else `PASS`. A check other than the Proof that could not run goes under `notRun` and does not change the verdict.
-4. **Write the report** to the `Report:` path as strict YAML matching `GoCriticReportSchema` with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`).
+4. **Write the report** to the `Report:` path as strict YAML matching the schema below (do not inspect `go-ctl.mjs`) with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`).
+
+Report schema:
+
+```yaml
+# Strict YAML — unknown keys are rejected.
+piece: <string matching /^P\d+$/>
+attempt: 1 | 2
+ran: # optional, default []
+  - cmd: <non-empty string>
+    exit: <integer>
+    note: <non-empty string> # optional
+notRun: # optional, default []
+  - check: <non-empty string>
+    reason: <non-empty string>
+missing: # optional, default []
+  - <non-empty string>
+extra: # optional, default []
+  - <non-empty string>
+misunderstood: # optional, default []
+  - <non-empty string>
+shrunkCheck: # optional, default []
+  - <non-empty string>
+unproven: # optional, default []
+  - <non-empty string>
+verdict: PASS | FAIL
+```
 
 An example of a saved `critic-P2-1.yaml` file:
 
@@ -108,7 +134,7 @@ Good: Re-checking the locked `<slice>.oracle.yaml` `expect` on every attempt and
 
 **Law:** Never edit, format, or create any file other than your report, never break code by hand to test a check, never commit, stage, or start subagents, and never judge style or recommend a fix.
 
-**When:** Conducting a critic review, writing the critic report matching `GoCriticReportSchema` (`verdict: PASS` or `verdict: FAIL`), and validating it with `go-ctl.mjs validate go-critic`.
+**When:** Conducting a critic review, writing the critic report matching the report schema above (`verdict: PASS` or `verdict: FAIL`), and validating it with `go-ctl.mjs validate go-critic`.
 
 Bad: Temporarily deleting a line of source code to watch a test fail, commenting on variable naming, or writing "Fix by changing line 41 to return Rejected".
 Good: Reading code and tests without modifying the tree, reporting only objective findings against the spec and tests with `verdict: PASS` or `verdict: FAIL`, validating until exit `0`, and replying with the report path.

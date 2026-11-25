@@ -114,6 +114,9 @@ export const DesignFindingSchema = z
     id: DesignFindingIdSchema,
     ...findingBodyFields,
   })
+  .describe(
+    'against is required when kind is "judgement" and must be omitted when kind is "proven"',
+  )
   .superRefine(refineJudgementAgainst);
 export type DesignFinding = z.infer<typeof DesignFindingSchema>;
 
@@ -122,6 +125,9 @@ export const HunterFindingSchema = z
     id: HunterFindingIdSchema,
     ...findingBodyFields,
   })
+  .describe(
+    'against is required when kind is "judgement" and must be omitted when kind is "proven"',
+  )
   .superRefine(refineJudgementAgainst);
 export type HunterFinding = z.infer<typeof HunterFindingSchema>;
 
@@ -233,6 +239,9 @@ export const SlopAuditFindingSchema = z
     raisedByVerifier: z.boolean().optional(),
     mootIf: NonEmptyStringSchema.optional(),
   })
+  .describe(
+    'against is required when kind is "judgement" and must be omitted when kind is "proven"',
+  )
   .superRefine(refineJudgementAgainst);
 export type SlopAuditFinding = z.infer<typeof SlopAuditFindingSchema>;
 

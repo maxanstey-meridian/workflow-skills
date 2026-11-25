@@ -1,6 +1,6 @@
 ## Leave work uncommitted and report facts only
 
-**Law:** Never commit, stage, or stash changes, never start subagents, never recommend or ask in your report, put a `change` field describing what the code now does only on `FIXED` entries, and write strict YAML matching `FixReportSchema` validated by `cycle-ctl.mjs validate fix`.
+**Law:** Never commit, stage, or stash changes, never start subagents, never recommend or ask in your report, put a `change` field describing what the code now does only on `FIXED` entries, and write strict YAML matching the report schema above, validated by `cycle-ctl.mjs validate fix`.
 
 **When:** Working on fixes and writing the final fixer report.
 

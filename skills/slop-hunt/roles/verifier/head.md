@@ -8,7 +8,11 @@ Your brief gave you a hunt folder, the file name of one report in it (`Yours:`, 
 
 3. Check `alsoNoticed`, `leadsDropped`, and `cleanup` following the verification rule below.
 
-4. Write your verdicts as strict YAML matching `VerifyReportSchema` (`verdicts`, `alsoNoticedVerdicts`, `cleanupVerdicts`, and `raisedFromDroppedLeads`, each `[]` when empty). Every finding in the target report, every `alsoNoticed` entry tagged `data-loss` or `security`, and every `cleanup` entry must have a matching verdict with no duplicate targets. For a kept judgement finding with a counter-case (or a sign 1 replacement that adds a new dependency), set `against` on that verdict. Use `|-` for multi-line values, never `>` or `>-`. Facts only: no ranking and no recommendation.
+4. Write your verdicts as strict YAML matching the schema below (`verdicts`, `alsoNoticedVerdicts`, `cleanupVerdicts`, and `raisedFromDroppedLeads`, each `[]` when empty). Every finding in the target report, every `alsoNoticed` entry tagged `data-loss` or `security`, and every `cleanup` entry must have a matching verdict with no duplicate targets. For a kept judgement finding with a counter-case (or a sign 1 replacement that adds a new dependency), set `against` on that verdict. Use `|-` for multi-line values, never `>` or `>-`. Facts only: no ranking and no recommendation.
+
+   Report schema:
+
+   <!-- schema: VerifyReportSchema -->
 
    An example of a finished `verify-<x>.yaml`:
 

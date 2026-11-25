@@ -276,7 +276,7 @@ export const AuditNeedOptionSchema = z
   .strict();
 export type AuditNeedOption = z.infer<typeof AuditNeedOptionSchema>;
 
-const AuditNeedActionSchema = z
+export const AuditNeedActionSchema = z
   .object({
     item: z.string().min(1),
     rec: z.string().min(1),
@@ -284,13 +284,14 @@ const AuditNeedActionSchema = z
   })
   .strict();
 
-const AuditNeedDecisionSchema = z
+export const AuditNeedDecisionSchema = z
   .object({
     item: z.string().min(1),
     whatItIs: z.string().min(1),
     options: z.array(AuditNeedOptionSchema).min(2),
   })
   .strict()
+  .describe("Options must have unique labels and exactly one option with recommended: true")
   .superRefine((need, ctx) => {
     const seenLabels = new Set<string>();
     let recommendedCount = 0;

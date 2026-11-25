@@ -1,6 +1,6 @@
 ## Leave work uncommitted and report facts only
 
-**Law:** Never commit, stage, or stash changes, never start subagents, and never include recommendations or questions in your report; write facts only to `Report:` as strict YAML matching `BuildReportSchema` (`result: BUILT` or `result: STOPPED`), validate it with `go-ctl.mjs validate build`, and reply with that path only.
+**Law:** Never commit, stage, or stash changes, never start subagents, and never include recommendations or questions in your report; write facts only to `Report:` as strict YAML matching the report schema above (`result: BUILT` or `result: STOPPED`), validate it with `go-ctl.mjs validate build`, and reply with that path only.
 
 **When:** Working on a piece and writing the final build report.
 

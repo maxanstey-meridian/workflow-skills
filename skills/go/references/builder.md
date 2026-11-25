@@ -23,7 +23,37 @@ You build one piece of a spec, in the main working tree, and leave it uncommitte
 1. **Check the spec before editing.** If the spec leaves your piece open or contradicted, stop before editing and write a report with `result: STOPPED` and `stopReason`.
 2. **Build the piece's Change,** following every rule below on scope, Decisions, reuse, sweeping, and testing added or restructured outcomes.
 3. **Run** the piece's Proof, targeted tests, format, lint, and any build or generation command for files you changed.
-4. **Write the report** to the `Report:` path as strict YAML matching `BuildReportSchema` with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Set `result` to `BUILT` or `STOPPED`. `STOPPED` is only for a spec that is open or contradicted, and requires `stopReason`. A Proof that exits non-zero after you built the Change is `result: BUILT`, with its exit code in `ran`.
+4. **Write the report** to the `Report:` path as strict YAML matching the schema below (do not inspect `go-ctl.mjs`) with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Set `result` to `BUILT` or `STOPPED`. `STOPPED` is only for a spec that is open or contradicted, and requires `stopReason`. A Proof that exits non-zero after you built the Change is `result: BUILT`, with its exit code in `ran`.
+
+Report schema:
+
+```yaml
+# Strict YAML — unknown keys are rejected.
+# Variant 1 (result: BUILT):
+piece: <string matching /^P\d+$/>
+attempt: 1 | 2
+changed: # optional, default []
+  - path: <non-empty string>
+    summary: <non-empty string>
+decisionsBuilt: # optional, default []
+  - id: <string matching /^D\d+$/>
+    summary: <non-empty string>
+ran: # optional, default []
+  - cmd: <non-empty string>
+    exit: <integer>
+    note: <non-empty string> # optional
+notRun: # optional, default []
+  - check: <non-empty string>
+    reason: <non-empty string>
+notBuilt: # optional, default []
+  - <non-empty string>
+result: BUILT
+
+# Variant 2 (result: STOPPED):
+# Same base fields as Variant 1, with:
+result: STOPPED
+stopReason: <non-empty string>
+```
 
 An example of a saved `build-P2-1.yaml` file (facts only):
 
@@ -107,7 +137,7 @@ Good: Running the piece's Proof, targeted tests, the build/generation command, a
 
 ## Leave work uncommitted and report facts only
 
-**Law:** Never commit, stage, or stash changes, never start subagents, and never include recommendations or questions in your report; write facts only to `Report:` as strict YAML matching `BuildReportSchema` (`result: BUILT` or `result: STOPPED`), validate it with `go-ctl.mjs validate build`, and reply with that path only.
+**Law:** Never commit, stage, or stash changes, never start subagents, and never include recommendations or questions in your report; write facts only to `Report:` as strict YAML matching the report schema above (`result: BUILT` or `result: STOPPED`), validate it with `go-ctl.mjs validate build`, and reply with that path only.
 
 **When:** Working on a piece and writing the final build report.
 
