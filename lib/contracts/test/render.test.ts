@@ -246,6 +246,7 @@ describe("renderGoAudit", () => {
       "",
       "---",
       "**Built pieces:** P1, P2",
+      "**Cycle readiness:** ready",
       "",
     ].join("\n");
 
@@ -332,6 +333,7 @@ describe("renderGoAudit", () => {
       "",
       "---",
       "**Built pieces:** none",
+      '**Cycle readiness:** blocked (Decision D2 is not-built (see Finding 1); Decision D3 is not-built; Piece P2 has status "not-done" (pnpm test exit 1); Piece P3 has status "needs-user"; Open finding: Decision D2 not built)',
       "",
     ].join("\n");
 
@@ -423,6 +425,7 @@ describe("renderGoAudit", () => {
       "",
       "---",
       "**Built pieces:** P1",
+      '**Cycle readiness:** blocked (Piece P2 has status "needs-user")',
       "",
     ].join("\n");
 

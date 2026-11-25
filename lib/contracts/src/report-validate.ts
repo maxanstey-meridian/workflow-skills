@@ -418,3 +418,23 @@ export const validateCycleAudit = (
 
   return issues;
 };
+
+export const goAuditCycleBlockers = (audit: GoAuditReport): string[] => {
+  const blockers: string[] = [];
+  for (const decision of audit.decisions) {
+    if (decision.status === "not-built") {
+      const note = decision.note !== undefined ? ` (${decision.note})` : "";
+      blockers.push(`Decision ${decision.id} is not-built${note}`);
+    }
+  }
+  for (const piece of audit.pieces) {
+    if (piece.status !== "done") {
+      const note = piece.note !== undefined ? ` (${piece.note})` : "";
+      blockers.push(`Piece ${piece.id} has status "${piece.status}"${note}`);
+    }
+  }
+  for (const finding of audit.findings) {
+    blockers.push(`Open finding: ${finding.title}`);
+  }
+  return blockers;
+};

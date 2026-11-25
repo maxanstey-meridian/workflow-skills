@@ -141,7 +141,7 @@ describe("cycle-ctl e2e: init guards", () => {
     assert.equal(fs.existsSync(path.join(repo, ".plans", "scratch")), false);
   });
 
-  it("stops on incomplete go/audit.yaml (not-built Decision, unfinished Piece, open finding, invalid YAML) unless --allow-partial is passed", () => {
+  it("stops on incomplete go/audit.yaml (not-built Decision, unfinished Piece, open finding, invalid YAML)", () => {
     const repo = makeTempRepo("go-audit-guard");
     fs.mkdirSync(path.join(repo, "src"), { recursive: true });
     fs.writeFileSync(path.join(repo, "src/a.ts"), "export const a = 1;\n", "utf8");
@@ -197,13 +197,6 @@ describe("cycle-ctl e2e: init guards", () => {
     assert.equal(stopCorrupt.status, 0);
     const parsedCorrupt = StopActionSchema.parse(YAML.parse(stopCorrupt.stdout));
     assert.match(parsedCorrupt.reason, /unreadable/i);
-
-    // Case 5: --allow-partial bypasses the guard and creates a run
-    const allowed = runCtl(["init", "--spec", ".plans/spec-demo.yaml", "--allow-partial"], repo);
-    assert.equal(allowed.status, 0, allowed.stderr);
-    const runData = InitRunSchema.parse(YAML.parse(allowed.stdout));
-    assert.equal(fs.existsSync(path.join(runData.run, "state.json")), true);
-    assert.equal(fs.existsSync(path.join(runData.run, "slice-1.txt")), true);
   });
 
   it("stops on 0 dirty files and when all dirty files are excluded", () => {
@@ -230,7 +223,7 @@ describe("cycle-ctl e2e: full cycle with real git commits", () => {
     const specPath = path.join(repo, ".plans", "spec-demo.yaml");
     writeYaml(specPath, makeSpec("building"));
 
-    // Clean /go audit passes the guard without --allow-partial
+    // Clean /go audit passes the guard
     const goAuditPath = path.join(repo, ".plans", "scratch", "spec-demo", "go", "audit.yaml");
     writeYaml(goAuditPath, {
       tldr: "Built P1.",

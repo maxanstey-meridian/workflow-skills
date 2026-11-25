@@ -5,6 +5,7 @@ import type { z } from "zod";
 import { loadRunReviewFindings, readYamlFile } from "../../contracts/src/io.ts";
 import { GoAuditReportSchema, ReviewReportSchema } from "../../contracts/src/report-schemas.ts";
 import {
+  goAuditCycleBlockers,
   validateGoAudit,
   type CycleAuditReviewFindingRef,
 } from "../../contracts/src/report-validate.ts";
@@ -150,27 +151,12 @@ export const checkGoAuditForInit = (
     };
   }
 
-  const blockers: string[] = [];
-  for (const decision of parsed.data.decisions) {
-    if (decision.status === "not-built") {
-      const note = decision.note !== undefined ? ` (${decision.note})` : "";
-      blockers.push(`Decision ${decision.id} is not-built${note}`);
-    }
-  }
-  for (const piece of parsed.data.pieces) {
-    if (piece.status !== "done") {
-      const note = piece.note !== undefined ? ` (${piece.note})` : "";
-      blockers.push(`Piece ${piece.id} has status "${piece.status}"${note}`);
-    }
-  }
-  for (const finding of parsed.data.findings) {
-    blockers.push(`Open finding: ${finding.title}`);
-  }
+  const blockers = goAuditCycleBlockers(parsed.data);
 
   if (blockers.length > 0) {
     return {
       ok: false,
-      reason: `Cannot start /cycle over incomplete /go audit (${auditPath}); pass --allow-partial to override`,
+      reason: `Cannot start /cycle over incomplete /go audit (${auditPath}): resolve the blockers and re-run /go`,
       details: blockers,
     };
   }

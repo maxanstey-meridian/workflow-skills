@@ -48,7 +48,6 @@ const collectRepeatable = (value: string, previous: string[]): string[] => [...p
 const cmdInit = (opts: {
   spec?: string;
   mode: string;
-  allowPartial?: boolean;
   exclude: string[];
   skill?: string;
 }): number => {
@@ -107,17 +106,15 @@ const cmdInit = (opts: {
       return 0;
     }
 
-    if (opts.allowPartial !== true) {
-      const goAuditCheck = checkGoAuditForInit(mainDir, resolvedSpecPath, loadedSpec);
-      if (!goAuditCheck.ok) {
-        const stopAction: CycleAction = {
-          action: "stop",
-          reason: goAuditCheck.reason,
-          details: goAuditCheck.details,
-        };
-        printYaml(stopAction);
-        return 0;
-      }
+    const goAuditCheck = checkGoAuditForInit(mainDir, resolvedSpecPath, loadedSpec);
+    if (!goAuditCheck.ok) {
+      const stopAction: CycleAction = {
+        action: "stop",
+        reason: goAuditCheck.reason,
+        details: goAuditCheck.details,
+      };
+      printYaml(stopAction);
+      return 0;
     }
   }
 
@@ -335,7 +332,6 @@ program
   .description("Initialise a /cycle run folder and state.json")
   .option("--spec <spec.yaml>", "Path to a building spec YAML file")
   .option("--mode <mode>", "Review mode (diff | full)", "diff")
-  .option("--allow-partial", "Allow starting /cycle over an incomplete /go audit")
   .option(
     "--exclude <path>",
     "Repo-relative path to exclude from scope (repeatable)",
@@ -343,17 +339,9 @@ program
     [],
   )
   .option("--skill <dir>", "Path to skills/cycle directory")
-  .action(
-    (opts: {
-      spec?: string;
-      mode: string;
-      allowPartial?: boolean;
-      exclude: string[];
-      skill?: string;
-    }) => {
-      process.exitCode = cmdInit(opts);
-    },
-  );
+  .action((opts: { spec?: string; mode: string; exclude: string[]; skill?: string }) => {
+    process.exitCode = cmdInit(opts);
+  });
 
 program
   .command("next")

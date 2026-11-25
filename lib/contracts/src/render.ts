@@ -10,6 +10,7 @@ import type {
   GoAuditReport,
   NotRun,
 } from "./report-schemas.ts";
+import { goAuditCycleBlockers } from "./report-validate.ts";
 import type { Decision, ParkedItem, Spec } from "./spec-schema.ts";
 
 const formatDecisionAuthority = (decidedBy: Decision["decidedBy"]): string =>
@@ -262,7 +263,10 @@ export const renderGoAudit = (audit: GoAuditReport): string => {
   }
 
   const builtTail = audit.builtPieces.length > 0 ? audit.builtPieces.join(", ") : "none";
-  sections.push(`---\n**Built pieces:** ${builtTail}`);
+  const cycleBlockers = goAuditCycleBlockers(audit);
+  const cycleReadiness =
+    cycleBlockers.length === 0 ? "ready" : `blocked (${cycleBlockers.join("; ")})`;
+  sections.push(`---\n**Built pieces:** ${builtTail}\n**Cycle readiness:** ${cycleReadiness}`);
 
   return `${sections.join("\n\n")}\n`;
 };
