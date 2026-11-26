@@ -472,17 +472,6 @@ export const CycleAuditSpecStatusSchema = z.discriminatedUnion("status", [
 ]);
 export type CycleAuditSpecStatus = z.infer<typeof CycleAuditSpecStatusSchema>;
 
-export const AuditJustifiedMachinerySchema = z
-  .object({
-    report: z.string().min(1),
-    file: z.string().min(1),
-    symbol: z.string().min(1),
-    candidatesChecked: z.array(z.string().min(1)).min(1),
-    constraint: z.string().min(1),
-  })
-  .strict();
-export type AuditJustifiedMachinery = z.infer<typeof AuditJustifiedMachinerySchema>;
-
 export const CycleAuditReportSchema = z
   .object({
     tldr: z.string().min(1),
@@ -498,7 +487,6 @@ export const CycleAuditReportSchema = z
     fixed: z.array(CycleAuditFixedSchema).default([]),
     notAHarm: z.array(CycleAuditDispositionSchema).default([]),
     notFixed: z.array(CycleAuditDispositionSchema).default([]),
-    justifiedMachinery: z.array(AuditJustifiedMachinerySchema).default([]),
     gate: z.enum(["green", "failed", "none-named", "unlisted"]),
     mutation: z.string().min(1).optional(),
     specStatus: CycleAuditSpecStatusSchema,

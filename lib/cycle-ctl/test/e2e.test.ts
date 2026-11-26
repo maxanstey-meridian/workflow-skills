@@ -439,15 +439,6 @@ describe("cycle-ctl e2e: full cycle with real git commits", () => {
           summary: "Changed exported constant a from 1 to 2.",
         },
       ],
-      justifiedMachinery: [
-        {
-          report: "review-1-backend-1.yaml",
-          file: "src/a.ts",
-          symbol: "BinaryFrameCodec",
-          candidatesChecked: ["msgpack (3.x)"],
-          constraint: "Hardware framing header.",
-        },
-      ],
       gate: "green",
       specStatus: { status: "built" },
     });
@@ -459,8 +450,6 @@ describe("cycle-ctl e2e: full cycle with real git commits", () => {
     assert.equal(fs.existsSync(relayAction.report), true);
     const renderedReport = fs.readFileSync(relayAction.report, "utf8");
     assert.match(renderedReport, /\*\*Spec:\*\* built/);
-    assert.match(renderedReport, /## Justified hand-rolled machinery/);
-    assert.match(renderedReport, /BinaryFrameCodec/);
 
     const updatedSpec = SpecSchema.parse(YAML.parse(fs.readFileSync(specPath, "utf8")));
     assert.equal(updatedSpec.status, "built");

@@ -689,58 +689,6 @@ describe("spec-ctl validate role reports", () => {
     assert.equal(badReview.status, 2);
     assert.match(badReview.stderr, /Invalid review report review-bad\.yaml/);
   });
-
-  it("validates cycle-audit justifiedMachinery against doctrine reviews in --run and renders it", () => {
-    const dir = makeTempDir("cycle-audit-machinery");
-    const runDir = path.join(dir, "run");
-    const auditPath = path.join(dir, "cycle-audit.yaml");
-
-    writeYaml(path.join(runDir, "review-1-backend-1.yaml"), {
-      findings: [],
-      filesRead: [{ path: "src/frame.ts", mode: "full" }],
-      machinery: [
-        {
-          file: "src/frame.ts",
-          symbol: "BinaryFrameCodec",
-          status: "justified",
-          candidatesChecked: ["msgpack (3.x)", "cbor (2.x)"],
-          constraint: "Fixed 12-byte hardware framing header.",
-        },
-      ],
-    });
-
-    writeYaml(auditPath, {
-      tldr: "Reviewed uncommitted work.",
-      gate: "green",
-      specStatus: { status: "none" },
-    });
-    const missing = runCli(["validate", "cycle-audit", auditPath, "--run", runDir]);
-    assert.equal(missing.status, 1);
-    assert.match(missing.stderr, /BinaryFrameCodec/);
-
-    writeYaml(auditPath, {
-      tldr: "Reviewed uncommitted work.",
-      justifiedMachinery: [
-        {
-          report: "review-1-backend-1.yaml",
-          file: "src/frame.ts",
-          symbol: "BinaryFrameCodec",
-          candidatesChecked: ["msgpack (3.x)", "cbor (2.x)"],
-          constraint: "Fixed 12-byte hardware framing header.",
-        },
-      ],
-      gate: "green",
-      specStatus: { status: "none" },
-    });
-    const ok = runCli(["validate", "cycle-audit", auditPath, "--run", runDir]);
-    assert.equal(ok.status, 0, ok.stderr);
-    assert.equal(ok.stdout.trim(), "OK");
-
-    const rendered = runCli(["render", "cycle-audit", auditPath]);
-    assert.equal(rendered.status, 0, rendered.stderr);
-    assert.match(rendered.stdout, /## Justified hand-rolled machinery/);
-    assert.match(rendered.stdout, /BinaryFrameCodec/);
-  });
 });
 
 describe("spec-ctl render", () => {

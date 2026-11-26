@@ -1,11 +1,6 @@
 import type { Command } from "commander";
 import type { z } from "zod";
-import {
-  loadRunJustifiedMachinery,
-  loadRunReviewFindings,
-  readYamlFile,
-  validateOracleCaseOnDisk,
-} from "./io.ts";
+import { loadRunReviewFindings, readYamlFile, validateOracleCaseOnDisk } from "./io.ts";
 import { renderCycleAudit, renderGoAudit, renderSpec } from "./render.ts";
 import {
   BuildReportSchema,
@@ -283,7 +278,6 @@ export const cmdValidate = (
   }
 
   let reviewFindings: Array<{ report: string; id: string; do: string }> = [];
-  let justifiedMachinery: Array<{ report: string; file: string; symbol: string }> | undefined;
   if (opts.run !== undefined) {
     const runResult = loadRunReviewFindings(opts.run);
     if (!runResult.ok) {
@@ -291,13 +285,6 @@ export const cmdValidate = (
       return 2;
     }
     reviewFindings = runResult.findings;
-
-    const machineryResult = loadRunJustifiedMachinery(opts.run);
-    if (!machineryResult.ok) {
-      console.error(machineryResult.error);
-      return 2;
-    }
-    justifiedMachinery = machineryResult.machinery;
   }
 
   const parsed = CycleAuditReportSchema.safeParse(loaded.data);
@@ -306,7 +293,7 @@ export const cmdValidate = (
     return 1;
   }
 
-  const issues = validateCycleAudit(parsed.data, { spec, reviewFindings, justifiedMachinery });
+  const issues = validateCycleAudit(parsed.data, { spec, reviewFindings });
   if (issues.length > 0) {
     printIssues(issues);
     return 1;

@@ -15,16 +15,9 @@ export type CycleAuditReviewFindingRef = {
   do: string;
 };
 
-export type CycleAuditJustifiedMachineryRef = {
-  report: string;
-  file: string;
-  symbol: string;
-};
-
 export type CycleAuditContext = {
   spec?: Spec;
   reviewFindings: ReadonlyArray<CycleAuditReviewFindingRef>;
-  justifiedMachinery?: ReadonlyArray<CycleAuditJustifiedMachineryRef>;
 };
 
 const FAILING_CYCLE_CRITIC_VERDICTS = new Set([
@@ -563,33 +556,6 @@ export const validateCycleAudit = (
       issues.push({
         path: "fixed",
         message: `review finding "${finding.id}" from "${finding.report}" with do "fix" is missing from fixed, notAHarm, and notFixed`,
-      });
-    }
-  }
-
-  const accountedMachinery = new Set<string>();
-  for (let i = 0; i < report.justifiedMachinery.length; i += 1) {
-    const entry = report.justifiedMachinery[i];
-    if (entry === undefined) {
-      continue;
-    }
-    const key = `${entry.report}\0${entry.file}\0${entry.symbol}`;
-    if (accountedMachinery.has(key)) {
-      issues.push({
-        path: `justifiedMachinery[${i}]`,
-        message: `justified machinery "${entry.symbol}" in "${entry.file}" from "${entry.report}" appears more than once`,
-      });
-    } else {
-      accountedMachinery.add(key);
-    }
-  }
-
-  for (const entry of context.justifiedMachinery ?? []) {
-    const key = `${entry.report}\0${entry.file}\0${entry.symbol}`;
-    if (!accountedMachinery.has(key)) {
-      issues.push({
-        path: "justifiedMachinery",
-        message: `justified machinery "${entry.symbol}" in "${entry.file}" from "${entry.report}" is missing from justifiedMachinery`,
       });
     }
   }

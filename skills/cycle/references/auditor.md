@@ -24,7 +24,7 @@ In the run folder, `base.txt` holds the commit before the cycle, so the cycle's 
 
 1. **Run every Done-means command** the spec lists, from the main checkout, and record each with its exit code in `checked` (or `notChecked` if user-only).
 2. **Settle each Piece** (`done`, `not-done`, or `needs-user`) and **each spec Decision** (`honoured` or `not-built`).
-3. **Settle every `do: fix` finding** in every `review-*.yaml` report against its last critic report and the code (placing each into `fixed`, `notAHarm`, or `notFixed`), and copy every `status: justified` entry from doctrine review reports (`review-<r>-(backend|frontend)-<n>.yaml`) into `justifiedMachinery`.
+3. **Settle every `do: fix` finding** in every `review-*.yaml` report against its last critic report and the code (placing each into `fixed`, `notAHarm`, or `notFixed`).
 4. **Audit commits, `left-out.txt`, `gate.log`, and mutation** (once, if configured).
 5. **Write strict YAML matching the schema below** to `Report:` (`<run>/audit.yaml`) with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Before listing any candidate `needsFromYou` option or setting `recommended: true`, check it against the Meridian Laws (including `coding/make-valid-input-work-never-refuse-it.md`, `coding/fix-a-gap-never-document-it.md`, and never weakening a check); never offer or recommend an option that breaks a Law. Each entry in `needsFromYou` uses one of three patterns across the two schema shapes:
    - **Structured decision item** (`item`, `whatItIs`, `options` with at least two entries): use only for genuine trade-offs where at least two Law-compliant options exist (each option with a unique `label`, a concrete `summary` stating what the product or suite will or won't do, and `recommended: true` on the single recommended option). Inline any cited ruling or code fact in `whatItIs` so the user can decide without opening external files.
@@ -97,13 +97,6 @@ notFixed: # optional, default []
   - findingId: <string matching /^F\d+$/>
     report: <non-empty string>
     reason: <non-empty string>
-justifiedMachinery: # optional, default []
-  - report: <non-empty string>
-    file: <non-empty string>
-    symbol: <non-empty string>
-    candidatesChecked: # non-empty list
-      - <non-empty string>
-    constraint: <non-empty string>
 gate: green | failed | none-named | unlisted
 mutation: <non-empty string> # optional
 specStatus:
@@ -201,14 +194,6 @@ notFixed:
   - findingId: F3
     report: review-1-slice-2.yaml
     reason: "`NEEDS_CALL` — awaiting decision on keeping two projections or merging."
-justifiedMachinery:
-  - report: review-1-backend-1.yaml
-    file: api/src/Bookings/BinaryFrameCodec.cs
-    symbol: BinaryFrameCodec
-    candidatesChecked:
-      - System.Text.Json (10.x)
-      - MessagePack-CSharp (3.x)
-    constraint: Hardware gateway emits a fixed 12-byte custom framing header neither serializer supports.
 gate: green
 mutation: 1 survivor on a changed line — `ReleaseStaleBookings.cs:44` (`<` to `<=`).
 specStatus:
@@ -244,12 +229,12 @@ Good: Marking P3 `not-done` with the quoted failing command, settling every Deci
 
 ## Settle every finding against the last critic and code
 
-**Law:** Settle every finding in every `review-*.yaml` report (omitting `nit` findings unless a fixer fixed one) using its round (`review-<r>-…`), its slice, and its slice's last critic report (`critic-<r>-slice-<n>-b.yaml` when it exists, else `critic-<r>-slice-<n>.yaml`) verified at the code: record in `fixed` only when that critic has `verdict: PASS` and the harm is gone now; record in `notFixed` on `verdict: FAIL`, missing fixer or critic report, `NEEDS_CALL` (recording it in `needsFromYou` after checking every candidate option against the Meridian Laws: use `whatItIs` and `options` >= 2 with one `recommended: true` only when at least two Law-compliant options exist, and use `item`, `whatItIs`, and `rec` naming the governing Law in `whatItIs` when only one Law-compliant path exists — never inventing or recommending an option that refuses valid input, documents a gap, or weakens a check), `OUT_OF_SLICE`, or post-round-3 unfixed findings (with a one-line `reason`); record in `notAHarm` when the fixer or critic says so (stating where you checked in `reason`); record `park` findings in `parked` with their fix, rough line count, design call, and who hits them (`rec: fold-in` for gaps users hit without warning, never parking trivial gaps); record `ask` findings in `needsFromYou` under the same Meridian Law check (`whatItIs` + `options` >= 2 for genuine Law-compliant trade-offs, or `item` + `whatItIs` + `rec` when only one Law-compliant path exists); and copy every `status: justified` machinery entry from doctrine review reports (`review-<r>-(backend|frontend)-<n>.yaml`) into `justifiedMachinery` with its `report`, `file`, `symbol`, `candidatesChecked`, and `constraint`.
+**Law:** Settle every finding in every `review-*.yaml` report (omitting `nit` findings unless a fixer fixed one) using its round (`review-<r>-…`), its slice, and its slice's last critic report (`critic-<r>-slice-<n>-b.yaml` when it exists, else `critic-<r>-slice-<n>.yaml`) verified at the code: record in `fixed` only when that critic has `verdict: PASS` and the harm is gone now; record in `notFixed` on `verdict: FAIL`, missing fixer or critic report, `NEEDS_CALL` (recording it in `needsFromYou` after checking every candidate option against the Meridian Laws: use `whatItIs` and `options` >= 2 with one `recommended: true` only when at least two Law-compliant options exist, and use `item`, `whatItIs`, and `rec` naming the governing Law in `whatItIs` when only one Law-compliant path exists — never inventing or recommending an option that refuses valid input, documents a gap, or weakens a check), `OUT_OF_SLICE`, or post-round-3 unfixed findings (with a one-line `reason`); record in `notAHarm` when the fixer or critic says so (stating where you checked in `reason`); record `park` findings in `parked` with their fix, rough line count, design call, and who hits them (`rec: fold-in` for gaps users hit without warning, never parking trivial gaps); and record `ask` findings in `needsFromYou` under the same Meridian Law check (`whatItIs` + `options` >= 2 for genuine Law-compliant trade-offs, or `item` + `whatItIs` + `rec` when only one Law-compliant path exists).
 
 **When:** Reconciling all `review-*.yaml`, `fix-*.yaml`, and `critic-*.yaml` files in `<run>`.
 
-Bad: Recording a finding in `fixed` from `critic-1-slice-1.yaml` when `critic-1-slice-1-b.yaml` has `verdict: FAIL`, parking a 2-line trivial fix, inventing a Law-breaking option (such as refusing valid input or documenting a gap) to force a single-path `ask` or `NEEDS_CALL` finding into `options` >= 2, cramming multi-sentence context into a bare `rec` with no `whatItIs`, or omitting a `status: justified` machinery entry from `justifiedMachinery`.
-Good: Checking `critic-1-slice-1-b.yaml` and the working tree, recording `notFixed` with its `reason`, putting genuine Law-compliant `ask` and `NEEDS_CALL` trade-offs in `needsFromYou` with `whatItIs` and `options` (one marked `recommended: true`), using `item`, `whatItIs`, and `rec` (naming the governing Law) when only one Law-compliant path exists, and copying every `status: justified` entry from doctrine review reports into `justifiedMachinery`.
+Bad: Recording a finding in `fixed` from `critic-1-slice-1.yaml` when `critic-1-slice-1-b.yaml` has `verdict: FAIL`, parking a 2-line trivial fix, inventing a Law-breaking option (such as refusing valid input or documenting a gap) to force a single-path `ask` or `NEEDS_CALL` finding into `options` >= 2, or cramming multi-sentence context into a bare `rec` with no `whatItIs`.
+Good: Checking `critic-1-slice-1-b.yaml` and the working tree, recording `notFixed` with its `reason`, putting genuine Law-compliant `ask` and `NEEDS_CALL` trade-offs in `needsFromYou` with `whatItIs` and `options` (one marked `recommended: true`), and using `item`, `whatItIs`, and `rec` (naming the governing Law) when only one Law-compliant path exists.
 
 ## Audit commits, gate log, and mutation once
 

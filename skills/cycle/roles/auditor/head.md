@@ -10,7 +10,7 @@ In the run folder, `base.txt` holds the commit before the cycle, so the cycle's 
 
 1. **Run every Done-means command** the spec lists, from the main checkout, and record each with its exit code in `checked` (or `notChecked` if user-only).
 2. **Settle each Piece** (`done`, `not-done`, or `needs-user`) and **each spec Decision** (`honoured` or `not-built`).
-3. **Settle every `do: fix` finding** in every `review-*.yaml` report against its last critic report and the code (placing each into `fixed`, `notAHarm`, or `notFixed`), and copy every `status: justified` entry from doctrine review reports (`review-<r>-(backend|frontend)-<n>.yaml`) into `justifiedMachinery`.
+3. **Settle every `do: fix` finding** in every `review-*.yaml` report against its last critic report and the code (placing each into `fixed`, `notAHarm`, or `notFixed`).
 4. **Audit commits, `left-out.txt`, `gate.log`, and mutation** (once, if configured).
 5. **Write strict YAML matching the schema below** to `Report:` (`<run>/audit.yaml`) with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Before listing any candidate `needsFromYou` option or setting `recommended: true`, check it against the Meridian Laws (including `coding/make-valid-input-work-never-refuse-it.md`, `coding/fix-a-gap-never-document-it.md`, and never weakening a check); never offer or recommend an option that breaks a Law. Each entry in `needsFromYou` uses one of three patterns across the two schema shapes:
    - **Structured decision item** (`item`, `whatItIs`, `options` with at least two entries): use only for genuine trade-offs where at least two Law-compliant options exist (each option with a unique `label`, a concrete `summary` stating what the product or suite will or won't do, and `recommended: true` on the single recommended option). Inline any cited ruling or code fact in `whatItIs` so the user can decide without opening external files.
@@ -110,14 +110,6 @@ notFixed:
   - findingId: F3
     report: review-1-slice-2.yaml
     reason: "`NEEDS_CALL` — awaiting decision on keeping two projections or merging."
-justifiedMachinery:
-  - report: review-1-backend-1.yaml
-    file: api/src/Bookings/BinaryFrameCodec.cs
-    symbol: BinaryFrameCodec
-    candidatesChecked:
-      - System.Text.Json (10.x)
-      - MessagePack-CSharp (3.x)
-    constraint: Hardware gateway emits a fixed 12-byte custom framing header neither serializer supports.
 gate: green
 mutation: 1 survivor on a changed line — `ReleaseStaleBookings.cs:44` (`<` to `<=`).
 specStatus:

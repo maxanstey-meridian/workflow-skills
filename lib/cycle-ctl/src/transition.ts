@@ -19,7 +19,6 @@ import {
   validateCycleAudit,
   validateCycleCritic,
   validateDoctrineReview,
-  type CycleAuditJustifiedMachineryRef,
   type CycleAuditReviewFindingRef,
 } from "../../contracts/src/report-validate.ts";
 import type { Spec } from "../../contracts/src/spec-schema.ts";
@@ -60,7 +59,6 @@ export type CycleAdvanceEnv = {
   slicesYaml: RawReportEntry;
   reports: ReadonlyMap<string, RawReportEntry>;
   reviewFindingsForAudit: ReadonlyArray<CycleAuditReviewFindingRef>;
-  justifiedMachineryForAudit?: ReadonlyArray<CycleAuditJustifiedMachineryRef>;
   gateLog: string | null;
 };
 
@@ -1208,7 +1206,6 @@ export const advanceCycle = (inputState: CycleState, env: CycleAdvanceEnv): Cycl
           validateCycleAudit(data, {
             spec: env.spec ?? undefined,
             reviewFindings: env.reviewFindingsForAudit,
-            justifiedMachinery: env.justifiedMachineryForAudit,
           }),
       );
 

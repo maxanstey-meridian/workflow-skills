@@ -2,11 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
 import type { z } from "zod";
-import {
-  loadRunJustifiedMachinery,
-  loadRunReviewFindings,
-  readYamlFile,
-} from "../../contracts/src/io.ts";
+import { loadRunReviewFindings, readYamlFile } from "../../contracts/src/io.ts";
 import {
   DoctrineReviewReportSchema,
   GoAuditReportSchema,
@@ -16,7 +12,6 @@ import {
   goAuditCycleBlockers,
   isDoctrineReviewFilename,
   validateGoAudit,
-  type CycleAuditJustifiedMachineryRef,
   type CycleAuditReviewFindingRef,
 } from "../../contracts/src/report-validate.ts";
 import { SpecSchema, type Spec } from "../../contracts/src/spec-schema.ts";
@@ -230,14 +225,6 @@ export const loadReviewFindingsForAudit = (
 ): CycleAuditReviewFindingRef[] => {
   const res = loadRunReviewFindings(runDir, new Set(missedReports));
   return res.ok ? res.findings : [];
-};
-
-export const loadJustifiedMachineryForAudit = (
-  runDir: string,
-  missedReports: ReadonlyArray<string>,
-): CycleAuditJustifiedMachineryRef[] => {
-  const res = loadRunJustifiedMachinery(runDir, new Set(missedReports));
-  return res.ok ? res.machinery : [];
 };
 
 export const collectExistingFindingPaths = (

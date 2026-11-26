@@ -3,13 +3,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
-import YAML from "yaml";
 import type { ReviewReport } from "../../contracts/src/report-schemas.ts";
-import {
-  collectExistingFindingPaths,
-  loadJustifiedMachineryForAudit,
-  measureFileLines,
-} from "../src/io.ts";
+import { collectExistingFindingPaths, measureFileLines } from "../src/io.ts";
 import {
   MAX_LINES_PER_LIST,
   assignNewPathsToSlices,
@@ -249,7 +244,7 @@ describe("validateSlices", () => {
   });
 });
 
-describe("io helpers: measureFileLines, collectExistingFindingPaths, and loadJustifiedMachineryForAudit", () => {
+describe("io helpers: measureFileLines and collectExistingFindingPaths", () => {
   it("measures newline-delimited lines including empty, missing, and no-trailing-newline files", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "cycle-io-lines-"));
     try {
@@ -342,54 +337,6 @@ describe("io helpers: measureFileLines, collectExistingFindingPaths, and loadJus
 
       const existing = collectExistingFindingPaths(tmpDir, reports);
       assert.deepEqual([...existing], ["src/doctrine.ts"]);
-    } finally {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  it("loadJustifiedMachineryForAudit loads justified entries and skips missedReports", () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "cycle-io-machinery-"));
-    try {
-      fs.writeFileSync(
-        path.join(tmpDir, "review-1-backend-1.yaml"),
-        YAML.stringify({
-          findings: [],
-          filesRead: [{ path: "src/parser.ts", mode: "full" }],
-          machinery: [
-            {
-              file: "src/parser.ts",
-              symbol: "CustomParser",
-              status: "justified",
-              candidatesChecked: ["lib-a 2.x"],
-              constraint: "lib-a cannot stream tokens without buffering",
-            },
-          ],
-        }),
-        "utf8",
-      );
-      fs.writeFileSync(
-        path.join(tmpDir, "review-1-backend-2.yaml"),
-        YAML.stringify({
-          findings: [],
-          filesRead: [{ path: "src/ignored.ts", mode: "full" }],
-          machinery: [
-            {
-              file: "src/ignored.ts",
-              symbol: "IgnoredParser",
-              status: "justified",
-              candidatesChecked: ["lib-b 3.x"],
-              constraint: "Should be skipped as missed.",
-            },
-          ],
-        }),
-        "utf8",
-      );
-
-      const loaded = loadJustifiedMachineryForAudit(tmpDir, ["review-1-backend-2.yaml"]);
-      assert.equal(loaded.length, 1);
-      assert.equal(loaded[0]?.report, "review-1-backend-1.yaml");
-      assert.equal(loaded[0]?.file, "src/parser.ts");
-      assert.equal(loaded[0]?.symbol, "CustomParser");
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }

@@ -5,7 +5,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import YAML from "yaml";
 import { cmdValidate } from "../src/commands.ts";
-import { loadRunJustifiedMachinery, loadRunReviewFindings } from "../src/io.ts";
+import { loadRunReviewFindings } from "../src/io.ts";
 import {
   BuildReportSchema,
   ColdReadReportSchema,
@@ -295,36 +295,6 @@ describe("report schemas", () => {
             status: "justified",
             candidatesChecked: [],
             constraint: "None fit.",
-          },
-        ],
-      }).success,
-      false,
-    );
-    assert.equal(
-      CycleAuditReportSchema.safeParse({
-        ...makeCycleAudit(),
-        justifiedMachinery: [
-          {
-            report: "review-1-backend-1.yaml",
-            file: "src/custom.ts",
-            symbol: "CustomCodec",
-            candidatesChecked: ["lib-a 2.x"],
-            constraint: "Streaming frame header layout.",
-          },
-        ],
-      }).success,
-      true,
-    );
-    assert.equal(
-      CycleAuditReportSchema.safeParse({
-        ...makeCycleAudit(),
-        justifiedMachinery: [
-          {
-            report: "review-1-backend-1.yaml",
-            file: "src/custom.ts",
-            symbol: "CustomCodec",
-            candidatesChecked: [],
-            constraint: "Missing candidates.",
           },
         ],
       }).success,
@@ -1696,74 +1666,10 @@ describe("validateCycleAudit", () => {
     assert.equal(coveringIssues[0]?.path, "checked[0]");
     assert.match(coveringIssues[0]?.message ?? "", /piece "P2" is marked "done".*exited 1/);
   });
-
-  it("enforces justifiedMachinery completeness and rejects duplicates", () => {
-    const spec = makeSpec();
-    const expectedMachinery = [
-      { report: "review-1-backend-1.yaml", file: "src/codec.ts", symbol: "FrameCodec" },
-    ];
-
-    const complete = makeCycleAudit({
-      justifiedMachinery: [
-        {
-          report: "review-1-backend-1.yaml",
-          file: "src/codec.ts",
-          symbol: "FrameCodec",
-          candidatesChecked: ["lib-a 2.x"],
-          constraint: "Custom binary header.",
-        },
-      ],
-    });
-    assert.deepEqual(
-      validateCycleAudit(complete, {
-        spec,
-        reviewFindings: [],
-        justifiedMachinery: expectedMachinery,
-      }),
-      [],
-    );
-
-    const missing = makeCycleAudit({ justifiedMachinery: [] });
-    const missingIssues = validateCycleAudit(missing, {
-      spec,
-      reviewFindings: [],
-      justifiedMachinery: expectedMachinery,
-    });
-    assert.equal(missingIssues.length, 1);
-    assert.equal(missingIssues[0]?.path, "justifiedMachinery");
-    assert.match(missingIssues[0]?.message ?? "", /FrameCodec.*missing/);
-
-    const duplicate = makeCycleAudit({
-      justifiedMachinery: [
-        {
-          report: "review-1-backend-1.yaml",
-          file: "src/codec.ts",
-          symbol: "FrameCodec",
-          candidatesChecked: ["lib-a 2.x"],
-          constraint: "Custom binary header.",
-        },
-        {
-          report: "review-1-backend-1.yaml",
-          file: "src/codec.ts",
-          symbol: "FrameCodec",
-          candidatesChecked: ["lib-a 2.x"],
-          constraint: "Duplicate entry.",
-        },
-      ],
-    });
-    const dupIssues = validateCycleAudit(duplicate, {
-      spec,
-      reviewFindings: [],
-      justifiedMachinery: expectedMachinery,
-    });
-    assert.equal(dupIssues.length, 1);
-    assert.equal(dupIssues[0]?.path, "justifiedMachinery[1]");
-    assert.match(dupIssues[0]?.message ?? "", /appears more than once/);
-  });
 });
 
 describe("io and cmdValidate doctrine-review and cycle-audit --run", () => {
-  it("loads findings and justified machinery from doctrine review files while respecting missedReports", () => {
+  it("loads findings from doctrine review files while respecting missedReports", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "contracts-doctrine-io-"));
     try {
       fs.writeFileSync(
@@ -1843,20 +1749,6 @@ describe("io and cmdValidate doctrine-review and cycle-audit --run", () => {
         ]);
       }
 
-      const machineryResult = loadRunJustifiedMachinery(tmpDir);
-      assert.equal(machineryResult.ok, true);
-      if (machineryResult.ok) {
-        assert.deepEqual(machineryResult.machinery, [
-          {
-            report: "review-1-backend-1.yaml",
-            file: "src/codec.ts",
-            symbol: "FrameCodec",
-            candidatesChecked: ["lib-a 2.x", "lib-b 3.x"],
-            constraint: "Hardware frame format.",
-          },
-        ]);
-      }
-
       fs.writeFileSync(
         path.join(tmpDir, "review-1-backend-2.yaml"),
         YAML.stringify({
@@ -1871,15 +1763,6 @@ describe("io and cmdValidate doctrine-review and cycle-audit --run", () => {
       if (!invalidFindings.ok) {
         assert.match(
           invalidFindings.error,
-          /Invalid doctrine review report review-1-backend-2\.yaml/,
-        );
-      }
-
-      const invalidMachinery = loadRunJustifiedMachinery(tmpDir);
-      assert.equal(invalidMachinery.ok, false);
-      if (!invalidMachinery.ok) {
-        assert.match(
-          invalidMachinery.error,
           /Invalid doctrine review report review-1-backend-2\.yaml/,
         );
       }
@@ -1938,33 +1821,12 @@ describe("io and cmdValidate doctrine-review and cycle-audit --run", () => {
         YAML.stringify({
           tldr: "Clean cycle.",
           commits: [],
-          justifiedMachinery: [
-            {
-              report: "review-1-backend-1.yaml",
-              file: "src/codec.ts",
-              symbol: "FrameCodec",
-              candidatesChecked: ["lib-a 2.x"],
-              constraint: "Hardware frame format.",
-            },
-          ],
-          gate: "green",
-          specStatus: { status: "none" },
-        }),
-      );
-
-      const missingAuditMachineryPath = path.join(tmpDir, "audit-missing.yaml");
-      fs.writeFileSync(
-        missingAuditMachineryPath,
-        YAML.stringify({
-          tldr: "Missing justified machinery.",
-          commits: [],
           gate: "green",
           specStatus: { status: "none" },
         }),
       );
 
       assert.equal(cmdValidate("cycle-audit", validAuditPath, { run: tmpDir }), 0);
-      assert.equal(cmdValidate("cycle-audit", missingAuditMachineryPath, { run: tmpDir }), 1);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }

@@ -19,7 +19,6 @@ import {
   checkGoAuditForInit,
   collectExistingFindingPaths,
   createRunDir,
-  loadJustifiedMachineryForAudit,
   loadReviewFindingsForAudit,
   loadRunReports,
   loadSpecForCycle,
@@ -244,7 +243,6 @@ const cmdNext = (runDirArg: string): number => {
   const reports = loadRunReports(runDir);
   const existingPaths = collectExistingFindingPaths(state.repoRoot, reports);
   const reviewFindingsForAudit = loadReviewFindingsForAudit(runDir, state.missedReports);
-  const justifiedMachineryForAudit = loadJustifiedMachineryForAudit(runDir, state.missedReports);
   const gateLog = readGateLog(runDir);
 
   const result = advanceCycle(state, {
@@ -257,7 +255,6 @@ const cmdNext = (runDirArg: string): number => {
     slicesYaml,
     reports,
     reviewFindingsForAudit,
-    justifiedMachineryForAudit,
     gateLog,
   });
 
