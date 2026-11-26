@@ -66,6 +66,17 @@ const renderNeedsFromYou = (needs: ReadonlyArray<AuditNeed>): string => {
         ...optionLines,
       ].join("\n");
     }
+    if (need.whatItIs !== undefined) {
+      const structuredLines = [
+        `${index + 1}. **${need.item}**`,
+        `   - **What it is:** ${need.whatItIs}`,
+        `   - **Action (Rec):** ${need.rec}`,
+      ];
+      if (need.detail !== undefined) {
+        structuredLines.push(`   - **Detail:** ${need.detail}`);
+      }
+      return structuredLines.join("\n");
+    }
     const head = `${index + 1}. **${need.item}** (rec: **${need.rec}**)`;
     if (need.detail !== undefined) {
       return `${head}\n   ${need.detail}`;

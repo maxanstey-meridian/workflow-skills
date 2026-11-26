@@ -453,6 +453,66 @@ describe("renderGoAudit", () => {
     assert.match(rendered, /\n {5}- \*\*A \(Rec\):\*\* Trim recommended label\.\n/);
     assert.match(rendered, /\n {5}- \*\*B:\*\* Trim regular label\.\n/);
   });
+
+  it("renders structured single-path action items with What it is, Action (Rec), and optional Detail", () => {
+    const audit = GoAuditReportSchema.parse({
+      tldr: "Built P1; P2 has a single-path action.",
+      needsFromYou: [
+        {
+          item: "Escape apostrophes in CSV export (P2)",
+          whatItIs:
+            "Names with apostrophes fail export. Meridian Law coding/make-valid-input-work-never-refuse-it.md rules out refusing them.",
+          rec: "Approve widening P2 to update src/export/csv.ts.",
+        },
+        {
+          item: "Apply tenant guard on admin report (P2)",
+          whatItIs: "The admin report query omits the tenant filter.",
+          rec: "Add the tenant filter in src/reports/query.ts.",
+          detail: "Requires touching a file outside P2's owns list.",
+        },
+        {
+          item: "Run /cycle",
+          rec: "run /cycle",
+        },
+      ],
+      pieces: [
+        { id: "P1", status: "done" },
+        { id: "P2", status: "needs-user" },
+      ],
+      builtPieces: ["P1"],
+    });
+
+    const expected = [
+      "## TLDR",
+      "Built P1; P2 has a single-path action.",
+      "",
+      "## Needs from you",
+      "1. **Escape apostrophes in CSV export (P2)**",
+      "   - **What it is:** Names with apostrophes fail export. Meridian Law coding/make-valid-input-work-never-refuse-it.md rules out refusing them.",
+      "   - **Action (Rec):** Approve widening P2 to update src/export/csv.ts.",
+      "2. **Apply tenant guard on admin report (P2)**",
+      "   - **What it is:** The admin report query omits the tenant filter.",
+      "   - **Action (Rec):** Add the tenant filter in src/reports/query.ts.",
+      "   - **Detail:** Requires touching a file outside P2's owns list.",
+      "3. **Run /cycle** (rec: **run /cycle**)",
+      "",
+      "## What changed",
+      "- **P1** — done.",
+      "- **P2** — needs the user.",
+      "",
+      "## Verification",
+      "- **Decisions:** none",
+      "- **Checked:** none",
+      "- **Not checked:** none",
+      "",
+      "---",
+      "**Built pieces:** P1",
+      '**Cycle readiness:** blocked (Piece P2 has status "needs-user")',
+      "",
+    ].join("\n");
+
+    assert.equal(renderGoAudit(audit), expected);
+  });
 });
 
 describe("renderCycleAudit", () => {
@@ -715,6 +775,67 @@ describe("renderCycleAudit", () => {
 
     assert.equal(renderCycleAudit(audit), expected);
     assert.doesNotMatch(renderCycleAudit(audit), /## Justified hand-rolled machinery/);
+  });
+
+  it("renders structured single-path action items alongside one-liners under Needs from you", () => {
+    const audit = CycleAuditReportSchema.parse({
+      tldr: "Committed P1; F3 has a single Law-compliant path.",
+      needsFromYou: [
+        {
+          item: "Escape apostrophes in CSV export (F3)",
+          whatItIs:
+            "Names with apostrophes break CSV export. Meridian Law coding/make-valid-input-work-never-refuse-it.md rules out refusing them.",
+          rec: "Fix the CSV escaper in src/export/csv.ts.",
+        },
+        {
+          item: "Scope admin report query (F4)",
+          whatItIs: "The query reads across tenants.",
+          rec: "Add the tenant filter in src/reports/query.ts.",
+          detail: "Outside the current review slice.",
+        },
+        {
+          item: "Approve push to main",
+          rec: "push",
+        },
+      ],
+      pieces: [{ id: "P1", status: "done" }],
+      commits: [{ sha: "abc1234", subject: "feat(contracts): build P1", bullets: [] }],
+      gate: "green",
+      builtPieces: ["P1"],
+      specStatus: { status: "building", remaining: "Resolve F3 and F4." },
+    });
+
+    const expected = [
+      "## TLDR",
+      "Committed P1; F3 has a single Law-compliant path.",
+      "",
+      "## Needs from you",
+      "1. **Escape apostrophes in CSV export (F3)**",
+      "   - **What it is:** Names with apostrophes break CSV export. Meridian Law coding/make-valid-input-work-never-refuse-it.md rules out refusing them.",
+      "   - **Action (Rec):** Fix the CSV escaper in src/export/csv.ts.",
+      "2. **Scope admin report query (F4)**",
+      "   - **What it is:** The query reads across tenants.",
+      "   - **Action (Rec):** Add the tenant filter in src/reports/query.ts.",
+      "   - **Detail:** Outside the current review slice.",
+      "3. **Approve push to main** (rec: **push**)",
+      "",
+      "## What changed",
+      "- **`abc1234`** `feat(contracts): build P1`",
+      "",
+      "## Verification",
+      "- **Pieces:** P1 done.",
+      "- **Decisions:** none",
+      "- **Gate:** green",
+      "- **Checked:** none",
+      "- **Not checked:** none",
+      "",
+      "---",
+      "**Built pieces:** P1",
+      "**Spec:** building: Resolve F3 and F4.",
+      "",
+    ].join("\n");
+
+    assert.equal(renderCycleAudit(audit), expected);
   });
 
   it("renders Justified hand-rolled machinery after Verification and before Parked", () => {

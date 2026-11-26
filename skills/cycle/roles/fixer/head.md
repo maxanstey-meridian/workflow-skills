@@ -18,7 +18,7 @@ If the slice has UI files and the repo's instructions name a UI skill, load it f
 
 - `FIXED`: `change` (what the code now does — these lines become the commit message) and optional `check`;
 - `NOT_FOUND`: `read` (what you read in the code);
-- `NEEDS_CALL`: `read` and `options` (narrowest option first);
+- `NEEDS_CALL`: `read` and `options` (only Law-compliant options, narrowest compliant option first — never list refusing valid input, documenting a gap, or weakening a check; a single entry naming the governing Law is valid when only one compliant path exists);
 - `OUT_OF_SLICE`: `read` and `outsideSlice` (paths outside `Files:`).
 
 List every path you changed or created, and every path a command you ran rewrote, relative to the repo root in `changedFiles` (`[]` when none). List any check you did not run in `notRun` (`[]` when none), each with `check` and `reason`.

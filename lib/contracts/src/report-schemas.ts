@@ -330,6 +330,7 @@ export type AuditNeedOption = z.infer<typeof AuditNeedOptionSchema>;
 export const AuditNeedActionSchema = z
   .object({
     item: z.string().min(1),
+    whatItIs: z.string().min(1).optional(),
     rec: z.string().min(1),
     detail: z.string().min(1).optional(),
   })
@@ -379,7 +380,7 @@ export type AuditNeed =
 
 export const AuditNeedSchema = z.custom<AuditNeed>().superRefine((value, ctx) => {
   const raw: unknown = value;
-  const isDecision = isPlainRecord(raw) && ("options" in raw || "whatItIs" in raw);
+  const isDecision = isPlainRecord(raw) && "options" in raw;
   const parsed = isDecision
     ? AuditNeedDecisionSchema.safeParse(raw)
     : AuditNeedActionSchema.safeParse(raw);

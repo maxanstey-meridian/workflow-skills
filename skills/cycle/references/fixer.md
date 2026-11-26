@@ -32,7 +32,7 @@ If the slice has UI files and the repo's instructions name a UI skill, load it f
 
 - `FIXED`: `change` (what the code now does — these lines become the commit message) and optional `check`;
 - `NOT_FOUND`: `read` (what you read in the code);
-- `NEEDS_CALL`: `read` and `options` (narrowest option first);
+- `NEEDS_CALL`: `read` and `options` (only Law-compliant options, narrowest compliant option first — never list refusing valid input, documenting a gap, or weakening a check; a single entry naming the governing Law is valid when only one compliant path exists);
 - `OUT_OF_SLICE`: `read` and `outsideSlice` (paths outside `Files:`).
 
 List every path you changed or created, and every path a command you ran rewrote, relative to the repo root in `changedFiles` (`[]` when none). List any check you did not run in `notRun` (`[]` when none), each with `check` and `reason`.
@@ -111,12 +111,12 @@ Fix any YAML or schema error until the command exits `0`, then reply with only t
 
 ## Confirm the harm and settle ownership before editing
 
-**Law:** Confirm each finding's harm in the code first (marking absent harms `NOT_FOUND` with what you read in `read` and changing nothing); mark any finding `NEEDS_CALL` (listing `options` with the one that promises less first and changing nothing) when it needs a choice the finding does not settle, a `do: ask` finding in any review report questions the Decision or code its harm comes from, its fix adds a mechanism neither the spec nor the code already has (a new type, mode, snapshot, cache, or second code path) regardless of size, or its fix would make a Decision, a Proof command, or a text the spec quotes stop holding; mark any finding whose fix needs a file outside your `Files:` list `OUT_OF_SLICE` with those paths in `outsideSlice` and change nothing; except in a `review-<r>-fixes.yaml` report, where a `do: fix` finding whose `fix` removes what a fixer added this cycle is always yours to do whatever `do: ask` finding stands beside it.
+**Law:** Confirm each finding's harm in the code first (marking absent harms `NOT_FOUND` with what you read in `read` and changing nothing); before marking a finding `NEEDS_CALL`, check the Meridian Laws (including `coding/make-valid-input-work-never-refuse-it.md`, `coding/fix-a-gap-never-document-it.md`, and never weakening a check) — if only one Law-compliant path exists and none of the genuine `NEEDS_CALL` triggers holds, fix it instead of punting; mark a finding `NEEDS_CALL` (changing nothing and listing only Law-compliant `options`, narrowest Law-compliant option first, where a single entry naming the governing Law is valid when only one compliant path exists) only when it needs a choice between Law-compliant options the finding does not settle, a `do: ask` finding in any review report questions the Decision or code its harm comes from, its fix adds a mechanism neither the spec nor the code already has (a new type, mode, snapshot, cache, or second code path) regardless of size, or its fix would make a Decision, a Proof command, or a text the spec quotes stop holding; mark any finding whose fix needs a file outside your `Files:` list `OUT_OF_SLICE` with those paths in `outsideSlice` and change nothing; except in a `review-<r>-fixes.yaml` report, where a `do: fix` finding whose `fix` removes what a fixer added this cycle is always yours to do whatever `do: ask` finding stands beside it.
 
 **When:** Evaluating every `do: fix` finding before making any code edit.
 
-Bad: Implementing a new snapshot cache requested by a `do: fix` finding, or editing a file outside `Files:` instead of marking `OUT_OF_SLICE`.
-Good: Marking the unasked cache finding `NEEDS_CALL` with the narrower option first, marking an out-of-slice fix `OUT_OF_SLICE` with `outsideSlice`, and still removing a fixer-added mechanism when `review-2-fixes.yaml` directs it.
+Bad: Implementing a new snapshot cache requested by a `do: fix` finding, punting a bug as `NEEDS_CALL` with a Law-breaking "refuse valid input" or "document the gap" option when only one Law-compliant fix exists, or editing a file outside `Files:` instead of marking `OUT_OF_SLICE`.
+Good: Fixing a bug directly when a Meridian Law leaves only one compliant path and no `NEEDS_CALL` trigger holds, marking an unasked cache finding `NEEDS_CALL` with only Law-compliant options (narrowest compliant option first, or a single entry naming the governing Law), marking an out-of-slice fix `OUT_OF_SLICE` with `outsideSlice`, and still removing a fixer-added mechanism when `review-2-fixes.yaml` directs it.
 
 ## Fix the root cause and handle critic repairs
 

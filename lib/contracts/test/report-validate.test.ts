@@ -450,18 +450,41 @@ describe("report schemas", () => {
       item: "Run /cycle",
       rec: "run /cycle",
     };
+    const validStructuredActionNeed = {
+      item: "Escape apostrophes in CSV export (F3)",
+      whatItIs:
+        "Names containing apostrophes break CSV export. Meridian Law coding/make-valid-input-work-never-refuse-it.md rules out refusing apostrophes.",
+      rec: "Escape apostrophes in the CSV exporter.",
+    };
+    const validStructuredActionNeedWithDetail = {
+      item: "Apply tenant filter on admin report endpoint (F4)",
+      whatItIs:
+        "The endpoint reads across tenants. Meridian Law coding/fix-a-gap-never-document-it.md rules out documenting this as a caveat.",
+      rec: "Scope the query to the authenticated tenant.",
+      detail: "Touches src/reports/query.ts outside this piece's slice.",
+    };
 
     assert.equal(
       GoAuditReportSchema.safeParse({
         ...makeGoAudit(),
-        needsFromYou: [validDecisionNeed, validSimpleNeed],
+        needsFromYou: [
+          validDecisionNeed,
+          validSimpleNeed,
+          validStructuredActionNeed,
+          validStructuredActionNeedWithDetail,
+        ],
       }).success,
       true,
     );
     assert.equal(
       CycleAuditReportSchema.safeParse({
         ...makeCycleAudit(),
-        needsFromYou: [validDecisionNeed, validSimpleNeed],
+        needsFromYou: [
+          validDecisionNeed,
+          validSimpleNeed,
+          validStructuredActionNeed,
+          validStructuredActionNeedWithDetail,
+        ],
       }).success,
       true,
     );
@@ -607,6 +630,25 @@ describe("report schemas", () => {
         },
         expectedPath: ["needsFromYou", 0, "rec"],
         expectedMessage: /expected string/i,
+      },
+      {
+        label: "missing rec on structured action item with whatItIs",
+        need: {
+          item: "Escape apostrophes in CSV export (F3)",
+          whatItIs: "Only one Law-compliant path exists.",
+        },
+        expectedPath: ["needsFromYou", 0, "rec"],
+        expectedMessage: /expected string/i,
+      },
+      {
+        label: "empty whatItIs on structured action item",
+        need: {
+          item: "Escape apostrophes in CSV export (F3)",
+          whatItIs: "",
+          rec: "Escape apostrophes in the CSV exporter.",
+        },
+        expectedPath: ["needsFromYou", 0, "whatItIs"],
+        expectedMessage: /Too small|>=1/,
       },
     ];
 
