@@ -10,7 +10,7 @@ Each line is one rule: its title, its one sentence, and the file that holds it.
 - **Fix a gap, never document it.** Fix a gap when this work caused it, promised it, or the fix is trivial, and report any other gap as new work; never ask whether to fix it, and never record it in a decision record, invariants `Accepts`, changelog "known issue", README caveat, or code comment instead. [`coding/fix-a-gap-never-document-it.md`]
 - **Cite the tracked fix beside any documented gap.** Mention a gap in docs only while a tracked fix is open, and cite that fix beside it. [`coding/cite-the-tracked-fix-beside-any-documented-gap.md`]
 - **Make valid input work, never refuse it.** When valid input breaks the code, make the input work; refusing it is not a fix. [`coding/make-valid-input-work-never-refuse-it.md`]
-- **Use a maintained library before building machinery.** Do not hand-roll infrastructure, security protocols, wire clients, serialisation, schedulers, storage clients, auth flows, locks, outboxes, queues, or dev tooling (comparators, standard-format parsers, test harnesses) when a maintained library, framework feature, official SDK, or generated client fits; hand-roll only when none exists or a hard requirement cannot be met. [`coding/use-a-maintained-library-before-building-machinery.md`]
+- **Use a maintained library before building machinery.** Do not hand-roll infrastructure, security protocols, wire clients, serialisation, standard-format parsers, schema or specification validators, general-purpose runtime or reflection engines, schedulers, storage clients, auth flows, locks, outboxes, queues, or dev tooling (comparators, test harnesses) in product code, libraries, or dev tooling when a maintained library, framework feature, official SDK, or generated client fits; hand-roll only when none exists or a hard requirement cannot be met. [`coding/use-a-maintained-library-before-building-machinery.md`]
 - **Record why no library fits before hand-rolling.** When you hand-roll machinery, record the exact constraint that ruled out each established option. [`coding/record-why-no-library-fits-before-hand-rolling.md`]
 - **Test hand-rolled machinery as infrastructure.** Test custom general-purpose machinery as infrastructure, not as incidental helper code. [`coding/test-hand-rolled-machinery-as-infrastructure.md`]
 - **Leave commodity mechanics to the library.** Leave commodity protocol and runtime mechanics to the adopted library while keeping product rules, ports, idempotency, transaction boundaries, failure interpretation, and orchestration in the application; never fork an SDK's job into app code. [`coding/leave-commodity-mechanics-to-the-library.md`]
@@ -118,12 +118,12 @@ Good: Fixing the function's return type and body once.
 <!-- rule: coding/use-a-maintained-library-before-building-machinery.md -->
 ## Use a maintained library before building machinery
 
-**Law:** Do not hand-roll infrastructure, security protocols, wire clients, serialisation, schedulers, storage clients, auth flows, locks, outboxes, queues, or dev tooling (comparators, standard-format parsers, test harnesses) when a maintained library, framework feature, official SDK, or generated client fits; hand-roll only when none exists or a hard requirement cannot be met.
+**Law:** Do not hand-roll infrastructure, security protocols, wire clients, serialisation, standard-format parsers, schema or specification validators, general-purpose runtime or reflection engines, schedulers, storage clients, auth flows, locks, outboxes, queues, or dev tooling (comparators, test harnesses) in product code, libraries, or dev tooling when a maintained library, framework feature, official SDK, or generated client fits; hand-roll only when none exists or a hard requirement cannot be met.
 
-**When:** Before writing general-purpose machinery on any stack. Evaluate candidates against correctness, security, licensing, deployment, observability, failure, and retry requirements first.
+**When:** Before writing general-purpose machinery in product code, libraries, or dev tooling on any stack. Evaluate candidates against current maintained major versions and active alternatives — never ruling a library out on an older major version alone — and against correctness, security, licensing, deployment, observability, failure, and retry requirements first.
 
-Bad: A hand-written retry-with-backoff loop and job table.
-Good: The framework's or an established library's scheduler, configured for the same job.
+Bad: A hand-written retry-with-backoff loop and job table, or a hand-rolled OpenAPI parser or JSON Schema validator.
+Good: The framework's or an established library's scheduler, parser, or schema validator, configured for the same job.
 <!-- rule: coding/record-why-no-library-fits-before-hand-rolling.md -->
 ## Record why no library fits before hand-rolling
 

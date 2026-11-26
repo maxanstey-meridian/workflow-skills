@@ -4,17 +4,22 @@ import { renderCycleAudit } from "../../contracts/src/render.ts";
 import {
   CycleAuditReportSchema,
   CycleCriticReportSchema,
+  DoctrineReviewReportSchema,
   FixReportSchema,
   ReviewReportSchema,
   type CycleAuditReport,
   type CycleCriticReport,
+  type DoctrineReviewReport,
   type FixReport,
   type ReviewReport,
 } from "../../contracts/src/report-schemas.ts";
 import {
   countReviewFixes,
+  isDoctrineReviewFilename,
   validateCycleAudit,
   validateCycleCritic,
+  validateDoctrineReview,
+  type CycleAuditJustifiedMachineryRef,
   type CycleAuditReviewFindingRef,
 } from "../../contracts/src/report-validate.ts";
 import type { Spec } from "../../contracts/src/spec-schema.ts";
@@ -30,6 +35,7 @@ import {
   buildSecondFixerBrief,
 } from "./briefs.ts";
 import {
+  MAX_LINES_PER_LIST,
   MAX_PATHS_PER_LIST,
   assignNewPathsToSlices,
   planFixSlices,
@@ -50,9 +56,11 @@ export type CycleAdvanceEnv = {
   leftOut: ReadonlyArray<string>;
   uncommitted: ReadonlyArray<string>;
   existingPaths: ReadonlySet<string>;
+  fileLines?: Readonly<Record<string, number>>;
   slicesYaml: RawReportEntry;
   reports: ReadonlyMap<string, RawReportEntry>;
   reviewFindingsForAudit: ReadonlyArray<CycleAuditReviewFindingRef>;
+  justifiedMachineryForAudit?: ReadonlyArray<CycleAuditJustifiedMachineryRef>;
   gateLog: string | null;
 };
 
@@ -150,10 +158,15 @@ const addMissedReport = (state: CycleState, reportFile: string): void => {
 const isMissed = (state: CycleState, reportFile: string): boolean =>
   state.missedReports.includes(reportFile);
 
-const buildSliceAction = (state: CycleState, errors: string[]): CycleAction => ({
+const buildSliceAction = (
+  state: CycleState,
+  errors: string[],
+  fileLines?: Readonly<Record<string, number>>,
+): CycleAction => ({
   action: "slice",
   scopeFile: path.join(state.runDir, "scope.txt"),
   slicesFile: path.join(state.runDir, "slices.yaml"),
+  fileLines: fileLines !== undefined ? { ...fileLines } : {},
   schema: {
     slices: "[{ id: <positive int>, files: [<1..25 repo-relative paths>] }]",
     stacks: {
@@ -161,6 +174,7 @@ const buildSliceAction = (state: CycleState, errors: string[]): CycleAction => (
       frontend: "[[<1..25 repo-relative paths>]]",
     },
     maxPerFile: MAX_PATHS_PER_LIST,
+    maxLinesPerList: MAX_LINES_PER_LIST,
   },
   errors,
 });
@@ -258,6 +272,20 @@ const startRoundOneReviews = (state: CycleState, effects: CycleEffects): CycleAd
   };
 };
 
+const parseReviewOrDoctrineReport = (
+  reports: ReadonlyMap<string, RawReportEntry>,
+  filename: string,
+  isDoctrine: boolean,
+): ParsedReport<ReviewReport> =>
+  isDoctrine
+    ? parseReport<DoctrineReviewReport>(
+        reports,
+        filename,
+        DoctrineReviewReportSchema,
+        validateDoctrineReview,
+      )
+    : parseReport(reports, filename, ReviewReportSchema);
+
 const collectRoundReviewReports = (
   state: CycleState,
   reports: ReadonlyMap<string, RawReportEntry>,
@@ -272,7 +300,7 @@ const collectRoundReviewReports = (
   const parsed: ReviewReport[] = [];
 
   for (const name of names) {
-    const res = parseReport(reports, name, ReviewReportSchema);
+    const res = parseReviewOrDoctrineReport(reports, name, isDoctrineReviewFilename(name));
     if (res.ok) {
       validNames.push(name);
       parsed.push(res.data);
@@ -644,7 +672,7 @@ export const advanceCycle = (inputState: CycleState, env: CycleAdvanceEnv): Cycl
       if (!env.slicesYaml.exists) {
         return {
           state,
-          action: buildSliceAction(state, state.phase.errors),
+          action: buildSliceAction(state, state.phase.errors, env.fileLines),
           effects,
         };
       }
@@ -653,16 +681,16 @@ export const advanceCycle = (inputState: CycleState, env: CycleAdvanceEnv): Cycl
         state.phase = { kind: "await_slices", errors };
         return {
           state,
-          action: buildSliceAction(state, errors),
+          action: buildSliceAction(state, errors, env.fileLines),
           effects,
         };
       }
-      const validated = validateSlices(env.slicesYaml.raw, env.scope);
+      const validated = validateSlices(env.slicesYaml.raw, env.scope, env.fileLines);
       if (!validated.ok) {
         state.phase = { kind: "await_slices", errors: validated.errors };
         return {
           state,
-          action: buildSliceAction(state, validated.errors),
+          action: buildSliceAction(state, validated.errors, env.fileLines),
           effects,
         };
       }
@@ -691,7 +719,11 @@ export const advanceCycle = (inputState: CycleState, env: CycleAdvanceEnv): Cycl
         if (isMissed(state, task.reportFile)) {
           continue;
         }
-        const parsed = parseReport(env.reports, task.reportFile, ReviewReportSchema);
+        const parsed = parseReviewOrDoctrineReport(
+          env.reports,
+          task.reportFile,
+          task.role !== "reviewer" || isDoctrineReviewFilename(task.reportFile),
+        );
         if (parsed.ok) {
           continue;
         }
@@ -1176,6 +1208,7 @@ export const advanceCycle = (inputState: CycleState, env: CycleAdvanceEnv): Cycl
           validateCycleAudit(data, {
             spec: env.spec ?? undefined,
             reviewFindings: env.reviewFindingsForAudit,
+            justifiedMachinery: env.justifiedMachineryForAudit,
           }),
       );
 

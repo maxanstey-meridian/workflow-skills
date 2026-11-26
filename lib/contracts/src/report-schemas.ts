@@ -69,10 +69,31 @@ export const ColdReadLawSchema = z.discriminatedUnion("status", [
 ]);
 export type ColdReadLaw = z.infer<typeof ColdReadLawSchema>;
 
+export const ColdReadMachinerySchema = z.discriminatedUnion("status", [
+  z
+    .object({
+      pieceId: PieceIdSchema,
+      symbol: z.string().min(1),
+      status: z.literal("backed-by-decision"),
+      decisionId: DecisionIdSchema,
+    })
+    .strict(),
+  z
+    .object({
+      pieceId: PieceIdSchema,
+      symbol: z.string().min(1),
+      status: z.literal("unbacked"),
+      findingIndex: z.number().int().min(1),
+    })
+    .strict(),
+]);
+export type ColdReadMachinery = z.infer<typeof ColdReadMachinerySchema>;
+
 export const ColdReadReportSchema = z
   .object({
     findings: z.array(ColdReadFindingSchema).default([]),
     laws: z.array(ColdReadLawSchema),
+    machinery: z.array(ColdReadMachinerySchema),
   })
   .strict();
 export type ColdReadReport = z.infer<typeof ColdReadReportSchema>;
@@ -164,6 +185,36 @@ export const ReviewReportSchema = z
   })
   .strict();
 export type ReviewReport = z.infer<typeof ReviewReportSchema>;
+
+export const DoctrineMachinerySchema = z.discriminatedUnion("status", [
+  z
+    .object({
+      file: z.string().min(1),
+      symbol: z.string().min(1),
+      status: z.literal("broken"),
+      findingId: FindingIdSchema,
+    })
+    .strict(),
+  z
+    .object({
+      file: z.string().min(1),
+      symbol: z.string().min(1),
+      status: z.literal("justified"),
+      candidatesChecked: z.array(z.string().min(1)).min(1),
+      constraint: z.string().min(1),
+    })
+    .strict(),
+]);
+export type DoctrineMachinery = z.infer<typeof DoctrineMachinerySchema>;
+
+export const DoctrineReviewReportSchema = z
+  .object({
+    findings: z.array(ReviewFindingSchema).default([]),
+    filesRead: z.array(ReviewFileReadSchema).min(1),
+    machinery: z.array(DoctrineMachinerySchema),
+  })
+  .strict();
+export type DoctrineReviewReport = z.infer<typeof DoctrineReviewReportSchema>;
 
 export const FixResultSchema = z.discriminatedUnion("status", [
   z
@@ -420,6 +471,17 @@ export const CycleAuditSpecStatusSchema = z.discriminatedUnion("status", [
 ]);
 export type CycleAuditSpecStatus = z.infer<typeof CycleAuditSpecStatusSchema>;
 
+export const AuditJustifiedMachinerySchema = z
+  .object({
+    report: z.string().min(1),
+    file: z.string().min(1),
+    symbol: z.string().min(1),
+    candidatesChecked: z.array(z.string().min(1)).min(1),
+    constraint: z.string().min(1),
+  })
+  .strict();
+export type AuditJustifiedMachinery = z.infer<typeof AuditJustifiedMachinerySchema>;
+
 export const CycleAuditReportSchema = z
   .object({
     tldr: z.string().min(1),
@@ -435,6 +497,7 @@ export const CycleAuditReportSchema = z
     fixed: z.array(CycleAuditFixedSchema).default([]),
     notAHarm: z.array(CycleAuditDispositionSchema).default([]),
     notFixed: z.array(CycleAuditDispositionSchema).default([]),
+    justifiedMachinery: z.array(AuditJustifiedMachinerySchema).default([]),
     gate: z.enum(["green", "failed", "none-named", "unlisted"]),
     mutation: z.string().min(1).optional(),
     specStatus: CycleAuditSpecStatusSchema,

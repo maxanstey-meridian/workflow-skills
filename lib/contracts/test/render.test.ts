@@ -714,5 +714,67 @@ describe("renderCycleAudit", () => {
     ].join("\n");
 
     assert.equal(renderCycleAudit(audit), expected);
+    assert.doesNotMatch(renderCycleAudit(audit), /## Justified hand-rolled machinery/);
+  });
+
+  it("renders Justified hand-rolled machinery after Verification and before Parked", () => {
+    const audit = CycleAuditReportSchema.parse({
+      tldr: "Committed changes with one justified hand-rolled codec.",
+      pieces: [{ id: "P1", status: "done" }],
+      decisions: [{ id: "D1", status: "honoured" }],
+      checked: [{ cmd: "pnpm test", exit: 0 }],
+      commits: [{ sha: "abc1234", subject: "feat(codec): add custom codec", bullets: [] }],
+      justifiedMachinery: [
+        {
+          report: "review-1-backend-1.yaml",
+          file: "src/codec.ts",
+          symbol: "FrameCodec",
+          candidatesChecked: ["protobufjs 7.x", "msgpackr 1.x"],
+          constraint: "Device requires fixed 12-byte wire frames.",
+        },
+      ],
+      parked: [
+        {
+          item: "Unused helper",
+          detail: "Leftover from refactor",
+          rec: "leave",
+          why: "Out of scope",
+        },
+      ],
+      gate: "green",
+      builtPieces: ["P1"],
+      specStatus: { status: "built" },
+    });
+
+    const expected = [
+      "## TLDR",
+      "Committed changes with one justified hand-rolled codec.",
+      "",
+      "## Needs from you",
+      "none",
+      "",
+      "## What changed",
+      "- **`abc1234`** `feat(codec): add custom codec`",
+      "",
+      "## Verification",
+      "- **Pieces:** P1 done.",
+      "- **Decisions:** All 1 decisions honoured.",
+      "- **Gate:** green",
+      "- **Checked:** `pnpm test` exit 0",
+      "- **Not checked:** none",
+      "",
+      "## Justified hand-rolled machinery",
+      "1. `src/codec.ts` (`FrameCodec`) — checked: protobufjs 7.x, msgpackr 1.x; constraint: Device requires fixed 12-byte wire frames.",
+      "",
+      "## Parked",
+      "1. **Unused helper** — Leftover from refactor (rec: **leave**, Out of scope)",
+      "",
+      "---",
+      "**Built pieces:** P1",
+      "**Spec:** built",
+      "",
+    ].join("\n");
+
+    assert.equal(renderCycleAudit(audit), expected);
   });
 });

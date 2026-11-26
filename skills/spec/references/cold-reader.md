@@ -20,7 +20,7 @@ You change nothing but your findings file. You run no build, test, or gate, and 
 
 1. **Read, in this order:** the house Laws and rules (see `## Rules`, at the top of this file), then the spec YAML in full, then the repo's instructions, then every file a piece's `owns` or `now` field names. A file in `owns` that doesn't exist yet is one the piece creates.
 2. **Check every piece and every Decision** against every rule below.
-3. **Save your findings** to `Report:` as strict YAML matching the schema below with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Set `findings: []` when there are no findings. Include at least one `laws` entry for every Decision in `spec.decisions` (one per bearing Law with `kept` or `broken`, or a single `none-bears`). If saving is refused, reply with the YAML file's whole text instead.
+3. **Save your findings** to `Report:` as strict YAML matching the schema below with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Set `findings: []` when there are no findings. Include at least one `laws` entry for every Decision in `spec.decisions` (one per bearing Law with `kept` or `broken`, or a single `none-bears`). Include `machinery[]` for any piece introducing general-purpose machinery, or `machinery: []` when none does. If saving is refused, reply with the YAML file's whole text instead.
 
 Report schema:
 
@@ -46,6 +46,17 @@ laws:
   # Option 3 (status: none-bears):
   - decisionId: <string matching /^D\d+$/>
     status: none-bears
+machinery:
+  # Option 1 (status: backed-by-decision):
+  - pieceId: <string matching /^P\d+$/>
+    symbol: <non-empty string>
+    status: backed-by-decision
+    decisionId: <string matching /^D\d+$/>
+  # Option 2 (status: unbacked):
+  - pieceId: <string matching /^P\d+$/>
+    symbol: <non-empty string>
+    status: unbacked
+    findingIndex: <integer >= 1>
 ```
 
 An example of a saved `cold-read.yaml` file:
@@ -82,6 +93,11 @@ laws:
     status: kept
     lawPath: coding/record-why-no-library-fits-before-hand-rolling.md
     keptBy: D4 names jose and webcrypto and records the missing binary frame support verified in their APIs
+machinery:
+  - pieceId: P3
+    symbol: BinaryFrameCodec
+    status: backed-by-decision
+    decisionId: D4
 ```
 
 4. **Validate your report** before replying:
@@ -132,12 +148,12 @@ Good: Reading `Makefile` and reporting that no `verify` target exists.
 
 ## Check every Decision against house Laws
 
-**Law:** Flag any Decision or piece that breaks a house Law or rule in `findings[]` (naming the rule), and populate `laws[]` in `cold-read.yaml` with one entry per bearing Law for each Decision in `spec.decisions` (`status: kept` with `lawPath` and `keptBy` stating concrete evidence from the code, platform, or spec proving how the Law is satisfied — never a verbatim copy of the Decision's `why` — or `status: broken` with `lawPath` and its 1-based `findingIndex` into `findings[]`), or a single `status: none-bears`; a procedural Law (`coding/record-why-no-library-fits-before-hand-rolling.md`) never substitutes for the substantive Law (`coding/use-a-maintained-library-before-building-machinery.md`).
+**Law:** Flag any Decision or piece that breaks a house Law or rule in `findings[]` (naming the rule), populate `laws[]` in `cold-read.yaml` with one entry per bearing Law for each Decision in `spec.decisions` (`status: kept` with `lawPath` and `keptBy` stating concrete evidence from the code, platform, or spec proving how the Law is satisfied — never a verbatim copy of the Decision's `why` — or `status: broken` with `lawPath` and its 1-based `findingIndex` into `findings[]`), or a single `status: none-bears` (a procedural Law such as `coding/record-why-no-library-fits-before-hand-rolling.md` never substitutes for the substantive Law `coding/use-a-maintained-library-before-building-machinery.md`), and check every `pieces[].change` for hand-rolled general-purpose machinery (parsers, schema/spec validators, serializers, clients, schedulers, reflection engines) recording each in `machinery[]` as either `backed-by-decision` (linked to a Decision checked under `coding/use-a-maintained-library-before-building-machinery.md`) or `unbacked` (with a `findings[]` entry flagging the missing Decision and library check), or `machinery: []` when none does.
 
-**When:** Reviewing every Decision and piece, and writing `laws[]` in `cold-read.yaml` (whether or not `findings[]` is empty). For any hand-rolling or `Accepts` excuse, verify the cited constraint against the codebase and flag `status: broken` when the excuse is a fixable test helper, convenience, or "today's code" limitation rather than a genuine product or platform impossibility.
+**When:** Reviewing every Decision and piece, and writing `laws[]` and `machinery[]` in `cold-read.yaml` (whether or not `findings[]` is empty). For any hand-rolling or `Accepts` excuse, verify the cited constraint against the codebase and flag `status: broken` when the excuse is a fixable test helper, convenience, or "today's code" limitation rather than a genuine product or platform impossibility.
 
-Bad: Recording only `coding/record-why-no-library-fits-before-hand-rolling.md` as `kept` with `keptBy` echoing the Decision's `why` ("the test harness makes the library awkward"), or omitting a Decision from `laws[]` when `findings: []`.
-Good: Checking both `coding/record-why-no-library-fits-before-hand-rolling.md` and `coding/use-a-maintained-library-before-building-machinery.md` for a hand-rolling Decision, verifying the cited constraint in the codebase, flagging `status: broken` with `findingIndex` when the excuse is a fixable test helper, convenience, or "today's code" limitation, and writing concrete code, platform, or spec evidence in `keptBy` when a Law genuinely holds.
+Bad: Recording only `coding/record-why-no-library-fits-before-hand-rolling.md` as `kept` with `keptBy` echoing the Decision's `why` ("the test harness makes the library awkward"), omitting a Decision from `laws[]` when `findings: []`, or letting a hand-rolled parser or schema validator in `pieces.P1.change` pass without a `machinery[]` entry.
+Good: Checking both `coding/record-why-no-library-fits-before-hand-rolling.md` and `coding/use-a-maintained-library-before-building-machinery.md` for a hand-rolling Decision, verifying the cited constraint in the codebase, recording every hand-rolled parser, schema/spec validator, serializer, client, scheduler, or reflection engine from `pieces[].change` in `machinery[]` as `backed-by-decision` or `unbacked` (with a `findings[]` entry when unbacked), and writing concrete code, platform, or spec evidence in `keptBy` when a Law genuinely holds.
 
 ## Report facts only without fixes or options
 

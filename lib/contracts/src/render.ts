@@ -2,6 +2,7 @@ import type {
   AuditCommandRun,
   AuditDecision,
   AuditFinding,
+  AuditJustifiedMachinery,
   AuditNeed,
   AuditParked,
   AuditPiece,
@@ -125,6 +126,14 @@ const renderAuditParked = (parked: ReadonlyArray<AuditParked>): string => {
       `${index + 1}. **${entry.item}** — ${entry.detail} (rec: **${formatParkedRec(entry.rec)}**, ${entry.why})`,
   );
   return `## Parked\n${lines.join("\n")}`;
+};
+
+const renderAuditJustifiedMachinery = (entries: ReadonlyArray<AuditJustifiedMachinery>): string => {
+  const lines = entries.map(
+    (entry, index) =>
+      `${index + 1}. \`${entry.file}\` (\`${entry.symbol}\`) — checked: ${entry.candidatesChecked.join(", ")}; constraint: ${entry.constraint}`,
+  );
+  return `## Justified hand-rolled machinery\n${lines.join("\n")}`;
 };
 
 const renderCyclePiecesSummary = (pieces: ReadonlyArray<AuditPiece>): string => {
@@ -308,6 +317,10 @@ export const renderCycleAudit = (audit: CycleAuditReport): string => {
     verificationLines.push(`- **Mutation:** ${audit.mutation}`);
   }
   sections.push(`## Verification\n${verificationLines.join("\n")}`);
+
+  if (audit.justifiedMachinery.length > 0) {
+    sections.push(renderAuditJustifiedMachinery(audit.justifiedMachinery));
+  }
 
   if (audit.parked.length > 0) {
     sections.push(renderAuditParked(audit.parked));

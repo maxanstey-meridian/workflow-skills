@@ -19,9 +19,11 @@ import {
   checkGoAuditForInit,
   collectExistingFindingPaths,
   createRunDir,
+  loadJustifiedMachineryForAudit,
   loadReviewFindingsForAudit,
   loadRunReports,
   loadSpecForCycle,
+  measureFileLines,
   readGateLog,
   readListFile,
   readRawYamlEntry,
@@ -157,7 +159,8 @@ const cmdInit = (opts: {
   writeListFile(path.join(runDir, "left-out.txt"), leftOut);
   writeListFile(path.join(runDir, "scope.txt"), scope);
 
-  const auto = autoSlice(scope);
+  const fileLines = measureFileLines(repoRoot, scope);
+  const auto = autoSlice(scope, fileLines);
   let state: CycleState;
   if (auto !== null) {
     const slicesMap: Record<string, string[]> = {};
@@ -236,10 +239,12 @@ const cmdNext = (runDirArg: string): number => {
 
   const scope = readListFile(path.join(runDir, "scope.txt"));
   const leftOut = readListFile(path.join(runDir, "left-out.txt"));
+  const fileLines = measureFileLines(state.repoRoot, scope);
   const slicesYaml = readRawYamlEntry(path.join(runDir, "slices.yaml"));
   const reports = loadRunReports(runDir);
   const existingPaths = collectExistingFindingPaths(state.repoRoot, reports);
   const reviewFindingsForAudit = loadReviewFindingsForAudit(runDir, state.missedReports);
+  const justifiedMachineryForAudit = loadJustifiedMachineryForAudit(runDir, state.missedReports);
   const gateLog = readGateLog(runDir);
 
   const result = advanceCycle(state, {
@@ -248,9 +253,11 @@ const cmdNext = (runDirArg: string): number => {
     leftOut,
     uncommitted: uncommittedRes.files,
     existingPaths,
+    fileLines,
     slicesYaml,
     reports,
     reviewFindingsForAudit,
+    justifiedMachineryForAudit,
     gateLog,
   });
 

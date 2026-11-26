@@ -24,7 +24,7 @@ In the run folder, `base.txt` holds the commit before the cycle, so the cycle's 
 
 1. **Run every Done-means command** the spec lists, from the main checkout, and record each with its exit code in `checked` (or `notChecked` if user-only).
 2. **Settle each Piece** (`done`, `not-done`, or `needs-user`) and **each spec Decision** (`honoured` or `not-built`).
-3. **Settle every `do: fix` finding** in every `review-*.yaml` report against its last critic report and the code (placing each into `fixed`, `notAHarm`, or `notFixed`).
+3. **Settle every `do: fix` finding** in every `review-*.yaml` report against its last critic report and the code (placing each into `fixed`, `notAHarm`, or `notFixed`), and copy every `status: justified` entry from doctrine review reports (`review-<r>-(backend|frontend)-<n>.yaml`) into `justifiedMachinery`.
 4. **Audit commits, `left-out.txt`, `gate.log`, and mutation** (once, if configured).
 5. **Write strict YAML matching the schema below** to `Report:` (`<run>/audit.yaml`) with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Each entry in `needsFromYou` takes one of two shapes:
    - **Structured decision item** (for any item asking the user to decide, including `ask` and `NEEDS_CALL` findings): `item`, `whatItIs`, and `options` (at least two entries, each with a unique `label`, a concrete `summary`, and `recommended: true` on the single recommended option). Inline any cited ruling or code fact in `whatItIs` so the user can decide without opening external files, and state concretely in each option's `summary` what the product or suite will or won't do.
@@ -95,6 +95,13 @@ notFixed: # optional, default []
   - findingId: <string matching /^F\d+$/>
     report: <non-empty string>
     reason: <non-empty string>
+justifiedMachinery: # optional, default []
+  - report: <non-empty string>
+    file: <non-empty string>
+    symbol: <non-empty string>
+    candidatesChecked: # non-empty list
+      - <non-empty string>
+    constraint: <non-empty string>
 gate: green | failed | none-named | unlisted
 mutation: <non-empty string> # optional
 specStatus:
@@ -192,6 +199,14 @@ notFixed:
   - findingId: F3
     report: review-1-slice-2.yaml
     reason: "`NEEDS_CALL` — awaiting decision on keeping two projections or merging."
+justifiedMachinery:
+  - report: review-1-backend-1.yaml
+    file: api/src/Bookings/BinaryFrameCodec.cs
+    symbol: BinaryFrameCodec
+    candidatesChecked:
+      - System.Text.Json (10.x)
+      - MessagePack-CSharp (3.x)
+    constraint: Hardware gateway emits a fixed 12-byte custom framing header neither serializer supports.
 gate: green
 mutation: 1 survivor on a changed line — `ReleaseStaleBookings.cs:44` (`<` to `<=`).
 specStatus:
@@ -227,12 +242,12 @@ Good: Marking P3 `not-done` with the quoted failing command, settling every Deci
 
 ## Settle every finding against the last critic and code
 
-**Law:** Settle every finding in every `review-*.yaml` report (omitting `nit` findings unless a fixer fixed one) using its round (`review-<r>-…`), its slice, and its slice's last critic report (`critic-<r>-slice-<n>-b.yaml` when it exists, else `critic-<r>-slice-<n>.yaml`) verified at the code: record in `fixed` only when that critic has `verdict: PASS` and the harm is gone now; record in `notFixed` on `verdict: FAIL`, missing fixer or critic report, `NEEDS_CALL` (with a structured decision item using `whatItIs` and `options` in `needsFromYou`, one option marked `recommended: true`), `OUT_OF_SLICE`, or post-round-3 unfixed findings (with a one-line `reason`); record in `notAHarm` when the fixer or critic says so (stating where you checked in `reason`); record `park` findings in `parked` with their fix, rough line count, design call, and who hits them (`rec: fold-in` for gaps users hit without warning, never parking trivial gaps); and record `ask` findings in `needsFromYou` as structured decision items with `whatItIs` and `options` (one option marked `recommended: true`).
+**Law:** Settle every finding in every `review-*.yaml` report (omitting `nit` findings unless a fixer fixed one) using its round (`review-<r>-…`), its slice, and its slice's last critic report (`critic-<r>-slice-<n>-b.yaml` when it exists, else `critic-<r>-slice-<n>.yaml`) verified at the code: record in `fixed` only when that critic has `verdict: PASS` and the harm is gone now; record in `notFixed` on `verdict: FAIL`, missing fixer or critic report, `NEEDS_CALL` (with a structured decision item using `whatItIs` and `options` in `needsFromYou`, one option marked `recommended: true`), `OUT_OF_SLICE`, or post-round-3 unfixed findings (with a one-line `reason`); record in `notAHarm` when the fixer or critic says so (stating where you checked in `reason`); record `park` findings in `parked` with their fix, rough line count, design call, and who hits them (`rec: fold-in` for gaps users hit without warning, never parking trivial gaps); record `ask` findings in `needsFromYou` as structured decision items with `whatItIs` and `options` (one option marked `recommended: true`); and copy every `status: justified` machinery entry from doctrine review reports (`review-<r>-(backend|frontend)-<n>.yaml`) into `justifiedMachinery` with its `report`, `file`, `symbol`, `candidatesChecked`, and `constraint`.
 
 **When:** Reconciling all `review-*.yaml`, `fix-*.yaml`, and `critic-*.yaml` files in `<run>`.
 
-Bad: Recording a finding in `fixed` from `critic-1-slice-1.yaml` when `critic-1-slice-1-b.yaml` has `verdict: FAIL`, parking a 2-line trivial fix, or recording an `ask` or `NEEDS_CALL` finding with only `rec`.
-Good: Checking `critic-1-slice-1-b.yaml` and the working tree, recording `notFixed` with its `reason`, and putting `ask` and `NEEDS_CALL` items in `needsFromYou` with `whatItIs` and concrete `options` (one marked `recommended: true`).
+Bad: Recording a finding in `fixed` from `critic-1-slice-1.yaml` when `critic-1-slice-1-b.yaml` has `verdict: FAIL`, parking a 2-line trivial fix, recording an `ask` or `NEEDS_CALL` finding with only `rec`, or omitting a `status: justified` machinery entry from `justifiedMachinery`.
+Good: Checking `critic-1-slice-1-b.yaml` and the working tree, recording `notFixed` with its `reason`, putting `ask` and `NEEDS_CALL` items in `needsFromYou` with `whatItIs` and concrete `options` (one marked `recommended: true`), and copying every `status: justified` entry from doctrine review reports into `justifiedMachinery`.
 
 ## Audit commits, gate log, and mutation once
 

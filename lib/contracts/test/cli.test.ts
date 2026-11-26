@@ -299,6 +299,7 @@ describe("spec-ctl validate cold-read", () => {
           keptBy: "Zod strict schemas validate all external YAML.",
         },
       ],
+      machinery: [],
     });
 
     const ok = runCli(["validate", "cold-read", reportPath, "--spec", specPath]);
@@ -309,10 +310,18 @@ describe("spec-ctl validate cold-read", () => {
     assert.equal(noSpec.status, 2);
     assert.match(noSpec.stderr, /--spec <spec\.yaml> is required/);
 
-    writeYaml(reportPath, { findings: [], laws: [] });
+    writeYaml(reportPath, { findings: [], laws: [], machinery: [] });
     const missingDecision = runCli(["validate", "cold-read", reportPath, "--spec", specPath]);
     assert.equal(missingDecision.status, 1);
     assert.match(missingDecision.stderr, /laws:.*missing law check for spec decision "D1"/);
+
+    writeYaml(reportPath, {
+      findings: [],
+      laws: [{ decisionId: "D1", status: "none-bears" }],
+    });
+    const missingMachinery = runCli(["validate", "cold-read", reportPath, "--spec", specPath]);
+    assert.equal(missingMachinery.status, 1);
+    assert.match(missingMachinery.stderr, /machinery/);
 
     const missingSpecFile = runCli([
       "validate",
@@ -445,6 +454,72 @@ describe("spec-ctl validate role reports", () => {
       ],
     });
     assert.equal(runCli(["validate", "fix", fixPath]).status, 1);
+  });
+
+  it("validates doctrine-review reports and rejects missing machinery or bad broken findingId", () => {
+    const dir = makeTempDir("doctrine-review");
+    const reportPath = path.join(dir, "review-1-backend-1.yaml");
+
+    writeYaml(reportPath, {
+      findings: [
+        {
+          id: "F1",
+          file: "src/parser.ts",
+          line: 12,
+          rule: "coding/use-a-maintained-library-before-building-machinery.md",
+          problem: "Hand-rolled OpenAPI parser.",
+          harm: "Duplicates maintained parser logic.",
+          fix: "Use the maintained OpenAPI package.",
+          files: ["src/parser.ts"],
+          do: "fix",
+        },
+      ],
+      filesRead: [{ path: "src/parser.ts", mode: "full" }],
+      machinery: [
+        { file: "src/parser.ts", symbol: "parseSpec", status: "broken", findingId: "F1" },
+        {
+          file: "src/frame.ts",
+          symbol: "BinaryFrameCodec",
+          status: "justified",
+          candidatesChecked: ["msgpack (3.x)"],
+          constraint: "Fixed 12-byte hardware framing header.",
+        },
+      ],
+    });
+    const ok = runCli(["validate", "doctrine-review", reportPath]);
+    assert.equal(ok.status, 0, ok.stderr);
+    assert.equal(ok.stdout.trim(), "OK");
+
+    writeYaml(reportPath, {
+      findings: [],
+      filesRead: [{ path: "src/parser.ts", mode: "full" }],
+    });
+    const missingMachinery = runCli(["validate", "doctrine-review", reportPath]);
+    assert.equal(missingMachinery.status, 1);
+    assert.match(missingMachinery.stderr, /machinery/);
+
+    writeYaml(reportPath, {
+      findings: [
+        {
+          id: "F1",
+          file: "src/parser.ts",
+          line: 12,
+          rule: "coding/fix-the-root-cause-not-the-symptom.md",
+          problem: "Wrong rule.",
+          harm: "Not library Law.",
+          fix: "Fix it.",
+          files: ["src/parser.ts"],
+          do: "fix",
+        },
+      ],
+      filesRead: [{ path: "src/parser.ts", mode: "full" }],
+      machinery: [
+        { file: "src/parser.ts", symbol: "parseSpec", status: "broken", findingId: "F1" },
+      ],
+    });
+    const wrongRule = runCli(["validate", "doctrine-review", reportPath]);
+    assert.equal(wrongRule.status, 1);
+    assert.match(wrongRule.stderr, /use-a-maintained-library-before-building-machinery\.md/);
   });
 
   it("validates cycle-critic reports and rejects inconsistent PASS", () => {
@@ -613,6 +688,58 @@ describe("spec-ctl validate role reports", () => {
     const badReview = runCli(["validate", "cycle-audit", auditPath, "--run", runDir]);
     assert.equal(badReview.status, 2);
     assert.match(badReview.stderr, /Invalid review report review-bad\.yaml/);
+  });
+
+  it("validates cycle-audit justifiedMachinery against doctrine reviews in --run and renders it", () => {
+    const dir = makeTempDir("cycle-audit-machinery");
+    const runDir = path.join(dir, "run");
+    const auditPath = path.join(dir, "cycle-audit.yaml");
+
+    writeYaml(path.join(runDir, "review-1-backend-1.yaml"), {
+      findings: [],
+      filesRead: [{ path: "src/frame.ts", mode: "full" }],
+      machinery: [
+        {
+          file: "src/frame.ts",
+          symbol: "BinaryFrameCodec",
+          status: "justified",
+          candidatesChecked: ["msgpack (3.x)", "cbor (2.x)"],
+          constraint: "Fixed 12-byte hardware framing header.",
+        },
+      ],
+    });
+
+    writeYaml(auditPath, {
+      tldr: "Reviewed uncommitted work.",
+      gate: "green",
+      specStatus: { status: "none" },
+    });
+    const missing = runCli(["validate", "cycle-audit", auditPath, "--run", runDir]);
+    assert.equal(missing.status, 1);
+    assert.match(missing.stderr, /BinaryFrameCodec/);
+
+    writeYaml(auditPath, {
+      tldr: "Reviewed uncommitted work.",
+      justifiedMachinery: [
+        {
+          report: "review-1-backend-1.yaml",
+          file: "src/frame.ts",
+          symbol: "BinaryFrameCodec",
+          candidatesChecked: ["msgpack (3.x)", "cbor (2.x)"],
+          constraint: "Fixed 12-byte hardware framing header.",
+        },
+      ],
+      gate: "green",
+      specStatus: { status: "none" },
+    });
+    const ok = runCli(["validate", "cycle-audit", auditPath, "--run", runDir]);
+    assert.equal(ok.status, 0, ok.stderr);
+    assert.equal(ok.stdout.trim(), "OK");
+
+    const rendered = runCli(["render", "cycle-audit", auditPath]);
+    assert.equal(rendered.status, 0, rendered.stderr);
+    assert.match(rendered.stdout, /## Justified hand-rolled machinery/);
+    assert.match(rendered.stdout, /BinaryFrameCodec/);
   });
 });
 

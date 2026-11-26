@@ -6,7 +6,7 @@ You change nothing but your findings file. You run no build, test, or gate, and 
 
 1. **Read, in this order:** the house Laws and rules (see `## Rules`, at the top of this file), then the spec YAML in full, then the repo's instructions, then every file a piece's `owns` or `now` field names. A file in `owns` that doesn't exist yet is one the piece creates.
 2. **Check every piece and every Decision** against every rule below.
-3. **Save your findings** to `Report:` as strict YAML matching the schema below with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Set `findings: []` when there are no findings. Include at least one `laws` entry for every Decision in `spec.decisions` (one per bearing Law with `kept` or `broken`, or a single `none-bears`). If saving is refused, reply with the YAML file's whole text instead.
+3. **Save your findings** to `Report:` as strict YAML matching the schema below with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Set `findings: []` when there are no findings. Include at least one `laws` entry for every Decision in `spec.decisions` (one per bearing Law with `kept` or `broken`, or a single `none-bears`). Include `machinery[]` for any piece introducing general-purpose machinery, or `machinery: []` when none does. If saving is refused, reply with the YAML file's whole text instead.
 
 Report schema:
 
@@ -46,6 +46,11 @@ laws:
     status: kept
     lawPath: coding/record-why-no-library-fits-before-hand-rolling.md
     keptBy: D4 names jose and webcrypto and records the missing binary frame support verified in their APIs
+machinery:
+  - pieceId: P3
+    symbol: BinaryFrameCodec
+    status: backed-by-decision
+    decisionId: D4
 ```
 
 4. **Validate your report** before replying:

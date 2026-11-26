@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import YAML, { isMap, isPair, isScalar, isSeq, Scalar } from "yaml";
 import { z } from "zod";
-import { ReviewReportSchema } from "./report-schemas.ts";
+import { DoctrineReviewReportSchema, ReviewReportSchema } from "./report-schemas.ts";
+import { isDoctrineReviewFilename, validateDoctrineReview } from "./report-validate.ts";
 import type { OracleCaseRef, ValidationIssue } from "./spec-schema.ts";
 
 const findFoldedScalars = (node: unknown, currentPath: string, found: string[]): void => {
@@ -199,6 +200,9 @@ const readMissedReportsFromState = (runDir: string): ReadonlySet<string> => {
   }
 };
 
+const formatValidationIssues = (issues: ReadonlyArray<ValidationIssue>): string =>
+  issues.map((issue) => `${issue.path}: ${issue.message}`).join("; ");
+
 export const loadRunReviewFindings = (
   runDir: string,
   missedReports?: ReadonlySet<string>,
@@ -236,6 +240,31 @@ export const loadRunReviewFindings = (
       return { ok: false, error: loaded.error };
     }
 
+    if (isDoctrineReviewFilename(fileName)) {
+      const parsed = DoctrineReviewReportSchema.safeParse(loaded.data);
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: `Invalid doctrine review report ${fileName}: ${formatZodError(parsed.error)}`,
+        };
+      }
+      const issues = validateDoctrineReview(parsed.data);
+      if (issues.length > 0) {
+        return {
+          ok: false,
+          error: `Invalid doctrine review report ${fileName}: ${formatValidationIssues(issues)}`,
+        };
+      }
+      for (const finding of parsed.data.findings) {
+        findings.push({
+          report: fileName,
+          id: finding.id,
+          do: finding.do,
+        });
+      }
+      continue;
+    }
+
     const parsed = ReviewReportSchema.safeParse(loaded.data);
     if (!parsed.success) {
       return {
@@ -254,4 +283,85 @@ export const loadRunReviewFindings = (
   }
 
   return { ok: true, findings };
+};
+
+export const loadRunJustifiedMachinery = (
+  runDir: string,
+  missedReports?: ReadonlySet<string>,
+):
+  | {
+      ok: true;
+      machinery: Array<{
+        report: string;
+        file: string;
+        symbol: string;
+        candidatesChecked: string[];
+        constraint: string;
+      }>;
+    }
+  | { ok: false; error: string } => {
+  const resolvedDir = path.resolve(runDir);
+  const missedSet = missedReports ?? readMissedReportsFromState(resolvedDir);
+
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(resolvedDir, { withFileTypes: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: `Failed to read run directory ${runDir}: ${message}` };
+  }
+
+  const doctrineFiles = entries
+    .filter(
+      (entry) =>
+        entry.isFile() && isDoctrineReviewFilename(entry.name) && !missedSet.has(entry.name),
+    )
+    .map((entry) => entry.name)
+    .sort();
+
+  const machinery: Array<{
+    report: string;
+    file: string;
+    symbol: string;
+    candidatesChecked: string[];
+    constraint: string;
+  }> = [];
+
+  for (const fileName of doctrineFiles) {
+    const filePath = path.join(resolvedDir, fileName);
+    const loaded = readYamlFile(filePath);
+    if (!loaded.ok) {
+      return { ok: false, error: loaded.error };
+    }
+
+    const parsed = DoctrineReviewReportSchema.safeParse(loaded.data);
+    if (!parsed.success) {
+      return {
+        ok: false,
+        error: `Invalid doctrine review report ${fileName}: ${formatZodError(parsed.error)}`,
+      };
+    }
+
+    const issues = validateDoctrineReview(parsed.data);
+    if (issues.length > 0) {
+      return {
+        ok: false,
+        error: `Invalid doctrine review report ${fileName}: ${formatValidationIssues(issues)}`,
+      };
+    }
+
+    for (const entry of parsed.data.machinery) {
+      if (entry.status === "justified") {
+        machinery.push({
+          report: fileName,
+          file: entry.file,
+          symbol: entry.symbol,
+          candidatesChecked: entry.candidatesChecked,
+          constraint: entry.constraint,
+        });
+      }
+    }
+  }
+
+  return { ok: true, machinery };
 };

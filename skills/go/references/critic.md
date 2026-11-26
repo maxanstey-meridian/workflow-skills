@@ -3,18 +3,13 @@
 
 The house rules are in files in the same folder as this file. Before you start work, read every file in this list, in full. Each ends with a line `<!-- end of … -->`; if your read stopped before that line, read on from where it stopped.
 
-- `rules-core.md`
-- `rules-invariants.md`
 - `rules-tests.md`
-- `rules-backend.md`
-- `rules-backend-tooling.md`
-- `rules-frontend.md`
 
 A Law outranks a spec, a plan, and a brief. A rule cited by its library path, such as `invariants/never-blindly-retry-a-non-idempotent-operation.md`, sits under its `<!-- rule: <path> -->` line in one of the `rules-*.md` files in that folder.
 
 # Checking one piece
 
-A builder has finished one piece of a spec. You check what is in the tree against the spec.
+A builder has finished one piece of a spec. You check what is in the tree against the spec and its proof tests; house-Law enforcement belongs to `/spec` cold-read and spec-blind `/cycle` doctrine review.
 
 **Your brief gives** `Spec:` (the absolute path of `spec-<name>.yaml`), `Piece:` (an id and an attempt number), and `Report:` (where your `.yaml` report goes). `<skill>` is the folder above the `references/` folder this file lives in.
 

@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, it } from "node:test";
+import YAML from "yaml";
 import type { Spec } from "../../contracts/src/spec-schema.ts";
+import { buildReviewBrief } from "../src/briefs.ts";
 import type { CycleState } from "../src/state.ts";
 import {
   advanceCycle,
@@ -77,6 +83,12 @@ const makeEnv = (overrides: Partial<CycleAdvanceEnv> = {}): CycleAdvanceEnv => (
 const cleanReview = (): Record<string, unknown> => ({
   findings: [],
   filesRead: [{ path: "src/a.ts", mode: "full" }],
+});
+
+const cleanDoctrineReview = (): Record<string, unknown> => ({
+  findings: [],
+  filesRead: [{ path: "src/a.ts", mode: "full" }],
+  machinery: [],
 });
 
 const fixReview = (file = "src/a.ts"): Record<string, unknown> => ({
@@ -213,7 +225,7 @@ describe("advanceCycle: 0-fix fast-path to gate", () => {
 
     const reports = new Map<string, RawReportEntry>([
       ["review-1-slice-1.yaml", { exists: true, raw: cleanReview() }],
-      ["review-1-backend-1.yaml", { exists: true, raw: cleanReview() }],
+      ["review-1-backend-1.yaml", { exists: true, raw: cleanDoctrineReview() }],
     ]);
 
     const step2 = advanceCycle(step1.state, makeEnv({ reports }));
@@ -243,7 +255,7 @@ describe("advanceCycle: fix, critic PASS/FAIL, second attempt, and missed-twice"
   it("runs fixer -> critic FAIL -> second fixer -> second critic (no third fixer) -> re-review -> commit_round", () => {
     const reports = new Map<string, RawReportEntry>([
       ["review-1-slice-1.yaml", { exists: true, raw: fixReview() }],
-      ["review-1-backend-1.yaml", { exists: true, raw: cleanReview() }],
+      ["review-1-backend-1.yaml", { exists: true, raw: cleanDoctrineReview() }],
     ]);
     const committedWork = makeBaseState({
       phase: { kind: "commit_work" },
@@ -508,5 +520,260 @@ describe("advanceCycle: gate and audit", () => {
     assert.equal(replay.state.phase.kind, "done");
     assert.equal(replay.action.action, "relay");
     assert.deepEqual(replay.effects, {});
+  });
+});
+
+describe("spec-blind doctrine briefs, doctrine report validation, audit machinery, and CLI line budget", () => {
+  it("buildReviewBrief emits Spec: none for doctrine reviewers and keeps Spec: <path> for reviewer", () => {
+    const state = makeBaseState({ specPath: "/repo/.plans/spec-test.yaml" });
+
+    const sliceBrief = buildReviewBrief(state, "reviewer", "slice-1.txt", "review-1-slice-1.yaml");
+    assert.match(sliceBrief, /^Spec: \/repo\/\.plans\/spec-test\.yaml$/m);
+
+    const backendBrief = buildReviewBrief(
+      state,
+      "doctrine-reviewer-backend",
+      "stack-backend-1.txt",
+      "review-1-backend-1.yaml",
+    );
+    assert.match(backendBrief, /^Spec: none$/m);
+    assert.doesNotMatch(backendBrief, /spec-test\.yaml/);
+
+    const frontendBrief = buildReviewBrief(
+      state,
+      "doctrine-reviewer-frontend",
+      "stack-frontend-1.txt",
+      "review-1-frontend-1.yaml",
+    );
+    assert.match(frontendBrief, /^Spec: none$/m);
+    assert.doesNotMatch(frontendBrief, /spec-test\.yaml/);
+  });
+
+  it("retries invalid doctrine reports (missing machinery or broken findingId) and accepts valid ones", () => {
+    const reviewing = makeBaseState({
+      phase: {
+        kind: "reviewing",
+        tasks: [
+          {
+            role: "reviewer",
+            listFile: "slice-1.txt",
+            reportFile: "review-1-slice-1.yaml",
+          },
+          {
+            role: "doctrine-reviewer-backend",
+            listFile: "stack-backend-1.txt",
+            reportFile: "review-1-backend-1.yaml",
+          },
+        ],
+      },
+    });
+
+    // Missing machinery field -> retries backend reviewer
+    const missingMachinery = new Map<string, RawReportEntry>([
+      ["review-1-slice-1.yaml", { exists: true, raw: cleanReview() }],
+      ["review-1-backend-1.yaml", { exists: true, raw: cleanReview() }],
+    ]);
+    const retryMissing = advanceCycle(reviewing, makeEnv({ reports: missingMachinery }));
+    assert.equal(retryMissing.state.phase.kind, "reviewing");
+    assert.equal(retryMissing.state.retries["review-1-backend-1.yaml"], 1);
+    assert.equal(retryMissing.action.action, "spawn");
+    if (retryMissing.action.action === "spawn") {
+      assert.equal(retryMissing.action.subagents.length, 1);
+      assert.equal(retryMissing.action.subagents[0]?.role, "doctrine-reviewer-backend");
+      assert.match(retryMissing.action.subagents[0]?.brief ?? "", /^Spec: none$/m);
+    }
+
+    // Broken machinery entry referencing unknown findingId -> retries backend reviewer
+    const badBrokenRef = new Map<string, RawReportEntry>([
+      ["review-1-slice-1.yaml", { exists: true, raw: cleanReview() }],
+      [
+        "review-1-backend-1.yaml",
+        {
+          exists: true,
+          raw: {
+            findings: [],
+            filesRead: [{ path: "src/a.ts", mode: "full" }],
+            machinery: [
+              {
+                file: "src/a.ts",
+                symbol: "CustomValidator",
+                status: "broken",
+                findingId: "F99",
+              },
+            ],
+          },
+        },
+      ],
+    ]);
+    const retryBroken = advanceCycle(reviewing, makeEnv({ reports: badBrokenRef }));
+    assert.equal(retryBroken.state.phase.kind, "reviewing");
+    assert.equal(retryBroken.state.retries["review-1-backend-1.yaml"], 1);
+
+    // Valid doctrine report with broken machinery + matching library Law finding -> advances to commit_work, then fixing
+    const validReports = new Map<string, RawReportEntry>([
+      ["review-1-slice-1.yaml", { exists: true, raw: cleanReview() }],
+      [
+        "review-1-backend-1.yaml",
+        {
+          exists: true,
+          raw: {
+            findings: [
+              {
+                id: "F1",
+                file: "src/a.ts",
+                line: 12,
+                rule: "coding/use-a-maintained-library-before-building-machinery.md",
+                problem: "Hand-rolled schema validator.",
+                harm: "Reimplements maintained library.",
+                fix: "Replace with maintained validator.",
+                files: ["src/a.ts"],
+                do: "fix",
+              },
+            ],
+            filesRead: [{ path: "src/a.ts", mode: "full" }],
+            machinery: [
+              {
+                file: "src/a.ts",
+                symbol: "CustomValidator",
+                status: "broken",
+                findingId: "F1",
+              },
+            ],
+          },
+        },
+      ],
+    ]);
+    const accepted = advanceCycle(reviewing, makeEnv({ reports: validReports }));
+    assert.equal(accepted.state.phase.kind, "commit_work");
+
+    const committed: CycleState = { ...accepted.state, committedLists: ["scope.txt"] };
+    const toFixing = advanceCycle(committed, makeEnv({ reports: validReports }));
+    assert.equal(toFixing.state.phase.kind, "fixing");
+    assert.equal(toFixing.action.action, "spawn");
+  });
+
+  it("auditing rejects an audit missing justifiedMachinery and accepts one that includes it", () => {
+    const auditState = makeBaseState({ phase: { kind: "auditing" } });
+    const justifiedMachineryForAudit = [
+      {
+        report: "review-1-backend-1.yaml",
+        file: "src/a.ts",
+        symbol: "CustomParser",
+      },
+    ];
+
+    const baseAudit = {
+      tldr: "All clean and built.",
+      findings: [],
+      needsFromYou: [],
+      pieces: [{ id: "P1", status: "done" }],
+      decisions: [{ id: "D1", status: "honoured" }],
+      checked: [{ cmd: "pnpm test", exit: 0, pieces: ["P1"] }],
+      notChecked: [],
+      parked: [],
+      builtPieces: ["P1"],
+      commits: [{ sha: "abc1234", subject: "feat(core): add core", bullets: [] }],
+      fixed: [],
+      notAHarm: [],
+      notFixed: [],
+      gate: "green",
+      specStatus: { status: "built" },
+    };
+
+    const missingMachineryReports = new Map<string, RawReportEntry>([
+      ["audit.yaml", { exists: true, raw: baseAudit }],
+    ]);
+    const retryRes = advanceCycle(
+      auditState,
+      makeEnv({ reports: missingMachineryReports, justifiedMachineryForAudit }),
+    );
+    assert.equal(retryRes.state.phase.kind, "auditing");
+    assert.equal(retryRes.state.retries["audit.yaml"], 1);
+    assert.equal(retryRes.action.action, "spawn");
+
+    const completeAuditReports = new Map<string, RawReportEntry>([
+      [
+        "audit.yaml",
+        {
+          exists: true,
+          raw: {
+            ...baseAudit,
+            justifiedMachinery: [
+              {
+                report: "review-1-backend-1.yaml",
+                file: "src/a.ts",
+                symbol: "CustomParser",
+                candidatesChecked: ["lib-a 2.x"],
+                constraint: "lib-a does not support streaming",
+              },
+            ],
+          },
+        },
+      ],
+    ]);
+    const doneRes = advanceCycle(
+      auditState,
+      makeEnv({ reports: completeAuditReports, justifiedMachineryForAudit }),
+    );
+    assert.equal(doneRes.state.phase.kind, "done");
+    assert.equal(doneRes.action.action, "relay");
+    assert.match(
+      doneRes.effects.renderReport?.markdown ?? "",
+      /## Justified hand-rolled machinery/,
+    );
+  });
+
+  it("cli.ts init and next enter action: slice with fileLines and maxLinesPerList: 3500 when multi-file changes exceed 3,500 lines", () => {
+    const tmpRepo = fs.mkdtempSync(path.join(os.tmpdir(), "cycle-cli-budget-"));
+    try {
+      execFileSync("git", ["init", "-q"], { cwd: tmpRepo });
+      execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: tmpRepo });
+      execFileSync("git", ["config", "user.name", "Test User"], { cwd: tmpRepo });
+      fs.writeFileSync(path.join(tmpRepo, "README.md"), "# init\n", "utf8");
+      execFileSync("git", ["add", "README.md"], { cwd: tmpRepo });
+      execFileSync("git", ["commit", "-q", "-m", "chore: init"], { cwd: tmpRepo });
+
+      fs.mkdirSync(path.join(tmpRepo, "src"), { recursive: true });
+      fs.writeFileSync(
+        path.join(tmpRepo, "src/big-a.ts"),
+        `${Array.from({ length: 2000 }, (_, i) => `export const a${i} = ${i};`).join("\n")}\n`,
+        "utf8",
+      );
+      fs.writeFileSync(
+        path.join(tmpRepo, "src/big-b.ts"),
+        `${Array.from({ length: 1600 }, (_, i) => `export const b${i} = ${i};`).join("\n")}\n`,
+        "utf8",
+      );
+
+      const cliPath = path.resolve(import.meta.dirname, "../src/cli.ts");
+      const initOut = execFileSync(process.execPath, [cliPath, "init"], {
+        cwd: tmpRepo,
+        encoding: "utf8",
+      });
+      const initParsed: unknown = YAML.parse(initOut);
+      assert.ok(
+        typeof initParsed === "object" &&
+          initParsed !== null &&
+          "run" in initParsed &&
+          typeof initParsed.run === "string",
+      );
+
+      const nextOut = execFileSync(process.execPath, [cliPath, "next", initParsed.run], {
+        cwd: tmpRepo,
+        encoding: "utf8",
+      });
+      const nextParsed: unknown = YAML.parse(nextOut);
+      assert.ok(typeof nextParsed === "object" && nextParsed !== null);
+      assert.equal("action" in nextParsed ? nextParsed.action : undefined, "slice");
+      assert.deepEqual("fileLines" in nextParsed ? nextParsed.fileLines : undefined, {
+        "src/big-a.ts": 2000,
+        "src/big-b.ts": 1600,
+      });
+      const schema = "schema" in nextParsed ? nextParsed.schema : undefined;
+      assert.ok(typeof schema === "object" && schema !== null);
+      assert.equal("maxLinesPerList" in schema ? schema.maxLinesPerList : undefined, 3500);
+    } finally {
+      fs.rmSync(tmpRepo, { recursive: true, force: true });
+    }
   });
 });

@@ -2,6 +2,7 @@ import type {
   ColdReadReport,
   CycleAuditReport,
   CycleCriticReport,
+  DoctrineReviewReport,
   GoAuditReport,
   GoCriticReport,
   ReviewReport,
@@ -14,9 +15,16 @@ export type CycleAuditReviewFindingRef = {
   do: string;
 };
 
+export type CycleAuditJustifiedMachineryRef = {
+  report: string;
+  file: string;
+  symbol: string;
+};
+
 export type CycleAuditContext = {
   spec?: Spec;
   reviewFindings: ReadonlyArray<CycleAuditReviewFindingRef>;
+  justifiedMachinery?: ReadonlyArray<CycleAuditJustifiedMachineryRef>;
 };
 
 const FAILING_CYCLE_CRITIC_VERDICTS = new Set([
@@ -29,11 +37,15 @@ const FAILING_CYCLE_CRITIC_VERDICTS = new Set([
 
 const PROCEDURAL_LIBRARY_LAW = "coding/record-why-no-library-fits-before-hand-rolling.md";
 const SUBSTANTIVE_LIBRARY_LAW = "coding/use-a-maintained-library-before-building-machinery.md";
+const DOCTRINE_REVIEW_FILENAME_PATTERN = /^review-\d+-(backend|frontend)-\d+\.yaml$/;
 
 type DecisionLawState = {
   hasNoneBears: boolean;
   lawPaths: Set<string>;
 };
+
+export const isDoctrineReviewFilename = (fileName: string): boolean =>
+  DOCTRINE_REVIEW_FILENAME_PATTERN.test(fileName);
 
 export const countReviewFixes = (report: ReviewReport): number =>
   report.findings.filter((finding) => finding.do === "fix").length;
@@ -121,6 +133,95 @@ export const validateColdRead = (report: ColdReadReport, spec: Spec): Validation
         path: "laws",
         message: `"${PROCEDURAL_LIBRARY_LAW}" cannot stand alone for decision ID "${decision.id}" without also checking "${SUBSTANTIVE_LIBRARY_LAW}"`,
       });
+    }
+  }
+
+  const specPieceIds = new Set(spec.pieces.map((piece) => piece.id));
+  const seenMachinery = new Set<string>();
+
+  for (let i = 0; i < report.machinery.length; i += 1) {
+    const entry = report.machinery[i];
+    if (entry === undefined) {
+      continue;
+    }
+    if (!specPieceIds.has(entry.pieceId)) {
+      issues.push({
+        path: `machinery[${i}].pieceId`,
+        message: `unknown piece ID "${entry.pieceId}" not present in spec`,
+      });
+    }
+
+    const key = `${entry.pieceId}\0${entry.symbol}`;
+    if (seenMachinery.has(key)) {
+      issues.push({
+        path: `machinery[${i}].symbol`,
+        message: `duplicate machinery entry for piece "${entry.pieceId}" and symbol "${entry.symbol}"`,
+      });
+    } else {
+      seenMachinery.add(key);
+    }
+
+    if (entry.status === "unbacked") {
+      if (entry.findingIndex < 1 || entry.findingIndex > report.findings.length) {
+        issues.push({
+          path: `machinery[${i}].findingIndex`,
+          message: `findingIndex ${entry.findingIndex} is out of range 1..${report.findings.length}`,
+        });
+      }
+    } else if (!specDecisionIds.has(entry.decisionId)) {
+      issues.push({
+        path: `machinery[${i}].decisionId`,
+        message: `unknown decision ID "${entry.decisionId}" not present in spec`,
+      });
+    } else {
+      const decisionState = decisionStates.get(entry.decisionId);
+      if (decisionState === undefined || !decisionState.lawPaths.has(SUBSTANTIVE_LIBRARY_LAW)) {
+        issues.push({
+          path: `machinery[${i}].decisionId`,
+          message: `decision "${entry.decisionId}" backing machinery "${entry.symbol}" in piece "${entry.pieceId}" must be checked against "${SUBSTANTIVE_LIBRARY_LAW}" in laws[]`,
+        });
+      }
+    }
+  }
+
+  return issues;
+};
+
+export const validateDoctrineReview = (report: DoctrineReviewReport): ValidationIssue[] => {
+  const issues: ValidationIssue[] = [];
+  const findingsById = new Map(report.findings.map((finding) => [finding.id, finding]));
+  const seenMachinery = new Set<string>();
+
+  for (let i = 0; i < report.machinery.length; i += 1) {
+    const entry = report.machinery[i];
+    if (entry === undefined) {
+      continue;
+    }
+
+    const key = `${entry.file}\0${entry.symbol}`;
+    if (seenMachinery.has(key)) {
+      issues.push({
+        path: `machinery[${i}].symbol`,
+        message: `duplicate machinery entry for file "${entry.file}" and symbol "${entry.symbol}"`,
+      });
+    } else {
+      seenMachinery.add(key);
+    }
+
+    if (entry.status === "broken") {
+      const finding = findingsById.get(entry.findingId);
+      if (finding === undefined) {
+        issues.push({
+          path: `machinery[${i}].findingId`,
+          message: `findingId "${entry.findingId}" does not match any finding in report.findings`,
+        });
+      } else if (finding.rule !== SUBSTANTIVE_LIBRARY_LAW) {
+        const actualRule = finding.rule === undefined ? "none" : `"${finding.rule}"`;
+        issues.push({
+          path: `machinery[${i}].findingId`,
+          message: `finding "${entry.findingId}" must cite rule "${SUBSTANTIVE_LIBRARY_LAW}" (got ${actualRule})`,
+        });
+      }
     }
   }
 
@@ -462,6 +563,33 @@ export const validateCycleAudit = (
       issues.push({
         path: "fixed",
         message: `review finding "${finding.id}" from "${finding.report}" with do "fix" is missing from fixed, notAHarm, and notFixed`,
+      });
+    }
+  }
+
+  const accountedMachinery = new Set<string>();
+  for (let i = 0; i < report.justifiedMachinery.length; i += 1) {
+    const entry = report.justifiedMachinery[i];
+    if (entry === undefined) {
+      continue;
+    }
+    const key = `${entry.report}\0${entry.file}\0${entry.symbol}`;
+    if (accountedMachinery.has(key)) {
+      issues.push({
+        path: `justifiedMachinery[${i}]`,
+        message: `justified machinery "${entry.symbol}" in "${entry.file}" from "${entry.report}" appears more than once`,
+      });
+    } else {
+      accountedMachinery.add(key);
+    }
+  }
+
+  for (const entry of context.justifiedMachinery ?? []) {
+    const key = `${entry.report}\0${entry.file}\0${entry.symbol}`;
+    if (!accountedMachinery.has(key)) {
+      issues.push({
+        path: "justifiedMachinery",
+        message: `justified machinery "${entry.symbol}" in "${entry.file}" from "${entry.report}" is missing from justifiedMachinery`,
       });
     }
   }

@@ -96,6 +96,22 @@ const StopActionSchema = z.object({
   reason: z.string().min(1),
   details: z.array(z.string()).optional(),
 });
+const SliceActionSchema = z.object({
+  action: z.literal("slice"),
+  scopeFile: z.string(),
+  slicesFile: z.string(),
+  errors: z.array(z.string()),
+  schema: z.object({
+    slices: z.string(),
+    stacks: z.object({
+      backend: z.string(),
+      frontend: z.string(),
+    }),
+    maxPerFile: z.number(),
+    maxLinesPerList: z.number(),
+  }),
+  fileLines: z.record(z.string(), z.number()),
+});
 const SpawnActionSchema = z.object({
   action: z.literal("spawn"),
   parallel: z.boolean(),
@@ -249,6 +265,14 @@ describe("cycle-ctl e2e: full cycle with real git commits", () => {
     const reviewSpawn = SpawnActionSchema.parse(YAML.parse(reviewStep.stdout));
     assert.equal(reviewSpawn.parallel, true);
     assert.equal(reviewSpawn.subagents.length, 2);
+    const sliceReviewer = reviewSpawn.subagents.find((s) => s.role === "reviewer");
+    const doctrineReviewer = reviewSpawn.subagents.find(
+      (s) => s.role === "doctrine-reviewer-backend",
+    );
+    assert.ok(sliceReviewer, "expected slice reviewer subagent");
+    assert.ok(doctrineReviewer, "expected doctrine-reviewer-backend subagent");
+    assert.match(sliceReviewer.brief, /Spec: .*spec-demo\.yaml/);
+    assert.match(doctrineReviewer.brief, /Spec: none/);
 
     writeYaml(path.join(run, "review-1-slice-1.yaml"), {
       findings: [
@@ -268,6 +292,15 @@ describe("cycle-ctl e2e: full cycle with real git commits", () => {
     writeYaml(path.join(run, "review-1-backend-1.yaml"), {
       findings: [],
       filesRead: [{ path: "src/a.ts", mode: "full" }],
+      machinery: [
+        {
+          file: "src/a.ts",
+          symbol: "BinaryFrameCodec",
+          status: "justified",
+          candidatesChecked: ["msgpack (3.x)"],
+          constraint: "Hardware framing header.",
+        },
+      ],
     });
 
     // 3. next -> commit_work
@@ -406,6 +439,15 @@ describe("cycle-ctl e2e: full cycle with real git commits", () => {
           summary: "Changed exported constant a from 1 to 2.",
         },
       ],
+      justifiedMachinery: [
+        {
+          report: "review-1-backend-1.yaml",
+          file: "src/a.ts",
+          symbol: "BinaryFrameCodec",
+          candidatesChecked: ["msgpack (3.x)"],
+          constraint: "Hardware framing header.",
+        },
+      ],
       gate: "green",
       specStatus: { status: "built" },
     });
@@ -415,7 +457,10 @@ describe("cycle-ctl e2e: full cycle with real git commits", () => {
     assert.equal(relayStep.status, 0, relayStep.stderr);
     const relayAction = RelayActionSchema.parse(YAML.parse(relayStep.stdout));
     assert.equal(fs.existsSync(relayAction.report), true);
-    assert.match(fs.readFileSync(relayAction.report, "utf8"), /\*\*Spec:\*\* built/);
+    const renderedReport = fs.readFileSync(relayAction.report, "utf8");
+    assert.match(renderedReport, /\*\*Spec:\*\* built/);
+    assert.match(renderedReport, /## Justified hand-rolled machinery/);
+    assert.match(renderedReport, /BinaryFrameCodec/);
 
     const updatedSpec = SpecSchema.parse(YAML.parse(fs.readFileSync(specPath, "utf8")));
     assert.equal(updatedSpec.status, "built");
@@ -510,5 +555,46 @@ describe("cycle-ctl e2e: full cycle with real git commits", () => {
     const firstRun = InitRunSchema.parse(YAML.parse(first.stdout)).run;
     const secondRun = InitRunSchema.parse(YAML.parse(second.stdout)).run;
     assert.notEqual(firstRun, secondRun);
+  });
+
+  it("enters slice action with fileLines and maxLinesPerList when multi-file diff exceeds 3,500 lines", () => {
+    const repo = makeTempRepo("line-budget-slice");
+    fs.mkdirSync(path.join(repo, "src"), { recursive: true });
+    fs.writeFileSync(path.join(repo, "src/big-a.ts"), "export const x = 1;\n".repeat(2000), "utf8");
+    fs.writeFileSync(path.join(repo, "src/big-b.ts"), "export const y = 2;\n".repeat(2000), "utf8");
+
+    const initRes = runCtl(["init"], repo);
+    assert.equal(initRes.status, 0, initRes.stderr);
+    const { run } = InitRunSchema.parse(YAML.parse(initRes.stdout));
+
+    const nextRes = runCtl(["next", run], repo);
+    assert.equal(nextRes.status, 0, nextRes.stderr);
+    const sliceAction = SliceActionSchema.parse(YAML.parse(nextRes.stdout));
+    assert.equal(sliceAction.schema.maxLinesPerList, 3500);
+    assert.equal(sliceAction.fileLines["src/big-a.ts"], 2000);
+    assert.equal(sliceAction.fileLines["src/big-b.ts"], 2000);
+
+    // Reject a combined slice over 3,500 lines
+    writeYaml(sliceAction.slicesFile, {
+      slices: [{ id: 1, files: ["src/big-a.ts", "src/big-b.ts"] }],
+      stacks: { backend: [["src/big-a.ts", "src/big-b.ts"]], frontend: [] },
+    });
+    const retryRes = runCtl(["next", run], repo);
+    assert.equal(retryRes.status, 0, retryRes.stderr);
+    const retryAction = SliceActionSchema.parse(YAML.parse(retryRes.stdout));
+    assert.ok(retryAction.errors.some((e) => e.includes("3500")));
+
+    // Accept split slices and stacks within 3,500 lines
+    writeYaml(sliceAction.slicesFile, {
+      slices: [
+        { id: 1, files: ["src/big-a.ts"] },
+        { id: 2, files: ["src/big-b.ts"] },
+      ],
+      stacks: { backend: [["src/big-a.ts"], ["src/big-b.ts"]], frontend: [] },
+    });
+    const spawnRes = runCtl(["next", run], repo);
+    assert.equal(spawnRes.status, 0, spawnRes.stderr);
+    const spawnAction = SpawnActionSchema.parse(YAML.parse(spawnRes.stdout));
+    assert.equal(spawnAction.subagents.length, 4);
   });
 });

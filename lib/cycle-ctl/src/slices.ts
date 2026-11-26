@@ -3,6 +3,7 @@ import type { ReviewReport } from "../../contracts/src/report-schemas.ts";
 
 export const AUTO_SLICE_LIMIT = 15;
 export const MAX_PATHS_PER_LIST = 25;
+export const MAX_LINES_PER_LIST = 3500;
 
 const FRONTEND_EXT_RE = /\.(vue|tsx|jsx|css|scss|sass|less|html)$/;
 const FRONTEND_DIR_RE = /(^|\/)(web|frontend|ui|client|app\/(components|pages|composables))\//;
@@ -49,9 +50,56 @@ const formatZodPath = (pathParts: ReadonlyArray<PropertyKey>): string => {
     .join("");
 };
 
-export const autoSlice = (scope: ReadonlyArray<string>): SlicesFile | null => {
+const sumLines = (
+  files: ReadonlyArray<string>,
+  fileLines: Readonly<Record<string, number>> | undefined,
+): number => {
+  if (fileLines === undefined) {
+    return 0;
+  }
+  let total = 0;
+  for (const filePath of files) {
+    total += fileLines[filePath] ?? 0;
+  }
+  return total;
+};
+
+const checkListLineBudget = (
+  listLabel: string,
+  files: ReadonlyArray<string>,
+  fileLines: Readonly<Record<string, number>> | undefined,
+  errors: string[],
+): void => {
+  if (files.length <= 1 || fileLines === undefined) {
+    return;
+  }
+  const totalLines = sumLines(files, fileLines);
+  if (totalLines <= MAX_LINES_PER_LIST) {
+    return;
+  }
+  const largest = [...files]
+    .map((filePath) => ({ filePath, lines: fileLines[filePath] ?? 0 }))
+    .sort(
+      (a, b) =>
+        b.lines - a.lines || (a.filePath < b.filePath ? -1 : a.filePath > b.filePath ? 1 : 0),
+    )
+    .slice(0, 3)
+    .map((entry) => `${entry.filePath} (${entry.lines})`)
+    .join(", ");
+  errors.push(
+    `${listLabel}: total lines ${totalLines} exceeds max ${MAX_LINES_PER_LIST} (largest: ${largest})`,
+  );
+};
+
+export const autoSlice = (
+  scope: ReadonlyArray<string>,
+  fileLines?: Readonly<Record<string, number>>,
+): SlicesFile | null => {
   const uniqueScope = sortPaths(scope);
   if (uniqueScope.length === 0 || uniqueScope.length > AUTO_SLICE_LIMIT) {
+    return null;
+  }
+  if (uniqueScope.length > 1 && sumLines(uniqueScope, fileLines) > MAX_LINES_PER_LIST) {
     return null;
   }
 
@@ -77,6 +125,7 @@ export const autoSlice = (scope: ReadonlyArray<string>): SlicesFile | null => {
 export const validateSlices = (
   slicesYaml: unknown,
   scope: ReadonlyArray<string>,
+  fileLines?: Readonly<Record<string, number>>,
 ): { ok: true; data: SlicesFile } | { ok: false; errors: string[] } => {
   const parsed = SlicesFileSchema.safeParse(slicesYaml);
   if (!parsed.success) {
@@ -123,6 +172,8 @@ export const validateSlices = (
         seenInSlices.set(filePath, entry.id);
       }
     }
+
+    checkListLineBudget(`slices[${i}].files`, entry.files, fileLines, errors);
   }
 
   for (const scopePath of scope) {
@@ -164,6 +215,8 @@ export const validateSlices = (
           seenInStacks.set(filePath, listLabel);
         }
       }
+
+      checkListLineBudget(listLabel, list, fileLines, errors);
     }
   }
 

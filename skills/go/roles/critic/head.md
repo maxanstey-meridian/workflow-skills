@@ -1,6 +1,6 @@
 # Checking one piece
 
-A builder has finished one piece of a spec. You check what is in the tree against the spec.
+A builder has finished one piece of a spec. You check what is in the tree against the spec and its proof tests; house-Law enforcement belongs to `/spec` cold-read and spec-blind `/cycle` doctrine review.
 
 **Your brief gives** `Spec:` (the absolute path of `spec-<name>.yaml`), `Piece:` (an id and an attempt number), and `Report:` (where your `.yaml` report goes). `<skill>` is the folder above the `references/` folder this file lives in.
 

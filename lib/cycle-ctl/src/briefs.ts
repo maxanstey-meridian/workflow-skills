@@ -38,7 +38,7 @@ export const buildReviewBrief = (
   formatBrief({
     skillDir: state.skillDir,
     roleRef: role,
-    specPath: state.specPath,
+    specPath: role === "reviewer" ? state.specPath : null,
     files: path.join(state.runDir, listFile),
     mode: state.mode,
     findings: [],

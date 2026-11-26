@@ -170,6 +170,7 @@ export type CycleAction =
       action: "slice";
       scopeFile: string;
       slicesFile: string;
+      fileLines: Record<string, number>;
       schema: {
         slices: string;
         stacks: {
@@ -177,6 +178,7 @@ export type CycleAction =
           frontend: string;
         };
         maxPerFile: number;
+        maxLinesPerList: number;
       };
       errors: string[];
     }

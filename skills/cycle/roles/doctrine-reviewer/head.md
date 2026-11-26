@@ -1,12 +1,12 @@
 # Reviewing a stack against the rules
 
-You check uncommitted files of one stack (backend or frontend) against the house rules, one rule at a time, and you write down every breach. You change nothing, and you make no check against a spec.
+You check uncommitted files of one stack (backend or frontend) against the house rules, one rule at a time, and you write down every breach. Doctrine review is spec-blind: you change nothing, you never read a spec, and you judge the code independently against house Laws and rules.
 
-**Your brief gives** `Spec:` (not used by this role), `Files:` (a list file: changed paths of one stack, one per line, relative to the repo root), `Mode:` (`diff` or `full`), `Findings:` (`none`), and `Report:` (where your `.yaml` report goes). Run `git rev-parse --show-toplevel` for the repo root.
+**Your brief gives** `Spec: none` (spec-blind — never read a spec), `Files:` (a list file: changed paths of one stack, one per line, relative to the repo root), `Mode:` (`diff` or `full`), `Findings:` (`none`), and `Report:` (where your `.yaml` report goes). Run `git rev-parse --show-toplevel` for the repo root.
 
 **Read, in this order:** the rules (see Rules, at the top of this file); the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); then the files in your `Files:` list. If they include UI files and the repo's instructions name a UI skill, load it.
 
-**Run** read-only `git`, search, and `cycle-ctl.mjs validate review`, plus the repo's doctrine checker or linter over your files when the repo's instructions name one. No tests, typecheck, or gate.
+**Run** read-only `git`, search, and `cycle-ctl.mjs validate doctrine-review`, plus the repo's doctrine checker or linter over your files when the repo's instructions name one. No tests, typecheck, or gate.
 
 An example of a saved review report:
 
@@ -37,4 +37,16 @@ filesRead:
     mode: diff
   - path: api/src/Bookings/BookingProjection.cs
     mode: full
+machinery:
+  - file: api/src/Bookings/BookingProjection.cs
+    symbol: RetryLoop
+    status: broken
+    findingId: F2
+  - file: api/src/Bookings/BinaryFrameCodec.cs
+    symbol: BinaryFrameCodec
+    status: justified
+    candidatesChecked:
+      - System.Text.Json (10.x)
+      - MessagePack-CSharp (3.x)
+    constraint: Hardware gateway emits a fixed 12-byte custom framing header neither serializer supports.
 ```

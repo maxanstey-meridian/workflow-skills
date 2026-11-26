@@ -1,12 +1,18 @@
 import type { Command } from "commander";
 import type { z } from "zod";
-import { loadRunReviewFindings, readYamlFile, validateOracleCaseOnDisk } from "./io.ts";
+import {
+  loadRunJustifiedMachinery,
+  loadRunReviewFindings,
+  readYamlFile,
+  validateOracleCaseOnDisk,
+} from "./io.ts";
 import { renderCycleAudit, renderGoAudit, renderSpec } from "./render.ts";
 import {
   BuildReportSchema,
   ColdReadReportSchema,
   CycleAuditReportSchema,
   CycleCriticReportSchema,
+  DoctrineReviewReportSchema,
   FixReportSchema,
   GoAuditReportSchema,
   GoCriticReportSchema,
@@ -16,6 +22,7 @@ import {
   validateColdRead,
   validateCycleAudit,
   validateCycleCritic,
+  validateDoctrineReview,
   validateGoAudit,
   validateGoCritic,
 } from "./report-validate.ts";
@@ -28,6 +35,7 @@ const VALIDATE_KINDS = [
   "build",
   "go-critic",
   "review",
+  "doctrine-review",
   "fix",
   "cycle-critic",
   "go-audit",
@@ -200,6 +208,21 @@ export const cmdValidate = (
     return 0;
   }
 
+  if (rawKind === "doctrine-review") {
+    const parsed = DoctrineReviewReportSchema.safeParse(loaded.data);
+    if (!parsed.success) {
+      printIssues(zodErrorToIssues(parsed.error));
+      return 1;
+    }
+    const issues = validateDoctrineReview(parsed.data);
+    if (issues.length > 0) {
+      printIssues(issues);
+      return 1;
+    }
+    console.log("OK");
+    return 0;
+  }
+
   if (rawKind === "fix") {
     const parsed = FixReportSchema.safeParse(loaded.data);
     if (!parsed.success) {
@@ -260,6 +283,7 @@ export const cmdValidate = (
   }
 
   let reviewFindings: Array<{ report: string; id: string; do: string }> = [];
+  let justifiedMachinery: Array<{ report: string; file: string; symbol: string }> | undefined;
   if (opts.run !== undefined) {
     const runResult = loadRunReviewFindings(opts.run);
     if (!runResult.ok) {
@@ -267,6 +291,13 @@ export const cmdValidate = (
       return 2;
     }
     reviewFindings = runResult.findings;
+
+    const machineryResult = loadRunJustifiedMachinery(opts.run);
+    if (!machineryResult.ok) {
+      console.error(machineryResult.error);
+      return 2;
+    }
+    justifiedMachinery = machineryResult.machinery;
   }
 
   const parsed = CycleAuditReportSchema.safeParse(loaded.data);
@@ -275,7 +306,7 @@ export const cmdValidate = (
     return 1;
   }
 
-  const issues = validateCycleAudit(parsed.data, { spec, reviewFindings });
+  const issues = validateCycleAudit(parsed.data, { spec, reviewFindings, justifiedMachinery });
   if (issues.length > 0) {
     printIssues(issues);
     return 1;

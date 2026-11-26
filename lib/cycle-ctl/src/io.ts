@@ -2,11 +2,21 @@ import fs from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
 import type { z } from "zod";
-import { loadRunReviewFindings, readYamlFile } from "../../contracts/src/io.ts";
-import { GoAuditReportSchema, ReviewReportSchema } from "../../contracts/src/report-schemas.ts";
+import {
+  loadRunJustifiedMachinery,
+  loadRunReviewFindings,
+  readYamlFile,
+} from "../../contracts/src/io.ts";
+import {
+  DoctrineReviewReportSchema,
+  GoAuditReportSchema,
+  ReviewReportSchema,
+} from "../../contracts/src/report-schemas.ts";
 import {
   goAuditCycleBlockers,
+  isDoctrineReviewFilename,
   validateGoAudit,
+  type CycleAuditJustifiedMachineryRef,
   type CycleAuditReviewFindingRef,
 } from "../../contracts/src/report-validate.ts";
 import { SpecSchema, type Spec } from "../../contracts/src/spec-schema.ts";
@@ -180,12 +190,54 @@ export const loadRunReports = (runDir: string): Map<string, RawReportEntry> => {
   return reports;
 };
 
+const countLines = (content: string): number => {
+  if (content.length === 0) {
+    return 0;
+  }
+  let count = 0;
+  for (let i = 0; i < content.length; i += 1) {
+    if (content.charCodeAt(i) === 10) {
+      count += 1;
+    }
+  }
+  return content.charCodeAt(content.length - 1) === 10 ? count : count + 1;
+};
+
+export const measureFileLines = (
+  repoRoot: string,
+  paths: ReadonlyArray<string>,
+): Record<string, number> => {
+  const result: Record<string, number> = {};
+  for (const relPath of paths) {
+    const fullPath = path.join(repoRoot, relPath);
+    try {
+      if (!fs.statSync(fullPath).isFile()) {
+        result[relPath] = 0;
+        continue;
+      }
+      const content = fs.readFileSync(fullPath, "utf8");
+      result[relPath] = countLines(content);
+    } catch {
+      result[relPath] = 0;
+    }
+  }
+  return result;
+};
+
 export const loadReviewFindingsForAudit = (
   runDir: string,
   missedReports: ReadonlyArray<string>,
 ): CycleAuditReviewFindingRef[] => {
   const res = loadRunReviewFindings(runDir, new Set(missedReports));
   return res.ok ? res.findings : [];
+};
+
+export const loadJustifiedMachineryForAudit = (
+  runDir: string,
+  missedReports: ReadonlyArray<string>,
+): CycleAuditJustifiedMachineryRef[] => {
+  const res = loadRunJustifiedMachinery(runDir, new Set(missedReports));
+  return res.ok ? res.machinery : [];
 };
 
 export const collectExistingFindingPaths = (
@@ -197,7 +249,9 @@ export const collectExistingFindingPaths = (
     if (!name.startsWith("review-") || !entry.exists || "parseError" in entry) {
       continue;
     }
-    const parsed = ReviewReportSchema.safeParse(entry.raw);
+    const parsed = isDoctrineReviewFilename(name)
+      ? DoctrineReviewReportSchema.safeParse(entry.raw)
+      : ReviewReportSchema.safeParse(entry.raw);
     if (!parsed.success) {
       continue;
     }

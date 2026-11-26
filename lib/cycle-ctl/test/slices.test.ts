@@ -1,7 +1,17 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, it } from "node:test";
+import YAML from "yaml";
 import type { ReviewReport } from "../../contracts/src/report-schemas.ts";
 import {
+  collectExistingFindingPaths,
+  loadJustifiedMachineryForAudit,
+  measureFileLines,
+} from "../src/io.ts";
+import {
+  MAX_LINES_PER_LIST,
   assignNewPathsToSlices,
   autoSlice,
   isFrontendPath,
@@ -9,6 +19,7 @@ import {
   sortNewPaths,
   validateSlices,
 } from "../src/slices.ts";
+import type { RawReportEntry } from "../src/transition.ts";
 
 describe("isFrontendPath and autoSlice", () => {
   it("classifies frontend extensions and directories vs backend paths", () => {
@@ -53,6 +64,28 @@ describe("isFrontendPath and autoSlice", () => {
     assert.equal(autoSlice([]), null);
     const sixteen = Array.from({ length: 16 }, (_, i) => `src/f${i + 1}.ts`);
     assert.equal(autoSlice(sixteen), null);
+  });
+
+  it("enforces the 3,500-line budget across multiple files while exempting a single large file", () => {
+    assert.equal(MAX_LINES_PER_LIST, 3500);
+
+    const overBudget = autoSlice(["src/a.ts", "src/b.ts"], {
+      "src/a.ts": 2000,
+      "src/b.ts": 1501,
+    });
+    assert.equal(overBudget, null);
+
+    const atBudget = autoSlice(["src/a.ts", "src/b.ts"], {
+      "src/a.ts": 2000,
+      "src/b.ts": 1500,
+    });
+    assert.notEqual(atBudget, null);
+
+    const singleLarge = autoSlice(["src/huge.ts"], {
+      "src/huge.ts": 5000,
+    });
+    assert.notEqual(singleLarge, null);
+    assert.deepEqual(singleLarge?.slices, [{ id: 1, files: ["src/huge.ts"] }]);
   });
 });
 
@@ -141,6 +174,224 @@ describe("validateSlices", () => {
     assert.equal(overStackCap.ok, false);
     if (!overStackCap.ok) {
       assert.ok(overStackCap.errors.some((e) => e.includes("stacks.backend[0]")));
+    }
+  });
+
+  it("rejects multi-file slices and stack lists over 3,500 lines and accepts single-file lists over 3,500 lines", () => {
+    const bigScope = ["src/a.ts", "src/b.ts", "web/c.vue", "web/d.vue"];
+    const fileLines = {
+      "src/a.ts": 2100,
+      "src/b.ts": 1600,
+      "web/c.vue": 2000,
+      "web/d.vue": 1700,
+    };
+
+    const overLineBudget = validateSlices(
+      {
+        slices: [
+          { id: 1, files: ["src/a.ts", "src/b.ts"] },
+          { id: 2, files: ["web/c.vue", "web/d.vue"] },
+        ],
+        stacks: {
+          backend: [["src/a.ts", "src/b.ts"]],
+          frontend: [["web/c.vue", "web/d.vue"]],
+        },
+      },
+      bigScope,
+      fileLines,
+    );
+    assert.equal(overLineBudget.ok, false);
+    if (!overLineBudget.ok) {
+      assert.ok(
+        overLineBudget.errors.some(
+          (e) =>
+            e.includes("slices[0].files") &&
+            e.includes("3700") &&
+            e.includes("3500") &&
+            e.includes("src/a.ts (2100)"),
+        ),
+      );
+      assert.ok(
+        overLineBudget.errors.some(
+          (e) =>
+            e.includes("stacks.backend[0]") &&
+            e.includes("3700") &&
+            e.includes("3500") &&
+            e.includes("src/a.ts (2100)"),
+        ),
+      );
+      assert.ok(
+        overLineBudget.errors.some(
+          (e) =>
+            e.includes("stacks.frontend[0]") &&
+            e.includes("3700") &&
+            e.includes("3500") &&
+            e.includes("web/c.vue (2000)"),
+        ),
+      );
+    }
+
+    const singleFileExempt = validateSlices(
+      {
+        slices: [
+          { id: 1, files: ["src/huge.ts"] },
+          { id: 2, files: ["web/huge.vue"] },
+        ],
+        stacks: {
+          backend: [["src/huge.ts"]],
+          frontend: [["web/huge.vue"]],
+        },
+      },
+      ["src/huge.ts", "web/huge.vue"],
+      { "src/huge.ts": 4200, "web/huge.vue": 3800 },
+    );
+    assert.equal(singleFileExempt.ok, true);
+  });
+});
+
+describe("io helpers: measureFileLines, collectExistingFindingPaths, and loadJustifiedMachineryForAudit", () => {
+  it("measures newline-delimited lines including empty, missing, and no-trailing-newline files", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "cycle-io-lines-"));
+    try {
+      fs.mkdirSync(path.join(tmpDir, "src"), { recursive: true });
+      fs.mkdirSync(path.join(tmpDir, "subdir"), { recursive: true });
+      fs.writeFileSync(path.join(tmpDir, "src/trailing.ts"), "line1\nline2\nline3\n", "utf8");
+      fs.writeFileSync(path.join(tmpDir, "src/no-trailing.ts"), "line1\nline2", "utf8");
+      fs.writeFileSync(path.join(tmpDir, "src/empty.ts"), "", "utf8");
+
+      const lines = measureFileLines(tmpDir, [
+        "src/trailing.ts",
+        "src/no-trailing.ts",
+        "src/empty.ts",
+        "src/missing.ts",
+        "subdir",
+      ]);
+
+      assert.deepEqual(lines, {
+        "src/trailing.ts": 3,
+        "src/no-trailing.ts": 2,
+        "src/empty.ts": 0,
+        "src/missing.ts": 0,
+        subdir: 0,
+      });
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("collectExistingFindingPaths parses doctrine review reports with DoctrineReviewReportSchema", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "cycle-io-findings-"));
+    try {
+      fs.mkdirSync(path.join(tmpDir, "src"), { recursive: true });
+      fs.writeFileSync(path.join(tmpDir, "src/existing.ts"), "export const x = 1;\n", "utf8");
+      fs.writeFileSync(path.join(tmpDir, "src/doctrine.ts"), "export const y = 2;\n", "utf8");
+
+      const reports = new Map<string, RawReportEntry>([
+        [
+          "review-1-backend-1.yaml",
+          {
+            exists: true,
+            raw: {
+              findings: [
+                {
+                  id: "F1",
+                  file: "src/doctrine.ts",
+                  line: 1,
+                  rule: "coding/use-a-maintained-library-before-building-machinery.md",
+                  problem: "Hand-rolled parser.",
+                  harm: "Duplicates maintained library.",
+                  fix: "Use library.",
+                  files: ["src/doctrine.ts", "src/missing.ts"],
+                  do: "fix",
+                },
+              ],
+              filesRead: [{ path: "src/doctrine.ts", mode: "full" }],
+              machinery: [
+                {
+                  file: "src/doctrine.ts",
+                  symbol: "CustomParser",
+                  status: "broken",
+                  findingId: "F1",
+                },
+              ],
+            },
+          },
+        ],
+        [
+          "review-1-backend-2.yaml",
+          {
+            exists: true,
+            raw: {
+              findings: [
+                {
+                  id: "F2",
+                  file: "src/existing.ts",
+                  line: 1,
+                  problem: "Missing machinery field makes doctrine report invalid.",
+                  harm: "Should be ignored.",
+                  fix: "Add machinery.",
+                  files: ["src/existing.ts"],
+                  do: "fix",
+                },
+              ],
+              filesRead: [{ path: "src/existing.ts", mode: "full" }],
+            },
+          },
+        ],
+      ]);
+
+      const existing = collectExistingFindingPaths(tmpDir, reports);
+      assert.deepEqual([...existing], ["src/doctrine.ts"]);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("loadJustifiedMachineryForAudit loads justified entries and skips missedReports", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "cycle-io-machinery-"));
+    try {
+      fs.writeFileSync(
+        path.join(tmpDir, "review-1-backend-1.yaml"),
+        YAML.stringify({
+          findings: [],
+          filesRead: [{ path: "src/parser.ts", mode: "full" }],
+          machinery: [
+            {
+              file: "src/parser.ts",
+              symbol: "CustomParser",
+              status: "justified",
+              candidatesChecked: ["lib-a 2.x"],
+              constraint: "lib-a cannot stream tokens without buffering",
+            },
+          ],
+        }),
+        "utf8",
+      );
+      fs.writeFileSync(
+        path.join(tmpDir, "review-1-backend-2.yaml"),
+        YAML.stringify({
+          findings: [],
+          filesRead: [{ path: "src/ignored.ts", mode: "full" }],
+          machinery: [
+            {
+              file: "src/ignored.ts",
+              symbol: "IgnoredParser",
+              status: "justified",
+              candidatesChecked: ["lib-b 3.x"],
+              constraint: "Should be skipped as missed.",
+            },
+          ],
+        }),
+        "utf8",
+      );
+
+      const loaded = loadJustifiedMachineryForAudit(tmpDir, ["review-1-backend-2.yaml"]);
+      assert.equal(loaded.length, 1);
+      assert.equal(loaded[0]?.report, "review-1-backend-1.yaml");
+      assert.equal(loaded[0]?.file, "src/parser.ts");
+      assert.equal(loaded[0]?.symbol, "CustomParser");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 });

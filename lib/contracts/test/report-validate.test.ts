@@ -1,10 +1,17 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, it } from "node:test";
+import YAML from "yaml";
+import { cmdValidate } from "../src/commands.ts";
+import { loadRunJustifiedMachinery, loadRunReviewFindings } from "../src/io.ts";
 import {
   BuildReportSchema,
   ColdReadReportSchema,
   CycleAuditReportSchema,
   CycleCriticReportSchema,
+  DoctrineReviewReportSchema,
   FixReportSchema,
   GoAuditReportSchema,
   GoCriticReportSchema,
@@ -14,15 +21,18 @@ import type {
   ColdReadReport,
   CycleAuditReport,
   CycleCriticReport,
+  DoctrineReviewReport,
   GoAuditReport,
   GoCriticReport,
   ReviewReport,
 } from "../src/report-schemas.ts";
 import {
   countReviewFixes,
+  isDoctrineReviewFilename,
   validateColdRead,
   validateCycleAudit,
   validateCycleCritic,
+  validateDoctrineReview,
   validateGoAudit,
   validateGoCritic,
 } from "../src/report-validate.ts";
@@ -135,11 +145,29 @@ describe("report schemas", () => {
         { decisionId: "D1", status: "kept", lawPath: "coding/a.md", keptBy: "strict()" },
         { decisionId: "D2", status: "broken", lawPath: "coding/b.md", findingIndex: 1 },
       ],
+      machinery: [
+        { pieceId: "P1", symbol: "SchemaParser", status: "backed-by-decision", decisionId: "D1" },
+        { pieceId: "P2", symbol: "CustomValidator", status: "unbacked", findingIndex: 1 },
+      ],
     });
     assert.equal(coldRead.success, true);
     assert.equal(
       ColdReadReportSchema.safeParse({
+        laws: [{ decisionId: "D1", status: "none-bears" }],
+      }).success,
+      false,
+    );
+    assert.equal(
+      ColdReadReportSchema.safeParse({
         laws: [{ decisionId: "D1", status: "none-bears", lawPath: "extra" }],
+        machinery: [],
+      }).success,
+      false,
+    );
+    assert.equal(
+      ColdReadReportSchema.safeParse({
+        laws: [],
+        machinery: [{ pieceId: "P1", symbol: "X", status: "unbacked", findingIndex: 0 }],
       }).success,
       false,
     );
@@ -221,6 +249,87 @@ describe("report schemas", () => {
       false,
     );
     assert.equal(ReviewReportSchema.safeParse({ findings: [], filesRead: [] }).success, false);
+
+    const doctrineReview = DoctrineReviewReportSchema.safeParse({
+      findings: [
+        {
+          id: "F1",
+          file: "src/parser.ts",
+          line: 10,
+          rule: "coding/use-a-maintained-library-before-building-machinery.md",
+          problem: "Hand-rolled parser.",
+          harm: "Duplicates maintained library.",
+          fix: "Use yaml package.",
+          files: ["src/parser.ts"],
+          do: "fix",
+        },
+      ],
+      filesRead: [{ path: "src/parser.ts", mode: "full" }],
+      machinery: [
+        { file: "src/parser.ts", symbol: "parseDoc", status: "broken", findingId: "F1" },
+        {
+          file: "src/custom.ts",
+          symbol: "CustomCodec",
+          status: "justified",
+          candidatesChecked: ["lib-a 2.x", "lib-b 3.x"],
+          constraint: "Neither supports streaming binary frames.",
+        },
+      ],
+    });
+    assert.equal(doctrineReview.success, true);
+    assert.equal(
+      DoctrineReviewReportSchema.safeParse({
+        findings: [],
+        filesRead: [{ path: "src/a.ts", mode: "full" }],
+      }).success,
+      false,
+    );
+    assert.equal(
+      DoctrineReviewReportSchema.safeParse({
+        findings: [],
+        filesRead: [{ path: "src/a.ts", mode: "full" }],
+        machinery: [
+          {
+            file: "src/a.ts",
+            symbol: "Codec",
+            status: "justified",
+            candidatesChecked: [],
+            constraint: "None fit.",
+          },
+        ],
+      }).success,
+      false,
+    );
+    assert.equal(
+      CycleAuditReportSchema.safeParse({
+        ...makeCycleAudit(),
+        justifiedMachinery: [
+          {
+            report: "review-1-backend-1.yaml",
+            file: "src/custom.ts",
+            symbol: "CustomCodec",
+            candidatesChecked: ["lib-a 2.x"],
+            constraint: "Streaming frame header layout.",
+          },
+        ],
+      }).success,
+      true,
+    );
+    assert.equal(
+      CycleAuditReportSchema.safeParse({
+        ...makeCycleAudit(),
+        justifiedMachinery: [
+          {
+            report: "review-1-backend-1.yaml",
+            file: "src/custom.ts",
+            symbol: "CustomCodec",
+            candidatesChecked: [],
+            constraint: "Missing candidates.",
+          },
+        ],
+      }).success,
+      false,
+    );
 
     const fix = FixReportSchema.safeParse({
       results: [
@@ -617,6 +726,7 @@ describe("validateColdRead", () => {
         { decisionId: "D1", status: "none-bears" },
         { decisionId: "D2", status: "broken", lawPath: "backend/pure.md", findingIndex: 1 },
       ],
+      machinery: [],
     });
     assert.deepEqual(validateColdRead(report, spec), []);
   });
@@ -626,6 +736,7 @@ describe("validateColdRead", () => {
 
     const missing = ColdReadReportSchema.parse({
       laws: [{ decisionId: "D1", status: "none-bears" }],
+      machinery: [],
     });
     const missingIssues = validateColdRead(missing, spec);
     assert.equal(missingIssues.length, 1);
@@ -637,6 +748,7 @@ describe("validateColdRead", () => {
         { decisionId: "D1", status: "none-bears" },
         { decisionId: "D2", status: "none-bears" },
       ],
+      machinery: [],
     });
     const dupIssues = validateColdRead(duplicate, spec);
     assert.equal(dupIssues.length, 1);
@@ -648,6 +760,7 @@ describe("validateColdRead", () => {
         { decisionId: "D2", status: "none-bears" },
         { decisionId: "D9", status: "none-bears" },
       ],
+      machinery: [],
     });
     const unknownIssues = validateColdRead(unknown, spec);
     assert.equal(unknownIssues.length, 1);
@@ -659,6 +772,7 @@ describe("validateColdRead", () => {
         { decisionId: "D1", status: "none-bears" },
         { decisionId: "D2", status: "broken", lawPath: "coding/a.md", findingIndex: 1 },
       ],
+      machinery: [],
     });
     const rangeIssues = validateColdRead(outOfRange, spec);
     assert.equal(rangeIssues.length, 1);
@@ -696,6 +810,7 @@ describe("validateColdRead", () => {
           keptBy: "Confirmed no maintained library handles this protocol.",
         },
       ],
+      machinery: [],
     });
     assert.deepEqual(validateColdRead(report, spec), []);
 
@@ -709,6 +824,7 @@ describe("validateColdRead", () => {
           keptBy: "Uses zod directly in report-schemas.ts.",
         },
       ],
+      machinery: [],
     });
     assert.deepEqual(validateColdRead(substantiveOnly, spec), []);
   });
@@ -732,6 +848,7 @@ describe("validateColdRead", () => {
         },
         { decisionId: "D2", status: "none-bears" },
       ],
+      machinery: [],
     });
     const issues = validateColdRead(report, spec);
     assert.equal(issues.length, 1);
@@ -753,6 +870,7 @@ describe("validateColdRead", () => {
         },
         { decisionId: "D2", status: "none-bears" },
       ],
+      machinery: [],
     });
     const noneThenKeptIssues = validateColdRead(noneThenKept, spec);
     assert.equal(noneThenKeptIssues.length, 1);
@@ -770,6 +888,7 @@ describe("validateColdRead", () => {
         { decisionId: "D1", status: "none-bears" },
         { decisionId: "D2", status: "none-bears" },
       ],
+      machinery: [],
     });
     const keptThenNoneIssues = validateColdRead(keptThenNone, spec);
     assert.equal(keptThenNoneIssues.length, 1);
@@ -788,6 +907,7 @@ describe("validateColdRead", () => {
         },
         { decisionId: "D2", status: "none-bears" },
       ],
+      machinery: [],
     });
     const noneThenBrokenIssues = validateColdRead(noneThenBroken, spec);
     assert.equal(noneThenBrokenIssues.length, 1);
@@ -808,6 +928,7 @@ describe("validateColdRead", () => {
         },
         { decisionId: "D2", status: "none-bears" },
       ],
+      machinery: [],
     });
     const keptIssues = validateColdRead(keptProceduralOnly, spec);
     assert.equal(keptIssues.length, 1);
@@ -828,6 +949,7 @@ describe("validateColdRead", () => {
         },
         { decisionId: "D2", status: "none-bears" },
       ],
+      machinery: [],
     });
     const brokenIssues = validateColdRead(brokenProceduralOnly, spec);
     assert.equal(brokenIssues.length, 1);
@@ -836,6 +958,224 @@ describe("validateColdRead", () => {
       brokenIssues[0]?.message ?? "",
       /record-why-no-library-fits-before-hand-rolling\.md.*D1.*use-a-maintained-library-before-building-machinery\.md/,
     );
+  });
+
+  it("validates machinery entries against pieces, decisions, substantive library law, and findings", () => {
+    const spec = makeSpec();
+
+    const valid = ColdReadReportSchema.parse({
+      findings: [{ section: "Pieces", quote: "CustomValidator", detail: "No backing Decision." }],
+      laws: [
+        {
+          decisionId: "D1",
+          status: "kept",
+          lawPath: "coding/use-a-maintained-library-before-building-machinery.md",
+          keptBy: "D1 adopts zod.",
+        },
+        { decisionId: "D2", status: "none-bears" },
+      ],
+      machinery: [
+        { pieceId: "P1", symbol: "SchemaParser", status: "backed-by-decision", decisionId: "D1" },
+        { pieceId: "P2", symbol: "CustomValidator", status: "unbacked", findingIndex: 1 },
+      ],
+    });
+    assert.deepEqual(validateColdRead(valid, spec), []);
+
+    const unknownPiece = ColdReadReportSchema.parse({
+      findings: [{ section: "Pieces", quote: "X", detail: "Unbacked." }],
+      laws: [
+        { decisionId: "D1", status: "none-bears" },
+        { decisionId: "D2", status: "none-bears" },
+      ],
+      machinery: [{ pieceId: "P9", symbol: "X", status: "unbacked", findingIndex: 1 }],
+    });
+    const unknownPieceIssues = validateColdRead(unknownPiece, spec);
+    assert.equal(unknownPieceIssues.length, 1);
+    assert.equal(unknownPieceIssues[0]?.path, "machinery[0].pieceId");
+
+    const dupMachinery = ColdReadReportSchema.parse({
+      findings: [{ section: "Pieces", quote: "X", detail: "Unbacked." }],
+      laws: [
+        { decisionId: "D1", status: "none-bears" },
+        { decisionId: "D2", status: "none-bears" },
+      ],
+      machinery: [
+        { pieceId: "P1", symbol: "Parser", status: "unbacked", findingIndex: 1 },
+        { pieceId: "P1", symbol: "Parser", status: "unbacked", findingIndex: 1 },
+      ],
+    });
+    const dupIssues = validateColdRead(dupMachinery, spec);
+    assert.equal(dupIssues.length, 1);
+    assert.equal(dupIssues[0]?.path, "machinery[1].symbol");
+
+    const outOfRangeUnbacked = ColdReadReportSchema.parse({
+      findings: [],
+      laws: [
+        { decisionId: "D1", status: "none-bears" },
+        { decisionId: "D2", status: "none-bears" },
+      ],
+      machinery: [{ pieceId: "P1", symbol: "Parser", status: "unbacked", findingIndex: 1 }],
+    });
+    const rangeIssues = validateColdRead(outOfRangeUnbacked, spec);
+    assert.equal(rangeIssues.length, 1);
+    assert.equal(rangeIssues[0]?.path, "machinery[0].findingIndex");
+
+    const unknownDecision = ColdReadReportSchema.parse({
+      laws: [
+        { decisionId: "D1", status: "none-bears" },
+        { decisionId: "D2", status: "none-bears" },
+      ],
+      machinery: [
+        { pieceId: "P1", symbol: "Parser", status: "backed-by-decision", decisionId: "D9" },
+      ],
+    });
+    const unknownDecisionIssues = validateColdRead(unknownDecision, spec);
+    assert.equal(unknownDecisionIssues.length, 1);
+    assert.equal(unknownDecisionIssues[0]?.path, "machinery[0].decisionId");
+    assert.match(unknownDecisionIssues[0]?.message ?? "", /unknown decision ID "D9"/);
+
+    const missingLibraryLaw = ColdReadReportSchema.parse({
+      laws: [
+        { decisionId: "D1", status: "none-bears" },
+        { decisionId: "D2", status: "none-bears" },
+      ],
+      machinery: [
+        { pieceId: "P1", symbol: "Parser", status: "backed-by-decision", decisionId: "D1" },
+      ],
+    });
+    const missingLibIssues = validateColdRead(missingLibraryLaw, spec);
+    assert.equal(missingLibIssues.length, 1);
+    assert.equal(missingLibIssues[0]?.path, "machinery[0].decisionId");
+    assert.match(
+      missingLibIssues[0]?.message ?? "",
+      /use-a-maintained-library-before-building-machinery\.md/,
+    );
+  });
+});
+
+describe("isDoctrineReviewFilename and validateDoctrineReview", () => {
+  it("matches only backend and frontend doctrine review filenames", () => {
+    assert.equal(isDoctrineReviewFilename("review-1-backend-1.yaml"), true);
+    assert.equal(isDoctrineReviewFilename("review-12-frontend-3.yaml"), true);
+    assert.equal(isDoctrineReviewFilename("review-1-1.yaml"), false);
+    assert.equal(isDoctrineReviewFilename("review-1-slice-1.yaml"), false);
+    assert.equal(isDoctrineReviewFilename("review-1-backend-1.json"), false);
+    assert.equal(isDoctrineReviewFilename("review-backend-1.yaml"), false);
+  });
+
+  it("accepts valid doctrine reviews and rejects duplicate machinery or bad broken findingId references", () => {
+    const valid: DoctrineReviewReport = DoctrineReviewReportSchema.parse({
+      findings: [
+        {
+          id: "F1",
+          file: "src/parser.ts",
+          line: 10,
+          rule: "coding/use-a-maintained-library-before-building-machinery.md",
+          problem: "Hand-rolled YAML parser.",
+          harm: "Duplicates maintained library.",
+          fix: "Use yaml.",
+          files: ["src/parser.ts"],
+          do: "fix",
+        },
+      ],
+      filesRead: [{ path: "src/parser.ts", mode: "full" }],
+      machinery: [
+        { file: "src/parser.ts", symbol: "parseYaml", status: "broken", findingId: "F1" },
+        {
+          file: "src/codec.ts",
+          symbol: "FrameCodec",
+          status: "justified",
+          candidatesChecked: ["protobufjs 7.x"],
+          constraint: "Custom framing header required by device.",
+        },
+      ],
+    });
+    assert.deepEqual(validateDoctrineReview(valid), []);
+
+    const duplicate = DoctrineReviewReportSchema.parse({
+      findings: [],
+      filesRead: [{ path: "src/codec.ts", mode: "full" }],
+      machinery: [
+        {
+          file: "src/codec.ts",
+          symbol: "FrameCodec",
+          status: "justified",
+          candidatesChecked: ["lib-a 2.x"],
+          constraint: "Constraint A.",
+        },
+        {
+          file: "src/codec.ts",
+          symbol: "FrameCodec",
+          status: "justified",
+          candidatesChecked: ["lib-b 3.x"],
+          constraint: "Constraint B.",
+        },
+      ],
+    });
+    const dupIssues = validateDoctrineReview(duplicate);
+    assert.equal(dupIssues.length, 1);
+    assert.equal(dupIssues[0]?.path, "machinery[1].symbol");
+
+    const missingFinding = DoctrineReviewReportSchema.parse({
+      findings: [],
+      filesRead: [{ path: "src/parser.ts", mode: "full" }],
+      machinery: [
+        { file: "src/parser.ts", symbol: "parseYaml", status: "broken", findingId: "F9" },
+      ],
+    });
+    const missingIssues = validateDoctrineReview(missingFinding);
+    assert.equal(missingIssues.length, 1);
+    assert.equal(missingIssues[0]?.path, "machinery[0].findingId");
+    assert.match(missingIssues[0]?.message ?? "", /does not match any finding/);
+
+    const wrongRule = DoctrineReviewReportSchema.parse({
+      findings: [
+        {
+          id: "F1",
+          file: "src/parser.ts",
+          line: 10,
+          rule: "coding/fix-a-gap-never-document-it.md",
+          problem: "Other issue.",
+          harm: "Other harm.",
+          fix: "Other fix.",
+          files: ["src/parser.ts"],
+          do: "fix",
+        },
+      ],
+      filesRead: [{ path: "src/parser.ts", mode: "full" }],
+      machinery: [
+        { file: "src/parser.ts", symbol: "parseYaml", status: "broken", findingId: "F1" },
+      ],
+    });
+    const wrongRuleIssues = validateDoctrineReview(wrongRule);
+    assert.equal(wrongRuleIssues.length, 1);
+    assert.equal(wrongRuleIssues[0]?.path, "machinery[0].findingId");
+    assert.match(
+      wrongRuleIssues[0]?.message ?? "",
+      /use-a-maintained-library-before-building-machinery\.md/,
+    );
+
+    const noRule = DoctrineReviewReportSchema.parse({
+      findings: [
+        {
+          id: "F1",
+          file: "src/parser.ts",
+          line: 10,
+          problem: "No rule.",
+          harm: "Harm.",
+          fix: "Fix.",
+          files: ["src/parser.ts"],
+          do: "fix",
+        },
+      ],
+      filesRead: [{ path: "src/parser.ts", mode: "full" }],
+      machinery: [
+        { file: "src/parser.ts", symbol: "parseYaml", status: "broken", findingId: "F1" },
+      ],
+    });
+    const noRuleIssues = validateDoctrineReview(noRule);
+    assert.equal(noRuleIssues.length, 1);
+    assert.match(noRuleIssues[0]?.message ?? "", /got none/);
   });
 });
 
@@ -1313,5 +1653,278 @@ describe("validateCycleAudit", () => {
     assert.equal(coveringIssues.length, 1);
     assert.equal(coveringIssues[0]?.path, "checked[0]");
     assert.match(coveringIssues[0]?.message ?? "", /piece "P2" is marked "done".*exited 1/);
+  });
+
+  it("enforces justifiedMachinery completeness and rejects duplicates", () => {
+    const spec = makeSpec();
+    const expectedMachinery = [
+      { report: "review-1-backend-1.yaml", file: "src/codec.ts", symbol: "FrameCodec" },
+    ];
+
+    const complete = makeCycleAudit({
+      justifiedMachinery: [
+        {
+          report: "review-1-backend-1.yaml",
+          file: "src/codec.ts",
+          symbol: "FrameCodec",
+          candidatesChecked: ["lib-a 2.x"],
+          constraint: "Custom binary header.",
+        },
+      ],
+    });
+    assert.deepEqual(
+      validateCycleAudit(complete, {
+        spec,
+        reviewFindings: [],
+        justifiedMachinery: expectedMachinery,
+      }),
+      [],
+    );
+
+    const missing = makeCycleAudit({ justifiedMachinery: [] });
+    const missingIssues = validateCycleAudit(missing, {
+      spec,
+      reviewFindings: [],
+      justifiedMachinery: expectedMachinery,
+    });
+    assert.equal(missingIssues.length, 1);
+    assert.equal(missingIssues[0]?.path, "justifiedMachinery");
+    assert.match(missingIssues[0]?.message ?? "", /FrameCodec.*missing/);
+
+    const duplicate = makeCycleAudit({
+      justifiedMachinery: [
+        {
+          report: "review-1-backend-1.yaml",
+          file: "src/codec.ts",
+          symbol: "FrameCodec",
+          candidatesChecked: ["lib-a 2.x"],
+          constraint: "Custom binary header.",
+        },
+        {
+          report: "review-1-backend-1.yaml",
+          file: "src/codec.ts",
+          symbol: "FrameCodec",
+          candidatesChecked: ["lib-a 2.x"],
+          constraint: "Duplicate entry.",
+        },
+      ],
+    });
+    const dupIssues = validateCycleAudit(duplicate, {
+      spec,
+      reviewFindings: [],
+      justifiedMachinery: expectedMachinery,
+    });
+    assert.equal(dupIssues.length, 1);
+    assert.equal(dupIssues[0]?.path, "justifiedMachinery[1]");
+    assert.match(dupIssues[0]?.message ?? "", /appears more than once/);
+  });
+});
+
+describe("io and cmdValidate doctrine-review and cycle-audit --run", () => {
+  it("loads findings and justified machinery from doctrine review files while respecting missedReports", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "contracts-doctrine-io-"));
+    try {
+      fs.writeFileSync(
+        path.join(tmpDir, "review-1-1.yaml"),
+        YAML.stringify({
+          findings: [
+            {
+              id: "F1",
+              file: "src/a.ts",
+              line: 5,
+              problem: "Slice issue.",
+              harm: "Harm.",
+              fix: "Fix.",
+              files: ["src/a.ts"],
+              do: "fix",
+            },
+          ],
+          filesRead: [{ path: "src/a.ts", mode: "full" }],
+        }),
+      );
+      fs.writeFileSync(
+        path.join(tmpDir, "review-1-backend-1.yaml"),
+        YAML.stringify({
+          findings: [
+            {
+              id: "F1",
+              file: "src/parser.ts",
+              line: 12,
+              rule: "coding/use-a-maintained-library-before-building-machinery.md",
+              problem: "Hand-rolled parser.",
+              harm: "Duplicates maintained library.",
+              fix: "Use maintained library.",
+              files: ["src/parser.ts"],
+              do: "fix",
+            },
+          ],
+          filesRead: [{ path: "src/parser.ts", mode: "full" }],
+          machinery: [
+            { file: "src/parser.ts", symbol: "parseDoc", status: "broken", findingId: "F1" },
+            {
+              file: "src/codec.ts",
+              symbol: "FrameCodec",
+              status: "justified",
+              candidatesChecked: ["lib-a 2.x", "lib-b 3.x"],
+              constraint: "Hardware frame format.",
+            },
+          ],
+        }),
+      );
+      fs.writeFileSync(
+        path.join(tmpDir, "review-1-frontend-1.yaml"),
+        YAML.stringify({
+          findings: [],
+          filesRead: [{ path: "src/ui.ts", mode: "full" }],
+          machinery: [
+            {
+              file: "src/ui.ts",
+              symbol: "IgnoredMissed",
+              status: "justified",
+              candidatesChecked: ["lib-c 1.x"],
+              constraint: "Should be skipped via missedReports.",
+            },
+          ],
+        }),
+      );
+      fs.writeFileSync(
+        path.join(tmpDir, "state.json"),
+        JSON.stringify({ missedReports: ["review-1-frontend-1.yaml"] }),
+      );
+
+      const findingsResult = loadRunReviewFindings(tmpDir);
+      assert.equal(findingsResult.ok, true);
+      if (findingsResult.ok) {
+        assert.deepEqual(findingsResult.findings, [
+          { report: "review-1-1.yaml", id: "F1", do: "fix" },
+          { report: "review-1-backend-1.yaml", id: "F1", do: "fix" },
+        ]);
+      }
+
+      const machineryResult = loadRunJustifiedMachinery(tmpDir);
+      assert.equal(machineryResult.ok, true);
+      if (machineryResult.ok) {
+        assert.deepEqual(machineryResult.machinery, [
+          {
+            report: "review-1-backend-1.yaml",
+            file: "src/codec.ts",
+            symbol: "FrameCodec",
+            candidatesChecked: ["lib-a 2.x", "lib-b 3.x"],
+            constraint: "Hardware frame format.",
+          },
+        ]);
+      }
+
+      fs.writeFileSync(
+        path.join(tmpDir, "review-1-backend-2.yaml"),
+        YAML.stringify({
+          findings: [],
+          filesRead: [{ path: "src/bad.ts", mode: "full" }],
+          machinery: [{ file: "src/bad.ts", symbol: "Bad", status: "broken", findingId: "F9" }],
+        }),
+      );
+
+      const invalidFindings = loadRunReviewFindings(tmpDir);
+      assert.equal(invalidFindings.ok, false);
+      if (!invalidFindings.ok) {
+        assert.match(
+          invalidFindings.error,
+          /Invalid doctrine review report review-1-backend-2\.yaml/,
+        );
+      }
+
+      const invalidMachinery = loadRunJustifiedMachinery(tmpDir);
+      assert.equal(invalidMachinery.ok, false);
+      if (!invalidMachinery.ok) {
+        assert.match(
+          invalidMachinery.error,
+          /Invalid doctrine review report review-1-backend-2\.yaml/,
+        );
+      }
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("validates doctrine-review and cycle-audit --run via cmdValidate", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "contracts-cmd-validate-"));
+    try {
+      const validDoctrinePath = path.join(tmpDir, "review-1-backend-1.yaml");
+      fs.writeFileSync(
+        validDoctrinePath,
+        YAML.stringify({
+          findings: [],
+          filesRead: [{ path: "src/codec.ts", mode: "full" }],
+          machinery: [
+            {
+              file: "src/codec.ts",
+              symbol: "FrameCodec",
+              status: "justified",
+              candidatesChecked: ["lib-a 2.x"],
+              constraint: "Hardware frame format.",
+            },
+          ],
+        }),
+      );
+
+      const missingMachineryPath = path.join(tmpDir, "invalid-schema.yaml");
+      fs.writeFileSync(
+        missingMachineryPath,
+        YAML.stringify({
+          findings: [],
+          filesRead: [{ path: "src/a.ts", mode: "full" }],
+        }),
+      );
+
+      const brokenRefPath = path.join(tmpDir, "invalid-semantic.yaml");
+      fs.writeFileSync(
+        brokenRefPath,
+        YAML.stringify({
+          findings: [],
+          filesRead: [{ path: "src/a.ts", mode: "full" }],
+          machinery: [{ file: "src/a.ts", symbol: "Parser", status: "broken", findingId: "F1" }],
+        }),
+      );
+
+      assert.equal(cmdValidate("doctrine-review", validDoctrinePath, {}), 0);
+      assert.equal(cmdValidate("doctrine-review", missingMachineryPath, {}), 1);
+      assert.equal(cmdValidate("doctrine-review", brokenRefPath, {}), 1);
+
+      const validAuditPath = path.join(tmpDir, "audit-valid.yaml");
+      fs.writeFileSync(
+        validAuditPath,
+        YAML.stringify({
+          tldr: "Clean cycle.",
+          commits: [],
+          justifiedMachinery: [
+            {
+              report: "review-1-backend-1.yaml",
+              file: "src/codec.ts",
+              symbol: "FrameCodec",
+              candidatesChecked: ["lib-a 2.x"],
+              constraint: "Hardware frame format.",
+            },
+          ],
+          gate: "green",
+          specStatus: { status: "none" },
+        }),
+      );
+
+      const missingAuditMachineryPath = path.join(tmpDir, "audit-missing.yaml");
+      fs.writeFileSync(
+        missingAuditMachineryPath,
+        YAML.stringify({
+          tldr: "Missing justified machinery.",
+          commits: [],
+          gate: "green",
+          specStatus: { status: "none" },
+        }),
+      );
+
+      assert.equal(cmdValidate("cycle-audit", validAuditPath, { run: tmpDir }), 0);
+      assert.equal(cmdValidate("cycle-audit", missingAuditMachineryPath, { run: tmpDir }), 1);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 });
