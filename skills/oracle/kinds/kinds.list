@@ -4,5 +4,5 @@
 #     A part named head is exempt from the five-part rule format; every other part is a rule.
 
 kind api-contract  head,write-expectations-in-contract-terms,assign-api-contract-statuses-honestly,run-against-the-real-host-and-database,never-skip-or-weaken-contract-tests
-kind browser       head,track-unplaced-call-sites,assert-user-visible-outcomes,assign-browser-statuses-honestly,run-playwright-against-real-wiring,never-use-banned-browser-cheats
+kind browser       head,track-unplaced-call-sites,assert-user-visible-outcomes,assign-browser-statuses-honestly,reuse-shared-e2e-helpers,run-playwright-against-real-wiring,never-use-banned-browser-cheats
 kind cli           head,assert-concrete-expected-output,assign-cli-statuses-honestly,invoke-the-cli-directly-and-emit-junit,never-skip-or-weaken-cli-tests

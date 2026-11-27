@@ -70,10 +70,11 @@ Store filler reports under `<case>/reports/fill-<slice>.md`.
 
 ### 1. Scope, kind, row script, and freeze
 
-1. Agree with the user on the scope words, the case folder `<case>`, and the kind (`api-contract`, `browser`, or `cli`). Read `<skill>/kinds/<kind>.md` in full.
-2. Create `<case>/oracle.conf.json` (`{ "kind": "...", "rows": [...] }`, plus `uiStates` when `kind` is `browser`), `<case>/.gitignore` (ignoring `run-state/`, `claims*.yaml`, `reports/`, `results.xml`), and the row script (or point `rows` at an existing shared script).
-3. Test the row script with `<ledger> rows <case> --draft`. Inspect the generated `<slice>.oracle.yaml` stubs and any `unplaced:` entries with the user so the row inventory is right.
-4. Once the user agrees on the scope and row script, run `<ledger> freeze <case> --words "<words>"` and `<ledger> rows <case>`.
+1. **Discover existing repo conventions first.** Before choosing `<case>` or writing a row script, search the repo for existing `oracle.conf.json` files and shared row scripts (such as `**/oracle-rows/**` or scripts referenced by existing `rows` arrays). Match the repo's existing case-folder home and naming convention (e.g. `__oracle__/<area>/`, with no ad-hoc suffixes) and reuse the repo's existing `rows` command. Never invent a per-case `rows.mjs` or `rows.ts` when a shared row script already exists unless the user explicitly approves one.
+2. Agree with the user on the scope words, the case folder `<case>`, and the kind (`api-contract`, `browser`, or `cli`). Read `<skill>/kinds/<kind>.md` in full.
+3. Create `<case>/oracle.conf.json` (`{ "kind": "...", "rows": [...] }`, plus `uiStates` when `kind` is `browser`), `<case>/.gitignore` (ignoring `run-state/`, `claims*.yaml`, `reports/`, `results.xml`), and the row script only if no shared script fits and the user approved creating one.
+4. Test the row script with `<ledger> rows <case> --draft`. Inspect the generated `<slice>.oracle.yaml` stubs and any `unplaced:` entries with the user so the row inventory is right.
+5. Once the user agrees on the scope and row script, run `<ledger> freeze <case> --words "<words>"` and `<ledger> rows <case>`.
 
 ### 2. Draft expectations with `filler`
 
@@ -95,7 +96,7 @@ Store filler reports under `<case>/reports/fill-<slice>.md`.
      ```
    - Every `shortfall`, `cant-happen`, `gone`, or `unplaced` item.
    - Clickable file links to each `<slice>.oracle.yaml`.
-2. Apply any edits the user asks for (or let the user edit `<slice>.oracle.yaml` directly): resolve every `question` to `null`, flip confirmed `today` rows to `ruling`, mark covered rows `other-level` with `reason`, mark retired/unexpressible rows `struck` with `reason`, and record real unfixed defects as `shortfall`.
+2. Apply any edits the user asks for (or let the user edit `<slice>.oracle.yaml` directly): resolve every `question` to `null`, flip confirmed `today` rows to `ruling`, mark covered rows `other-level` with `reason`, mark retired/unexpressible rows `struck` with `reason`, and record real unfixed defects as `shortfall`. Never propose bulk `other-level` on newly exposed rows without verifying each row against the UI and API: `2xx`, `409`, and `422` rows are usually real browser-reachable `active` or `shortfall` journeys, and `403`/`404` rows blocked by route guards or parent-load 404s are `cant-happen`, not `other-level`.
 3. Once the user approves locking, run `<ledger> lock <case>`. If `lock` refuses, fix the reported items with the user and run `lock` again until it exits `0`.
 
 ### 4. Handoff
@@ -110,5 +111,6 @@ Locked. Run /spec (here, or in a fresh session: /spec Build tests for <case>).
 
 - Write or edit test files during `/oracle`.
 - Dispatch `/spec`, `/go`, or `/cycle`, or start any subagent after `lock`.
-- Drop rows, silently mark rows `other-level` or `struck`, or weaken an expectation to match today's bug.
+- Invent a per-case row script or an ad-hoc case-folder layout when the repo already has `oracle.conf.json` conventions or a shared row script, unless the user explicitly approves it.
+- Drop rows, silently mark rows `other-level` or `struck`, propose bulk `other-level` on unverified rows, or weaken an expectation to match today's bug.
 - Commit, stage, push, or edit `<slice>.oracle.yaml` after `lock` without the user re-opening and re-locking.

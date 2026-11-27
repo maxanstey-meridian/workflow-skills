@@ -14,9 +14,17 @@ oracleCase:
 
 `spec-ctl.mjs validate spec` verifies `<case>/oracle.conf.json`, `<case>/locked.json`, at least one `<case>/*.oracle.yaml`, and that `oracleCase.kind` matches `oracle.conf.json`.
 
+## Reuse before designing pieces
+
+Before designing `pieces[]` for an oracle case, inspect the repo's existing shared test helpers (such as `helpers/`, `journeys/`, and existing `e2e/oracle/**` folders) and name the exact imports in each piece's `reuse`.
+
+- Keep `<case>/{setup,scenarios,actions}.ts` strictly to page-specific fixtures and locators. Never copy-paste HTTP/CSRF wrappers, `responseWhile`/request spies, OpenAPI `parseResponse` or `typed-json` guards, cleanup fixtures, date formatters, auth/org registration, or disposable-DB helpers between cases.
+- When a second oracle case needs a helper that only exists inside an earlier case's folder, add a first piece (which the test pieces depend on via `after`) that promotes it to a shared E2E helper module and updates the earlier case to direct imports — no re-export shims.
+- Prefer the repo's OpenAPI-backed `parseResponse` helper (when present) over hand-rolled `parse*` guards or inline `z.object(...)` DTO schemas.
+
 ## Decisions to carry into `decisions[]`
 
-Add these five entries to `decisions[]` (`decidedBy: agreed`):
+Add these six entries to `decisions[]` (`decidedBy: agreed`):
 
 1. **No row dropped.** Every `active` and `shortfall` row in the locked `*.oracle.yaml` files gets a test. Rows marked `cant-happen`, `other-level`, or `struck` get no test in this suite.
 2. **Locked YAML is read-only.** No piece owns or edits `<case>/*.oracle.yaml`, `frozen.json`, or `locked.json`. If a locked expectation turns out to be wrong, stop and report it rather than editing the oracle.
@@ -25,7 +33,8 @@ Add these five entries to `decisions[]` (`decidedBy: agreed`):
 5. **Each test piece owns its slice's claims and proves itself through `ledger.mjs results` and `verify`.** Split test pieces in `pieces[]` by slice (or test file) with non-overlapping `owns`. Each test piece owns both its test file(s) and `<case>/claims-<slice>.yaml` (or `<case>/claims.yaml` when the case has a single slice), writing `{ claims: [{ id, redCondition }] }` naming the exact product breakage that would make each test fail. Each test piece's `proof` runs its tests with JUnit XML output and passes the XML and claims file to:
    `node <oracle-skill>/scripts/ledger.mjs results <case> <junit-xml...> --tests <test-files...> --slice <slice> && node <oracle-skill>/scripts/ledger.mjs verify <case> <case>/claims-<slice>.yaml --slice <slice>`
    (omit `--slice <slice>` and use `claims.yaml` if the case has a single slice). `results` enforces lock integrity, expected green/red colour, and AST cheat-lint, and writes `<case>/run-state/<slice>.json`; `verify` binds each row's `redCondition` and test-file hash in that slice's run-state file.
-   - **Reuse existing runner config and namespace test folders by case:** Before adding a JUnit reporter or editing the repo's base test config, search the repo for an existing oracle runner config (such as `playwright.oracle.config.*`). For `browser` cases with none, create a dedicated `playwright.oracle.config.ts` extending the base config rather than modifying `playwright.config.*`. Put generated oracle tests under a case-scoped folder (e.g. `e2e/oracle/<case>/`) so multiple `__oracle__` cases in one repo never collide.
+   - **Reuse existing runner config, keep parallelism in Playwright config, and namespace test folders by case:** Before adding a JUnit reporter, search the repo for an existing oracle runner config (such as `playwright.oracle.config.*`). For `browser` cases with none, create a dedicated `playwright.oracle.config.ts` extending the base config for JUnit XML wiring rather than altering the base config's reporter. Check whether the repo's base `playwright.config.*` already has a `fullyParallel: true` project covering `e2e/oracle/**/*.spec.ts`: if it does, do not add per-file `test.describe.configure({ mode: "parallel" })`; if it still runs `e2e/oracle/**` serially while `playwright.oracle.config.*` is parallel, flag or fix that once in `playwright.config.*` so `task ci` does not silently regress to serial. Put generated oracle tests under a case-scoped folder (e.g. `e2e/oracle/<case>/`) so multiple `__oracle__` cases in one repo never collide.
+6. **Reuse shared helpers and keep per-case files page-specific.** Keep `<case>/{setup,scenarios,actions}.ts` strictly to page-specific fixtures and locators, import shared E2E helpers directly (promoting any helper needed by a second case into a shared module with no re-exports), and use the repo's OpenAPI-backed `parseResponse` helper (when present) over hand-rolled `parse*` guards or inline `z.object(...)` DTO schemas.
 
 ## Grading and closing the case
 

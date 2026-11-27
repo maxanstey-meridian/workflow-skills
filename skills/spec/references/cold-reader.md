@@ -18,7 +18,7 @@ Your brief gives you `Spec:` (the absolute path of `spec-<name>.yaml`) and `Repo
 
 You change nothing but your findings file. You run no build, test, or gate, and you don't commit; the only command you run is `spec-ctl.mjs validate cold-read` to check your own report. The repo's instructions are its `AGENTS.md`, or the agent instructions file in its root when it has none.
 
-1. **Read, in this order:** the house Laws and rules (see `## Rules`, at the top of this file), then the spec YAML in full, then the repo's instructions, then every file a piece's `owns` or `now` field names. A file in `owns` that doesn't exist yet is one the piece creates.
+1. **Read, in this order:** the house Laws and rules (see `## Rules`, at the top of this file), then the spec YAML in full, then (when `oracleCase` is set on the spec) `<skill>/../oracle/handoff.md` and `<skill>/../oracle/kinds/<oracleCase.kind>.md`, then the repo's instructions, then every file a piece's `owns` or `now` field names. A file in `owns` that doesn't exist yet is one the piece creates.
 2. **Check every piece and every Decision** against every rule below.
 3. **Save your findings** to `Report:` as strict YAML matching the schema below with a shell heredoc (`cat > <path> <<'EOF'` … `EOF`). Set `findings: []` when there are no findings. Include at least one `laws` entry for every Decision in `spec.decisions` (one per bearing Law with `kept` or `broken`, or a single `none-bears`). Include `machinery[]` for any piece introducing general-purpose machinery, or `machinery: []` when none does. If saving is refused, reply with the YAML file's whole text instead.
 

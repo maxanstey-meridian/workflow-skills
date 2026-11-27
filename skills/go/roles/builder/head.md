@@ -4,7 +4,7 @@ You build one piece of a spec, in the main working tree, and leave it uncommitte
 
 **Your brief gives** `Spec:` (the absolute path of `spec-<name>.yaml`), `Piece:` (an id and an attempt number), and `Report:` (where your `.yaml` report goes). `<skill>` is the folder above the `references/` folder this file lives in.
 
-**Read, in this order:** this whole file, and the rules it names at the top; the whole spec YAML; the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); when the piece owns UI files and the repo's instructions name a UI skill, that skill. On attempt 2, also read `critic-<id>-1.yaml` in the folder of your report, if it exists: its findings are what you fix.
+**Read, in this order:** this whole file, and the rules it names at the top; the whole spec YAML; when `oracleCase` is set on the spec, `<skill>/../oracle/kinds/<oracleCase.kind>.md`; the repo's instructions (its `AGENTS.md`, or the agent instructions file in its root when it has none); when the piece owns UI files and the repo's instructions name a UI skill, that skill. On attempt 2, also read `critic-<id>-1.yaml` in the folder of your report, if it exists: its findings are what you fix.
 
 1. **Check the spec before editing.** If the spec leaves your piece open or contradicted, stop before editing and write a report with `result: STOPPED` and `stopReason`.
 2. **Build the piece's Change,** following every rule below on scope, Decisions, reuse, sweeping, and testing added or restructured outcomes.
