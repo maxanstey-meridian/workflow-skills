@@ -61,23 +61,23 @@ describe("isFrontendPath and autoSlice", () => {
     assert.equal(autoSlice(sixteen), null);
   });
 
-  it("enforces the 3,500-line budget across multiple files while exempting a single large file", () => {
-    assert.equal(MAX_LINES_PER_LIST, 3500);
+  it("enforces the 8,000-line budget across multiple files while exempting a single large file", () => {
+    assert.equal(MAX_LINES_PER_LIST, 8000);
 
     const overBudget = autoSlice(["src/a.ts", "src/b.ts"], {
-      "src/a.ts": 2000,
-      "src/b.ts": 1501,
+      "src/a.ts": 4500,
+      "src/b.ts": 3501,
     });
     assert.equal(overBudget, null);
 
     const atBudget = autoSlice(["src/a.ts", "src/b.ts"], {
-      "src/a.ts": 2000,
-      "src/b.ts": 1500,
+      "src/a.ts": 4500,
+      "src/b.ts": 3500,
     });
     assert.notEqual(atBudget, null);
 
     const singleLarge = autoSlice(["src/huge.ts"], {
-      "src/huge.ts": 5000,
+      "src/huge.ts": 9500,
     });
     assert.notEqual(singleLarge, null);
     assert.deepEqual(singleLarge?.slices, [{ id: 1, files: ["src/huge.ts"] }]);
@@ -172,13 +172,13 @@ describe("validateSlices", () => {
     }
   });
 
-  it("rejects multi-file slices and stack lists over 3,500 lines and accepts single-file lists over 3,500 lines", () => {
+  it("rejects multi-file slices and stack lists over 8,000 lines and accepts single-file lists over 8,000 lines", () => {
     const bigScope = ["src/a.ts", "src/b.ts", "web/c.vue", "web/d.vue"];
     const fileLines = {
-      "src/a.ts": 2100,
-      "src/b.ts": 1600,
-      "web/c.vue": 2000,
-      "web/d.vue": 1700,
+      "src/a.ts": 4500,
+      "src/b.ts": 3700,
+      "web/c.vue": 4400,
+      "web/d.vue": 3800,
     };
 
     const overLineBudget = validateSlices(
@@ -201,27 +201,27 @@ describe("validateSlices", () => {
         overLineBudget.errors.some(
           (e) =>
             e.includes("slices[0].files") &&
-            e.includes("3700") &&
-            e.includes("3500") &&
-            e.includes("src/a.ts (2100)"),
+            e.includes("8200") &&
+            e.includes("8000") &&
+            e.includes("src/a.ts (4500)"),
         ),
       );
       assert.ok(
         overLineBudget.errors.some(
           (e) =>
             e.includes("stacks.backend[0]") &&
-            e.includes("3700") &&
-            e.includes("3500") &&
-            e.includes("src/a.ts (2100)"),
+            e.includes("8200") &&
+            e.includes("8000") &&
+            e.includes("src/a.ts (4500)"),
         ),
       );
       assert.ok(
         overLineBudget.errors.some(
           (e) =>
             e.includes("stacks.frontend[0]") &&
-            e.includes("3700") &&
-            e.includes("3500") &&
-            e.includes("web/c.vue (2000)"),
+            e.includes("8200") &&
+            e.includes("8000") &&
+            e.includes("web/c.vue (4400)"),
         ),
       );
     }
@@ -238,7 +238,7 @@ describe("validateSlices", () => {
         },
       },
       ["src/huge.ts", "web/huge.vue"],
-      { "src/huge.ts": 4200, "web/huge.vue": 3800 },
+      { "src/huge.ts": 9200, "web/huge.vue": 8800 },
     );
     assert.equal(singleFileExempt.ok, true);
   });

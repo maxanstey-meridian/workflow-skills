@@ -546,11 +546,11 @@ describe("cycle-ctl e2e: full cycle with real git commits", () => {
     assert.notEqual(firstRun, secondRun);
   });
 
-  it("enters slice action with fileLines and maxLinesPerList when multi-file diff exceeds 3,500 lines", () => {
+  it("enters slice action with fileLines and maxLinesPerList when multi-file diff exceeds 8,000 lines", () => {
     const repo = makeTempRepo("line-budget-slice");
     fs.mkdirSync(path.join(repo, "src"), { recursive: true });
-    fs.writeFileSync(path.join(repo, "src/big-a.ts"), "export const x = 1;\n".repeat(2000), "utf8");
-    fs.writeFileSync(path.join(repo, "src/big-b.ts"), "export const y = 2;\n".repeat(2000), "utf8");
+    fs.writeFileSync(path.join(repo, "src/big-a.ts"), "export const x = 1;\n".repeat(4500), "utf8");
+    fs.writeFileSync(path.join(repo, "src/big-b.ts"), "export const y = 2;\n".repeat(4500), "utf8");
 
     const initRes = runCtl(["init"], repo);
     assert.equal(initRes.status, 0, initRes.stderr);
@@ -559,11 +559,11 @@ describe("cycle-ctl e2e: full cycle with real git commits", () => {
     const nextRes = runCtl(["next", run], repo);
     assert.equal(nextRes.status, 0, nextRes.stderr);
     const sliceAction = SliceActionSchema.parse(YAML.parse(nextRes.stdout));
-    assert.equal(sliceAction.schema.maxLinesPerList, 3500);
-    assert.equal(sliceAction.fileLines["src/big-a.ts"], 2000);
-    assert.equal(sliceAction.fileLines["src/big-b.ts"], 2000);
+    assert.equal(sliceAction.schema.maxLinesPerList, 8000);
+    assert.equal(sliceAction.fileLines["src/big-a.ts"], 4500);
+    assert.equal(sliceAction.fileLines["src/big-b.ts"], 4500);
 
-    // Reject a combined slice over 3,500 lines
+    // Reject a combined slice over 8,000 lines
     writeYaml(sliceAction.slicesFile, {
       slices: [{ id: 1, files: ["src/big-a.ts", "src/big-b.ts"] }],
       stacks: { backend: [["src/big-a.ts", "src/big-b.ts"]], frontend: [] },
@@ -571,9 +571,9 @@ describe("cycle-ctl e2e: full cycle with real git commits", () => {
     const retryRes = runCtl(["next", run], repo);
     assert.equal(retryRes.status, 0, retryRes.stderr);
     const retryAction = SliceActionSchema.parse(YAML.parse(retryRes.stdout));
-    assert.ok(retryAction.errors.some((e) => e.includes("3500")));
+    assert.ok(retryAction.errors.some((e) => e.includes("8000")));
 
-    // Accept split slices and stacks within 3,500 lines
+    // Accept split slices and stacks within 8,000 lines
     writeYaml(sliceAction.slicesFile, {
       slices: [
         { id: 1, files: ["src/big-a.ts"] },

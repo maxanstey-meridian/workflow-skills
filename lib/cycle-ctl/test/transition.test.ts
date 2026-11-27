@@ -652,7 +652,7 @@ describe("spec-blind doctrine briefs, doctrine report validation, audit machiner
     assert.equal(toFixing.action.action, "spawn");
   });
 
-  it("cli.ts init and next enter action: slice with fileLines and maxLinesPerList: 3500 when multi-file changes exceed 3,500 lines", () => {
+  it("cli.ts init and next enter action: slice with fileLines and maxLinesPerList: 8000 when multi-file changes exceed 8,000 lines", () => {
     const tmpRepo = fs.mkdtempSync(path.join(os.tmpdir(), "cycle-cli-budget-"));
     try {
       execFileSync("git", ["init", "-q"], { cwd: tmpRepo });
@@ -665,12 +665,12 @@ describe("spec-blind doctrine briefs, doctrine report validation, audit machiner
       fs.mkdirSync(path.join(tmpRepo, "src"), { recursive: true });
       fs.writeFileSync(
         path.join(tmpRepo, "src/big-a.ts"),
-        `${Array.from({ length: 2000 }, (_, i) => `export const a${i} = ${i};`).join("\n")}\n`,
+        `${Array.from({ length: 4500 }, (_, i) => `export const a${i} = ${i};`).join("\n")}\n`,
         "utf8",
       );
       fs.writeFileSync(
         path.join(tmpRepo, "src/big-b.ts"),
-        `${Array.from({ length: 1600 }, (_, i) => `export const b${i} = ${i};`).join("\n")}\n`,
+        `${Array.from({ length: 3600 }, (_, i) => `export const b${i} = ${i};`).join("\n")}\n`,
         "utf8",
       );
 
@@ -695,12 +695,12 @@ describe("spec-blind doctrine briefs, doctrine report validation, audit machiner
       assert.ok(typeof nextParsed === "object" && nextParsed !== null);
       assert.equal("action" in nextParsed ? nextParsed.action : undefined, "slice");
       assert.deepEqual("fileLines" in nextParsed ? nextParsed.fileLines : undefined, {
-        "src/big-a.ts": 2000,
-        "src/big-b.ts": 1600,
+        "src/big-a.ts": 4500,
+        "src/big-b.ts": 3600,
       });
       const schema = "schema" in nextParsed ? nextParsed.schema : undefined;
       assert.ok(typeof schema === "object" && schema !== null);
-      assert.equal("maxLinesPerList" in schema ? schema.maxLinesPerList : undefined, 3500);
+      assert.equal("maxLinesPerList" in schema ? schema.maxLinesPerList : undefined, 8000);
     } finally {
       fs.rmSync(tmpRepo, { recursive: true, force: true });
     }

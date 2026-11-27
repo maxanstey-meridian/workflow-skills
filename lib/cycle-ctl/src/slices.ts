@@ -3,7 +3,7 @@ import type { ReviewReport } from "../../contracts/src/report-schemas.ts";
 
 export const AUTO_SLICE_LIMIT = 15;
 export const MAX_PATHS_PER_LIST = 25;
-export const MAX_LINES_PER_LIST = 3500;
+export const MAX_LINES_PER_LIST = 8000;
 
 const FRONTEND_EXT_RE = /\.(vue|tsx|jsx|css|scss|sass|less|html)$/;
 const FRONTEND_DIR_RE = /(^|\/)(web|frontend|ui|client|app\/(components|pages|composables))\//;
