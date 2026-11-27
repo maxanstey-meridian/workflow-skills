@@ -16,11 +16,11 @@ oracleCase:
 
 ## Reuse before designing pieces
 
-Before designing `pieces[]` for an oracle case, inspect the repo's existing shared test helpers (such as `helpers/`, `journeys/`, and existing `e2e/oracle/**` folders) and name the exact imports in each piece's `reuse`.
+Before designing `pieces[]` for an oracle case, inspect the repo's existing shared test helpers and earlier oracle case folders (for `browser` cases, folders such as `helpers/`, `journeys/`, and existing `e2e/oracle/**`) and name the exact imports in each piece's `reuse`.
 
-- Keep `<case>/{setup,scenarios,actions}.ts` strictly to page-specific fixtures and locators. Never copy-paste HTTP/CSRF wrappers, `responseWhile`/request spies, OpenAPI `parseResponse` or `typed-json` guards, cleanup fixtures, date formatters, auth/org registration, or disposable-DB helpers between cases.
-- When a second oracle case needs a helper that only exists inside an earlier case's folder, add a first piece (which the test pieces depend on via `after`) that promotes it to a shared E2E helper module and updates the earlier case to direct imports — no re-export shims.
-- Prefer the repo's OpenAPI-backed `parseResponse` helper (when present) over hand-rolled `parse*` guards or inline `z.object(...)` DTO schemas.
+- Keep per-case helper files strictly to case-specific fixtures rather than copy-pasting shared setup, auth, HTTP, cleanup, or fixture helpers between cases.
+- When a second oracle case needs a helper that only exists inside an earlier case's folder, add a first piece (which the test pieces depend on via `after`) that promotes it to a shared test helper module and updates the earlier case to direct imports — no re-export shims.
+- For `browser` cases: keep `<case>/{setup,scenarios,actions}.ts` strictly to page-specific fixtures and locators (never copy-paste HTTP/CSRF wrappers, `responseWhile`/request spies, OpenAPI `parseResponse` or `typed-json` guards, cleanup fixtures, date formatters, auth/org registration, or disposable-DB helpers between cases), promote helpers needed by a second case into a shared E2E helper module, and prefer the repo's OpenAPI-backed `parseResponse` helper (when present) over hand-rolled `parse*` guards or inline `z.object(...)` DTO schemas.
 
 ## Decisions to carry into `decisions[]`
 
@@ -34,7 +34,7 @@ Add these six entries to `decisions[]` (`decidedBy: agreed`):
    `node <oracle-skill>/scripts/ledger.mjs results <case> <junit-xml...> --tests <test-files...> --slice <slice> && node <oracle-skill>/scripts/ledger.mjs verify <case> <case>/claims-<slice>.yaml --slice <slice>`
    (omit `--slice <slice>` and use `claims.yaml` if the case has a single slice). `results` enforces lock integrity, expected green/red colour, and AST cheat-lint, and writes `<case>/run-state/<slice>.json`; `verify` binds each row's `redCondition` and test-file hash in that slice's run-state file.
    - **Reuse existing runner config, keep parallelism in Playwright config, and namespace test folders by case:** Before adding a JUnit reporter, search the repo for an existing oracle runner config (such as `playwright.oracle.config.*`). For `browser` cases with none, create a dedicated `playwright.oracle.config.ts` extending the base config for JUnit XML wiring rather than altering the base config's reporter. Check whether the repo's base `playwright.config.*` already has a `fullyParallel: true` project covering `e2e/oracle/**/*.spec.ts`: if it does, do not add per-file `test.describe.configure({ mode: "parallel" })`; if it still runs `e2e/oracle/**` serially while `playwright.oracle.config.*` is parallel, flag or fix that once in `playwright.config.*` so `task ci` does not silently regress to serial. Put generated oracle tests under a case-scoped folder (e.g. `e2e/oracle/<case>/`) so multiple `__oracle__` cases in one repo never collide.
-6. **Reuse shared helpers and keep per-case files page-specific.** Keep `<case>/{setup,scenarios,actions}.ts` strictly to page-specific fixtures and locators, import shared E2E helpers directly (promoting any helper needed by a second case into a shared module with no re-exports), and use the repo's OpenAPI-backed `parseResponse` helper (when present) over hand-rolled `parse*` guards or inline `z.object(...)` DTO schemas.
+6. **Reuse shared helpers and keep per-case files case-specific.** Inspect existing shared test helpers, import shared helpers directly, and promote any helper needed by a second case into a shared module with direct imports and no re-export shims. For `browser` cases, keep `<case>/{setup,scenarios,actions}.ts` strictly to page-specific fixtures and locators, import shared E2E helpers directly, and use the repo's OpenAPI-backed `parseResponse` helper (when present) over hand-rolled `parse*` guards or inline `z.object(...)` DTO schemas.
 
 ## Grading and closing the case
 
