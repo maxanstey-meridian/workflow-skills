@@ -84,7 +84,7 @@ results:
     change: ReleaseStaleBookings.cs:40-47 reads IClock.UtcNow; new test ReleaseStaleBookingsTests.cs:88.
     check: dotnet test --filter ReleaseStale exit 0
   - findingId: F4
-    report: review-1-frontend-1.yaml
+    report: review-1-frontend.yaml
     status: NOT_FOUND
     read: bookings.vue:118-124 already awaits the save; the finding cites a line from before the diff.
   - findingId: F5

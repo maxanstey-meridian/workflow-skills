@@ -458,7 +458,7 @@ describe("spec-ctl validate role reports", () => {
 
   it("validates doctrine-review reports and rejects missing machinery or bad broken findingId", () => {
     const dir = makeTempDir("doctrine-review");
-    const reportPath = path.join(dir, "review-1-backend-1.yaml");
+    const reportPath = path.join(dir, "review-1-backend.yaml");
 
     writeYaml(reportPath, {
       findings: [

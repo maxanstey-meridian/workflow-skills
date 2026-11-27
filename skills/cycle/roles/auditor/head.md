@@ -104,7 +104,7 @@ fixed:
     summary: Read `IClock.UtcNow` instead of `DateTime.Now`, verified by non-UTC test.
 notAHarm:
   - findingId: F4
-    report: review-1-frontend-1.yaml
+    report: review-1-frontend.yaml
     reason: Verified at `bookings.vue:118-124`; save is already awaited.
 notFixed:
   - findingId: F3

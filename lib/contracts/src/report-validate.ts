@@ -30,7 +30,7 @@ const FAILING_CYCLE_CRITIC_VERDICTS = new Set([
 
 const PROCEDURAL_LIBRARY_LAW = "coding/record-why-no-library-fits-before-hand-rolling.md";
 const SUBSTANTIVE_LIBRARY_LAW = "coding/use-a-maintained-library-before-building-machinery.md";
-const DOCTRINE_REVIEW_FILENAME_PATTERN = /^review-\d+-(backend|frontend)-\d+\.yaml$/;
+const DOCTRINE_REVIEW_FILENAME_PATTERN = /^review-\d+-(backend|frontend)\.yaml$/;
 
 type DecisionLawState = {
   hasNoneBears: boolean;

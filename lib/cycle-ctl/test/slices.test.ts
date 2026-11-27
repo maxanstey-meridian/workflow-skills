@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 import type { ReviewReport } from "../../contracts/src/report-schemas.ts";
-import { collectExistingFindingPaths, measureFileLines } from "../src/io.ts";
+import { collectExistingFindingPaths, measureFileLines, writeStackLists } from "../src/io.ts";
 import {
   MAX_LINES_PER_LIST,
   assignNewPathsToSlices,
@@ -37,22 +37,22 @@ describe("isFrontendPath and autoSlice", () => {
     assert.equal(isFrontendPath("app/utils/format.ts"), false);
   });
 
-  it("auto-slices <= 15 paths into slice-1 with backend/frontend split and omits empty stacks", () => {
+  it("auto-slices <= 15 paths into slice-1 with flat backend/frontend stacks and omits empty stacks", () => {
     const mixed = autoSlice(["src/api.ts", "app/pages/index.vue", "README.md"]);
     assert.notEqual(mixed, null);
     assert.deepEqual(mixed?.slices, [
       { id: 1, files: ["README.md", "app/pages/index.vue", "src/api.ts"] },
     ]);
-    assert.deepEqual(mixed?.stacks.backend, [["README.md", "src/api.ts"]]);
-    assert.deepEqual(mixed?.stacks.frontend, [["app/pages/index.vue"]]);
+    assert.deepEqual(mixed?.stacks.backend, ["README.md", "src/api.ts"]);
+    assert.deepEqual(mixed?.stacks.frontend, ["app/pages/index.vue"]);
 
     const backendOnly = autoSlice(["src/a.ts", "src/b.ts"]);
-    assert.deepEqual(backendOnly?.stacks.backend, [["src/a.ts", "src/b.ts"]]);
+    assert.deepEqual(backendOnly?.stacks.backend, ["src/a.ts", "src/b.ts"]);
     assert.deepEqual(backendOnly?.stacks.frontend, []);
 
     const frontendOnly = autoSlice(["web/a.ts", "ui/b.css"]);
     assert.deepEqual(frontendOnly?.stacks.backend, []);
-    assert.deepEqual(frontendOnly?.stacks.frontend, [["ui/b.css", "web/a.ts"]]);
+    assert.deepEqual(frontendOnly?.stacks.frontend, ["ui/b.css", "web/a.ts"]);
   });
 
   it("returns null for 0 paths or > 15 paths", () => {
@@ -87,7 +87,7 @@ describe("isFrontendPath and autoSlice", () => {
 describe("validateSlices", () => {
   const scope = ["a.ts", "b.ts", "c.vue"];
 
-  it("accepts valid disjoint full-coverage slices and stacks", () => {
+  it("accepts valid disjoint full-coverage slices and flat stacks", () => {
     const res = validateSlices(
       {
         slices: [
@@ -95,8 +95,8 @@ describe("validateSlices", () => {
           { id: 2, files: ["c.vue"] },
         ],
         stacks: {
-          backend: [["a.ts", "b.ts"]],
-          frontend: [["c.vue"]],
+          backend: ["a.ts", "b.ts"],
+          frontend: ["c.vue"],
         },
       },
       scope,
@@ -108,7 +108,7 @@ describe("validateSlices", () => {
     const missing = validateSlices(
       {
         slices: [{ id: 1, files: ["a.ts", "b.ts"] }],
-        stacks: { backend: [["a.ts", "b.ts"]], frontend: [] },
+        stacks: { backend: ["a.ts", "b.ts"], frontend: [] },
       },
       scope,
     );
@@ -125,8 +125,8 @@ describe("validateSlices", () => {
           { id: 1, files: ["b.ts", "c.vue", "ghost.ts"] },
         ],
         stacks: {
-          backend: [["a.ts", "b.ts"]],
-          frontend: [["b.ts", "c.vue", "ghost.ts"]],
+          backend: ["a.ts", "b.ts"],
+          frontend: ["b.ts", "c.vue", "ghost.ts"],
         },
       },
       scope,
@@ -137,42 +137,42 @@ describe("validateSlices", () => {
       assert.ok(dupAndUnknown.errors.some((e) => e.includes('"b.ts" already appears in slice 1')));
       assert.ok(dupAndUnknown.errors.some((e) => e.includes('"ghost.ts" is not in scope')));
       assert.ok(
-        dupAndUnknown.errors.some((e) => e.includes('"b.ts" already appears in stacks.backend[0]')),
+        dupAndUnknown.errors.some((e) => e.includes('"b.ts" already appears in stacks.backend')),
       );
     }
   });
 
-  it("rejects slices or stack lists over the 25-path cap", () => {
-    const twentySix = Array.from({ length: 26 }, (_, i) => `src/f${i + 1}.ts`);
+  it("rejects slices over the 25-path cap while accepting flat stacks over 25 paths", () => {
+    const twentySixBackend = Array.from({ length: 26 }, (_, i) => `src/f${i + 1}.ts`);
+    const twentySixFrontend = Array.from({ length: 26 }, (_, i) => `web/f${i + 1}.vue`);
     const overSliceCap = validateSlices(
       {
-        slices: [{ id: 1, files: twentySix }],
-        stacks: { backend: [twentySix.slice(0, 13), twentySix.slice(13)], frontend: [] },
+        slices: [{ id: 1, files: twentySixBackend }],
+        stacks: { backend: twentySixBackend, frontend: [] },
       },
-      twentySix,
+      twentySixBackend,
     );
     assert.equal(overSliceCap.ok, false);
     if (!overSliceCap.ok) {
       assert.ok(overSliceCap.errors.some((e) => e.includes("slices[0].files")));
     }
 
-    const overStackCap = validateSlices(
+    const overStackPathCountAllowed = validateSlices(
       {
         slices: [
-          { id: 1, files: twentySix.slice(0, 13) },
-          { id: 2, files: twentySix.slice(13) },
+          { id: 1, files: twentySixBackend.slice(0, 13) },
+          { id: 2, files: twentySixBackend.slice(13) },
+          { id: 3, files: twentySixFrontend.slice(0, 13) },
+          { id: 4, files: twentySixFrontend.slice(13) },
         ],
-        stacks: { backend: [twentySix], frontend: [] },
+        stacks: { backend: twentySixBackend, frontend: twentySixFrontend },
       },
-      twentySix,
+      [...twentySixBackend, ...twentySixFrontend],
     );
-    assert.equal(overStackCap.ok, false);
-    if (!overStackCap.ok) {
-      assert.ok(overStackCap.errors.some((e) => e.includes("stacks.backend[0]")));
-    }
+    assert.equal(overStackPathCountAllowed.ok, true);
   });
 
-  it("rejects multi-file slices and stack lists over 8,000 lines and accepts single-file lists over 8,000 lines", () => {
+  it("rejects multi-file slices over 8,000 lines, exempts single-file slices, and accepts flat stacks over 8,000 lines", () => {
     const bigScope = ["src/a.ts", "src/b.ts", "web/c.vue", "web/d.vue"];
     const fileLines = {
       "src/a.ts": 4500,
@@ -188,8 +188,8 @@ describe("validateSlices", () => {
           { id: 2, files: ["web/c.vue", "web/d.vue"] },
         ],
         stacks: {
-          backend: [["src/a.ts", "src/b.ts"]],
-          frontend: [["web/c.vue", "web/d.vue"]],
+          backend: ["src/a.ts", "src/b.ts"],
+          frontend: ["web/c.vue", "web/d.vue"],
         },
       },
       bigScope,
@@ -209,22 +209,35 @@ describe("validateSlices", () => {
       assert.ok(
         overLineBudget.errors.some(
           (e) =>
-            e.includes("stacks.backend[0]") &&
-            e.includes("8200") &&
-            e.includes("8000") &&
-            e.includes("src/a.ts (4500)"),
-        ),
-      );
-      assert.ok(
-        overLineBudget.errors.some(
-          (e) =>
-            e.includes("stacks.frontend[0]") &&
+            e.includes("slices[1].files") &&
             e.includes("8200") &&
             e.includes("8000") &&
             e.includes("web/c.vue (4400)"),
         ),
       );
+      assert.equal(
+        overLineBudget.errors.some((e) => e.includes("stacks.")),
+        false,
+      );
     }
+
+    const stacksOverLineBudgetAllowed = validateSlices(
+      {
+        slices: [
+          { id: 1, files: ["src/a.ts"] },
+          { id: 2, files: ["src/b.ts"] },
+          { id: 3, files: ["web/c.vue"] },
+          { id: 4, files: ["web/d.vue"] },
+        ],
+        stacks: {
+          backend: ["src/a.ts", "src/b.ts"],
+          frontend: ["web/c.vue", "web/d.vue"],
+        },
+      },
+      bigScope,
+      fileLines,
+    );
+    assert.equal(stacksOverLineBudgetAllowed.ok, true);
 
     const singleFileExempt = validateSlices(
       {
@@ -233,8 +246,8 @@ describe("validateSlices", () => {
           { id: 2, files: ["web/huge.vue"] },
         ],
         stacks: {
-          backend: [["src/huge.ts"]],
-          frontend: [["web/huge.vue"]],
+          backend: ["src/huge.ts"],
+          frontend: ["web/huge.vue"],
         },
       },
       ["src/huge.ts", "web/huge.vue"],
@@ -283,7 +296,7 @@ describe("io helpers: measureFileLines and collectExistingFindingPaths", () => {
 
       const reports = new Map<string, RawReportEntry>([
         [
-          "review-1-backend-1.yaml",
+          "review-1-backend.yaml",
           {
             exists: true,
             raw: {
@@ -313,7 +326,7 @@ describe("io helpers: measureFileLines and collectExistingFindingPaths", () => {
           },
         ],
         [
-          "review-1-backend-2.yaml",
+          "review-1-frontend.yaml",
           {
             exists: true,
             raw: {
@@ -337,6 +350,36 @@ describe("io helpers: measureFileLines and collectExistingFindingPaths", () => {
 
       const existing = collectExistingFindingPaths(tmpDir, reports);
       assert.deepEqual([...existing], ["src/doctrine.ts"]);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("writeStackLists writes unindexed stack-backend.txt / stack-frontend.txt and omits empty stacks", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "cycle-io-stacks-"));
+    try {
+      const bothDir = path.join(tmpDir, "both");
+      writeStackLists(bothDir, {
+        backend: ["src/a.ts", "src/b.ts"],
+        frontend: ["web/c.vue"],
+      });
+      assert.equal(
+        fs.readFileSync(path.join(bothDir, "stack-backend.txt"), "utf8"),
+        "src/a.ts\nsrc/b.ts\n",
+      );
+      assert.equal(
+        fs.readFileSync(path.join(bothDir, "stack-frontend.txt"), "utf8"),
+        "web/c.vue\n",
+      );
+      assert.equal(fs.existsSync(path.join(bothDir, "stack-backend-1.txt")), false);
+
+      const backendOnlyDir = path.join(tmpDir, "backend-only");
+      writeStackLists(backendOnlyDir, {
+        backend: ["src/a.ts"],
+        frontend: [],
+      });
+      assert.equal(fs.existsSync(path.join(backendOnlyDir, "stack-backend.txt")), true);
+      assert.equal(fs.existsSync(path.join(backendOnlyDir, "stack-frontend.txt")), false);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }

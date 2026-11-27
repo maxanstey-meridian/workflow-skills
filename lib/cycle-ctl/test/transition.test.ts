@@ -60,7 +60,7 @@ const makeBaseState = (overrides: Partial<CycleState> = {}): CycleState => ({
   round: 1,
   phase: { kind: "review_ready" },
   slices: { "1": ["src/a.ts"] },
-  stackFiles: { backend: ["stack-backend-1.txt"], frontend: [] },
+  stackFiles: { backend: "stack-backend.txt", frontend: null },
   retries: {},
   committedLists: [],
   missedReports: [],
@@ -153,17 +153,25 @@ describe("parseGateLog", () => {
 });
 
 describe("advanceCycle: slicing (> 15 paths)", () => {
-  it("prompts for slices.yaml, re-prompts with errors on invalid input, and transitions to reviewing when valid", () => {
-    const scope = Array.from({ length: 16 }, (_, i) => `src/f${i + 1}.ts`);
+  it("prompts for slices.yaml, re-prompts with errors on invalid input, and transitions to reviewing with one unsplit doctrine reviewer per active stack", () => {
+    const backendPaths = Array.from({ length: 16 }, (_, i) => `src/f${i + 1}.ts`);
+    const frontendPaths = ["web/App.vue", "web/Nav.vue"];
+    const scope = [...backendPaths, ...frontendPaths];
     const state0 = makeBaseState({
       phase: { kind: "await_slices", errors: [] },
       slices: {},
-      stackFiles: { backend: [], frontend: [] },
+      stackFiles: { backend: null, frontend: null },
     });
 
     const missingRes = advanceCycle(state0, makeEnv({ scope, slicesYaml: { exists: false } }));
     assert.equal(missingRes.action.action, "slice");
     assert.equal(missingRes.state.phase.kind, "await_slices");
+    if (missingRes.action.action === "slice") {
+      assert.deepEqual(missingRes.action.schema.stacks, {
+        backend: "[<repo-relative paths>]",
+        frontend: "[<repo-relative paths>]",
+      });
+    }
 
     const invalidRes = advanceCycle(
       missingRes.state,
@@ -172,8 +180,8 @@ describe("advanceCycle: slicing (> 15 paths)", () => {
         slicesYaml: {
           exists: true,
           raw: {
-            slices: [{ id: 1, files: scope.slice(0, 10) }],
-            stacks: { backend: [scope.slice(0, 10)], frontend: [] },
+            slices: [{ id: 1, files: backendPaths.slice(0, 10) }],
+            stacks: { backend: backendPaths.slice(0, 10), frontend: [] },
           },
         },
       }),
@@ -191,25 +199,44 @@ describe("advanceCycle: slicing (> 15 paths)", () => {
           exists: true,
           raw: {
             slices: [
-              { id: 1, files: scope.slice(0, 8) },
-              { id: 2, files: scope.slice(8) },
+              { id: 1, files: backendPaths.slice(0, 8) },
+              { id: 2, files: [...backendPaths.slice(8), ...frontendPaths] },
             ],
             stacks: {
-              backend: [scope.slice(0, 16)],
-              frontend: [],
+              backend: backendPaths,
+              frontend: frontendPaths,
             },
           },
         },
       }),
     );
     assert.equal(validRes.state.phase.kind, "reviewing");
+    assert.deepEqual(validRes.state.stackFiles, {
+      backend: "stack-backend.txt",
+      frontend: "stack-frontend.txt",
+    });
     assert.equal(validRes.action.action, "spawn");
     if (validRes.action.action === "spawn") {
       assert.equal(validRes.action.parallel, true);
-      assert.equal(validRes.action.subagents.length, 3);
+      assert.equal(validRes.action.subagents.length, 4);
+      const backendAgents = validRes.action.subagents.filter(
+        (subagent) => subagent.role === "doctrine-reviewer-backend",
+      );
+      const frontendAgents = validRes.action.subagents.filter(
+        (subagent) => subagent.role === "doctrine-reviewer-frontend",
+      );
+      assert.equal(backendAgents.length, 1);
+      assert.equal(frontendAgents.length, 1);
+      assert.match(backendAgents[0]?.brief ?? "", /stack-backend\.txt/);
+      assert.match(backendAgents[0]?.report ?? "", /review-1-backend\.yaml$/);
+      assert.match(frontendAgents[0]?.brief ?? "", /stack-frontend\.txt/);
+      assert.match(frontendAgents[0]?.report ?? "", /review-1-frontend\.yaml$/);
     }
     assert.ok(validRes.effects.writeSlices !== undefined);
-    assert.ok(validRes.effects.writeStackFiles !== undefined);
+    assert.deepEqual(validRes.effects.writeStackFiles, {
+      backend: backendPaths,
+      frontend: frontendPaths,
+    });
   });
 });
 
@@ -221,11 +248,12 @@ describe("advanceCycle: 0-fix fast-path to gate", () => {
     if (step1.action.action === "spawn") {
       assert.equal(step1.action.parallel, true);
       assert.equal(step1.action.subagents.length, 2);
+      assert.match(step1.action.subagents[1]?.report ?? "", /review-1-backend\.yaml$/);
     }
 
     const reports = new Map<string, RawReportEntry>([
       ["review-1-slice-1.yaml", { exists: true, raw: cleanReview() }],
-      ["review-1-backend-1.yaml", { exists: true, raw: cleanDoctrineReview() }],
+      ["review-1-backend.yaml", { exists: true, raw: cleanDoctrineReview() }],
     ]);
 
     const step2 = advanceCycle(step1.state, makeEnv({ reports }));
@@ -255,7 +283,7 @@ describe("advanceCycle: fix, critic PASS/FAIL, second attempt, and missed-twice"
   it("runs fixer -> critic FAIL -> second fixer -> second critic (no third fixer) -> re-review -> commit_round", () => {
     const reports = new Map<string, RawReportEntry>([
       ["review-1-slice-1.yaml", { exists: true, raw: fixReview() }],
-      ["review-1-backend-1.yaml", { exists: true, raw: cleanDoctrineReview() }],
+      ["review-1-backend.yaml", { exists: true, raw: cleanDoctrineReview() }],
     ]);
     const committedWork = makeBaseState({
       phase: { kind: "commit_work" },
@@ -372,8 +400,8 @@ describe("advanceCycle: fix, critic PASS/FAIL, second attempt, and missed-twice"
           },
           {
             role: "doctrine-reviewer-backend",
-            listFile: "stack-backend-1.txt",
-            reportFile: "review-1-backend-1.yaml",
+            listFile: "stack-backend.txt",
+            reportFile: "review-1-backend.yaml",
           },
         ],
       },
@@ -385,7 +413,7 @@ describe("advanceCycle: fix, critic PASS/FAIL, second attempt, and missed-twice"
     // First miss on backend review -> retry only the missing review
     const retryReview = advanceCycle(reviewing, makeEnv({ reports: partialReports }));
     assert.equal(retryReview.state.phase.kind, "reviewing");
-    assert.equal(retryReview.state.retries["review-1-backend-1.yaml"], 1);
+    assert.equal(retryReview.state.retries["review-1-backend.yaml"], 1);
     assert.equal(retryReview.action.action, "spawn");
     if (retryReview.action.action === "spawn") {
       assert.equal(retryReview.action.subagents.length, 1);
@@ -394,7 +422,7 @@ describe("advanceCycle: fix, critic PASS/FAIL, second attempt, and missed-twice"
 
     // Second miss on backend review -> recorded in missedReports and advances to commit_work
     const afterSecondMiss = advanceCycle(retryReview.state, makeEnv({ reports: partialReports }));
-    assert.ok(afterSecondMiss.state.missedReports.includes("review-1-backend-1.yaml"));
+    assert.ok(afterSecondMiss.state.missedReports.includes("review-1-backend.yaml"));
     assert.equal(afterSecondMiss.state.phase.kind, "commit_work");
 
     // Fixer misses twice -> critic brief omits fix-1-slice-1.yaml
@@ -533,8 +561,8 @@ describe("spec-blind doctrine briefs, doctrine report validation, audit machiner
     const backendBrief = buildReviewBrief(
       state,
       "doctrine-reviewer-backend",
-      "stack-backend-1.txt",
-      "review-1-backend-1.yaml",
+      "stack-backend.txt",
+      "review-1-backend.yaml",
     );
     assert.match(backendBrief, /^Spec: none$/m);
     assert.doesNotMatch(backendBrief, /spec-test\.yaml/);
@@ -542,8 +570,8 @@ describe("spec-blind doctrine briefs, doctrine report validation, audit machiner
     const frontendBrief = buildReviewBrief(
       state,
       "doctrine-reviewer-frontend",
-      "stack-frontend-1.txt",
-      "review-1-frontend-1.yaml",
+      "stack-frontend.txt",
+      "review-1-frontend.yaml",
     );
     assert.match(frontendBrief, /^Spec: none$/m);
     assert.doesNotMatch(frontendBrief, /spec-test\.yaml/);
@@ -561,8 +589,8 @@ describe("spec-blind doctrine briefs, doctrine report validation, audit machiner
           },
           {
             role: "doctrine-reviewer-backend",
-            listFile: "stack-backend-1.txt",
-            reportFile: "review-1-backend-1.yaml",
+            listFile: "stack-backend.txt",
+            reportFile: "review-1-backend.yaml",
           },
         ],
       },
@@ -571,11 +599,11 @@ describe("spec-blind doctrine briefs, doctrine report validation, audit machiner
     // Missing machinery field -> retries backend reviewer
     const missingMachinery = new Map<string, RawReportEntry>([
       ["review-1-slice-1.yaml", { exists: true, raw: cleanReview() }],
-      ["review-1-backend-1.yaml", { exists: true, raw: cleanReview() }],
+      ["review-1-backend.yaml", { exists: true, raw: cleanReview() }],
     ]);
     const retryMissing = advanceCycle(reviewing, makeEnv({ reports: missingMachinery }));
     assert.equal(retryMissing.state.phase.kind, "reviewing");
-    assert.equal(retryMissing.state.retries["review-1-backend-1.yaml"], 1);
+    assert.equal(retryMissing.state.retries["review-1-backend.yaml"], 1);
     assert.equal(retryMissing.action.action, "spawn");
     if (retryMissing.action.action === "spawn") {
       assert.equal(retryMissing.action.subagents.length, 1);
@@ -587,7 +615,7 @@ describe("spec-blind doctrine briefs, doctrine report validation, audit machiner
     const badBrokenRef = new Map<string, RawReportEntry>([
       ["review-1-slice-1.yaml", { exists: true, raw: cleanReview() }],
       [
-        "review-1-backend-1.yaml",
+        "review-1-backend.yaml",
         {
           exists: true,
           raw: {
@@ -607,13 +635,13 @@ describe("spec-blind doctrine briefs, doctrine report validation, audit machiner
     ]);
     const retryBroken = advanceCycle(reviewing, makeEnv({ reports: badBrokenRef }));
     assert.equal(retryBroken.state.phase.kind, "reviewing");
-    assert.equal(retryBroken.state.retries["review-1-backend-1.yaml"], 1);
+    assert.equal(retryBroken.state.retries["review-1-backend.yaml"], 1);
 
     // Valid doctrine report with broken machinery + matching library Law finding -> advances to commit_work, then fixing
     const validReports = new Map<string, RawReportEntry>([
       ["review-1-slice-1.yaml", { exists: true, raw: cleanReview() }],
       [
-        "review-1-backend-1.yaml",
+        "review-1-backend.yaml",
         {
           exists: true,
           raw: {
@@ -701,6 +729,53 @@ describe("spec-blind doctrine briefs, doctrine report validation, audit machiner
       const schema = "schema" in nextParsed ? nextParsed.schema : undefined;
       assert.ok(typeof schema === "object" && schema !== null);
       assert.equal("maxLinesPerList" in schema ? schema.maxLinesPerList : undefined, 8000);
+      assert.deepEqual("stacks" in schema ? schema.stacks : undefined, {
+        backend: "[<repo-relative paths>]",
+        frontend: "[<repo-relative paths>]",
+      });
+    } finally {
+      fs.rmSync(tmpRepo, { recursive: true, force: true });
+    }
+  });
+
+  it("cli.ts init auto-slice writes unindexed stack-backend.txt with null frontend stackFiles", () => {
+    const tmpRepo = fs.mkdtempSync(path.join(os.tmpdir(), "cycle-cli-auto-"));
+    try {
+      execFileSync("git", ["init", "-q"], { cwd: tmpRepo });
+      execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: tmpRepo });
+      execFileSync("git", ["config", "user.name", "Test User"], { cwd: tmpRepo });
+      fs.writeFileSync(path.join(tmpRepo, "README.md"), "# init\n", "utf8");
+      execFileSync("git", ["add", "README.md"], { cwd: tmpRepo });
+      execFileSync("git", ["commit", "-q", "-m", "chore: init"], { cwd: tmpRepo });
+
+      fs.mkdirSync(path.join(tmpRepo, "src"), { recursive: true });
+      fs.writeFileSync(path.join(tmpRepo, "src/small.ts"), "export const x = 1;\n", "utf8");
+
+      const cliPath = path.resolve(import.meta.dirname, "../src/cli.ts");
+      const initOut = execFileSync(process.execPath, [cliPath, "init"], {
+        cwd: tmpRepo,
+        encoding: "utf8",
+      });
+      const initParsed: unknown = YAML.parse(initOut);
+      assert.ok(
+        typeof initParsed === "object" &&
+          initParsed !== null &&
+          "run" in initParsed &&
+          typeof initParsed.run === "string",
+      );
+
+      assert.equal(fs.existsSync(path.join(initParsed.run, "stack-backend.txt")), true);
+      assert.equal(fs.existsSync(path.join(initParsed.run, "stack-backend-1.txt")), false);
+      assert.equal(fs.existsSync(path.join(initParsed.run, "stack-frontend.txt")), false);
+
+      const savedState: unknown = JSON.parse(
+        fs.readFileSync(path.join(initParsed.run, "state.json"), "utf8"),
+      );
+      assert.ok(typeof savedState === "object" && savedState !== null);
+      assert.deepEqual("stackFiles" in savedState ? savedState.stackFiles : undefined, {
+        backend: "stack-backend.txt",
+        frontend: null,
+      });
     } finally {
       fs.rmSync(tmpRepo, { recursive: true, force: true });
     }

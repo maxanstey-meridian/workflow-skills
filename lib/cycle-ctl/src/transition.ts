@@ -65,8 +65,8 @@ export type CycleAdvanceEnv = {
 export type CycleEffects = {
   writeSlices?: Record<string, string[]>;
   writeStackFiles?: {
-    backend: string[][];
-    frontend: string[][];
+    backend: string[];
+    frontend: string[];
   };
   writeMerges?: {
     round: CycleRound;
@@ -139,8 +139,8 @@ const cloneState = (state: CycleState): CycleState => ({
   ...state,
   slices: Object.fromEntries(Object.entries(state.slices).map(([k, v]) => [k, [...v]])),
   stackFiles: {
-    backend: [...state.stackFiles.backend],
-    frontend: [...state.stackFiles.frontend],
+    backend: state.stackFiles.backend,
+    frontend: state.stackFiles.frontend,
   },
   retries: { ...state.retries },
   committedLists: [...state.committedLists],
@@ -168,8 +168,8 @@ const buildSliceAction = (
   schema: {
     slices: "[{ id: <positive int>, files: [<1..25 repo-relative paths>] }]",
     stacks: {
-      backend: "[[<1..25 repo-relative paths>]]",
-      frontend: "[[<1..25 repo-relative paths>]]",
+      backend: "[<repo-relative paths>]",
+      frontend: "[<repo-relative paths>]",
     },
     maxPerFile: MAX_PATHS_PER_LIST,
     maxLinesPerList: MAX_LINES_PER_LIST,
@@ -230,26 +230,20 @@ const startRoundOneReviews = (state: CycleState, effects: CycleEffects): CycleAd
     });
   }
 
-  for (let i = 0; i < state.stackFiles.backend.length; i += 1) {
-    const listFile = state.stackFiles.backend[i];
-    if (listFile !== undefined) {
-      tasks.push({
-        role: "doctrine-reviewer-backend",
-        listFile,
-        reportFile: `review-1-backend-${i + 1}.yaml`,
-      });
-    }
+  if (state.stackFiles.backend !== null) {
+    tasks.push({
+      role: "doctrine-reviewer-backend",
+      listFile: state.stackFiles.backend,
+      reportFile: "review-1-backend.yaml",
+    });
   }
 
-  for (let i = 0; i < state.stackFiles.frontend.length; i += 1) {
-    const listFile = state.stackFiles.frontend[i];
-    if (listFile !== undefined) {
-      tasks.push({
-        role: "doctrine-reviewer-frontend",
-        listFile,
-        reportFile: `review-1-frontend-${i + 1}.yaml`,
-      });
-    }
+  if (state.stackFiles.frontend !== null) {
+    tasks.push({
+      role: "doctrine-reviewer-frontend",
+      listFile: state.stackFiles.frontend,
+      reportFile: "review-1-frontend.yaml",
+    });
   }
 
   state.phase = { kind: "reviewing", tasks };
@@ -699,8 +693,8 @@ export const advanceCycle = (inputState: CycleState, env: CycleAdvanceEnv): Cycl
       }
       state.slices = slicesMap;
       state.stackFiles = {
-        backend: validated.data.stacks.backend.map((_, idx) => `stack-backend-${idx + 1}.txt`),
-        frontend: validated.data.stacks.frontend.map((_, idx) => `stack-frontend-${idx + 1}.txt`),
+        backend: validated.data.stacks.backend.length > 0 ? "stack-backend.txt" : null,
+        frontend: validated.data.stacks.frontend.length > 0 ? "stack-frontend.txt" : null,
       };
       effects.writeSlices = slicesMap;
       effects.writeStackFiles = validated.data.stacks;

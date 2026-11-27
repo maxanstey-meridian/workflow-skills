@@ -68,7 +68,7 @@ findings:
     verdict: FIXED
     detail: Harm real (old line 42 used DateTime.Now); gone (`dotnet test --filter ReleaseStale_NonUtc` exit 0).
   - findingId: F4
-    report: review-1-frontend-1.yaml
+    report: review-1-frontend.yaml
     verdict: NOT_FOUND_AGREED
     detail: Agreed, bookings.vue:118-124 already awaits the save.
 missing: []

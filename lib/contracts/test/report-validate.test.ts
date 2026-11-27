@@ -1067,12 +1067,13 @@ describe("validateColdRead", () => {
 
 describe("isDoctrineReviewFilename and validateDoctrineReview", () => {
   it("matches only backend and frontend doctrine review filenames", () => {
-    assert.equal(isDoctrineReviewFilename("review-1-backend-1.yaml"), true);
-    assert.equal(isDoctrineReviewFilename("review-12-frontend-3.yaml"), true);
+    assert.equal(isDoctrineReviewFilename("review-1-backend.yaml"), true);
+    assert.equal(isDoctrineReviewFilename("review-12-frontend.yaml"), true);
+    assert.equal(isDoctrineReviewFilename("review-1-backend-1.yaml"), false);
     assert.equal(isDoctrineReviewFilename("review-1-1.yaml"), false);
     assert.equal(isDoctrineReviewFilename("review-1-slice-1.yaml"), false);
-    assert.equal(isDoctrineReviewFilename("review-1-backend-1.json"), false);
-    assert.equal(isDoctrineReviewFilename("review-backend-1.yaml"), false);
+    assert.equal(isDoctrineReviewFilename("review-1-backend.json"), false);
+    assert.equal(isDoctrineReviewFilename("review-backend.yaml"), false);
   });
 
   it("accepts valid doctrine reviews and rejects duplicate machinery or bad broken findingId references", () => {
@@ -1691,7 +1692,7 @@ describe("io and cmdValidate doctrine-review and cycle-audit --run", () => {
         }),
       );
       fs.writeFileSync(
-        path.join(tmpDir, "review-1-backend-1.yaml"),
+        path.join(tmpDir, "review-1-backend.yaml"),
         YAML.stringify({
           findings: [
             {
@@ -1720,7 +1721,7 @@ describe("io and cmdValidate doctrine-review and cycle-audit --run", () => {
         }),
       );
       fs.writeFileSync(
-        path.join(tmpDir, "review-1-frontend-1.yaml"),
+        path.join(tmpDir, "review-1-frontend.yaml"),
         YAML.stringify({
           findings: [],
           filesRead: [{ path: "src/ui.ts", mode: "full" }],
@@ -1737,7 +1738,7 @@ describe("io and cmdValidate doctrine-review and cycle-audit --run", () => {
       );
       fs.writeFileSync(
         path.join(tmpDir, "state.json"),
-        JSON.stringify({ missedReports: ["review-1-frontend-1.yaml"] }),
+        JSON.stringify({ missedReports: ["review-1-frontend.yaml"] }),
       );
 
       const findingsResult = loadRunReviewFindings(tmpDir);
@@ -1745,12 +1746,12 @@ describe("io and cmdValidate doctrine-review and cycle-audit --run", () => {
       if (findingsResult.ok) {
         assert.deepEqual(findingsResult.findings, [
           { report: "review-1-1.yaml", id: "F1", do: "fix" },
-          { report: "review-1-backend-1.yaml", id: "F1", do: "fix" },
+          { report: "review-1-backend.yaml", id: "F1", do: "fix" },
         ]);
       }
 
       fs.writeFileSync(
-        path.join(tmpDir, "review-1-backend-2.yaml"),
+        path.join(tmpDir, "review-2-backend.yaml"),
         YAML.stringify({
           findings: [],
           filesRead: [{ path: "src/bad.ts", mode: "full" }],
@@ -1763,7 +1764,7 @@ describe("io and cmdValidate doctrine-review and cycle-audit --run", () => {
       if (!invalidFindings.ok) {
         assert.match(
           invalidFindings.error,
-          /Invalid doctrine review report review-1-backend-2\.yaml/,
+          /Invalid doctrine review report review-2-backend\.yaml/,
         );
       }
     } finally {
@@ -1774,7 +1775,7 @@ describe("io and cmdValidate doctrine-review and cycle-audit --run", () => {
   it("validates doctrine-review and cycle-audit --run via cmdValidate", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "contracts-cmd-validate-"));
     try {
-      const validDoctrinePath = path.join(tmpDir, "review-1-backend-1.yaml");
+      const validDoctrinePath = path.join(tmpDir, "review-1-backend.yaml");
       fs.writeFileSync(
         validDoctrinePath,
         YAML.stringify({

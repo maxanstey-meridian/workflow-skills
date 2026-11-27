@@ -24,8 +24,8 @@ export type ReviewTask = z.infer<typeof ReviewTaskSchema>;
 
 export const StackFilesSchema = z
   .object({
-    backend: z.array(z.string().min(1)),
-    frontend: z.array(z.string().min(1)),
+    backend: z.string().min(1).nullable(),
+    frontend: z.string().min(1).nullable(),
   })
   .strict();
 export type StackFiles = z.infer<typeof StackFilesSchema>;

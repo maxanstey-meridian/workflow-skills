@@ -256,8 +256,8 @@ describe("cycle-ctl e2e: full cycle with real git commits", () => {
 
     assert.equal(fs.readFileSync(path.join(run, "scope.txt"), "utf8").trim(), "src/a.ts");
     assert.equal(fs.readFileSync(path.join(run, "slice-1.txt"), "utf8").trim(), "src/a.ts");
-    assert.equal(fs.readFileSync(path.join(run, "stack-backend-1.txt"), "utf8").trim(), "src/a.ts");
-    assert.equal(fs.existsSync(path.join(run, "stack-frontend-1.txt")), false);
+    assert.equal(fs.readFileSync(path.join(run, "stack-backend.txt"), "utf8").trim(), "src/a.ts");
+    assert.equal(fs.existsSync(path.join(run, "stack-frontend.txt")), false);
 
     // 2. next -> parallel round-1 reviews
     const reviewStep = runCtl(["next", run], repo);
@@ -289,7 +289,7 @@ describe("cycle-ctl e2e: full cycle with real git commits", () => {
       ],
       filesRead: [{ path: "src/a.ts", mode: "full" }],
     });
-    writeYaml(path.join(run, "review-1-backend-1.yaml"), {
+    writeYaml(path.join(run, "review-1-backend.yaml"), {
       findings: [],
       filesRead: [{ path: "src/a.ts", mode: "full" }],
       machinery: [
@@ -487,10 +487,10 @@ describe("cycle-ctl e2e: full cycle with real git commits", () => {
       findings: [],
       filesRead: [{ path: "src/a.ts", mode: "full" }],
     });
-    fs.writeFileSync(path.join(runDir, "review-1-backend-1.yaml"), "not: [valid: yaml\n", "utf8");
+    fs.writeFileSync(path.join(runDir, "review-1-backend.yaml"), "not: [valid: yaml\n", "utf8");
     fs.writeFileSync(
       path.join(runDir, "state.json"),
-      `${JSON.stringify({ missedReports: ["review-1-backend-1.yaml"] }, null, 2)}\n`,
+      `${JSON.stringify({ missedReports: ["review-1-backend.yaml"] }, null, 2)}\n`,
       "utf8",
     );
 
@@ -566,24 +566,34 @@ describe("cycle-ctl e2e: full cycle with real git commits", () => {
     // Reject a combined slice over 8,000 lines
     writeYaml(sliceAction.slicesFile, {
       slices: [{ id: 1, files: ["src/big-a.ts", "src/big-b.ts"] }],
-      stacks: { backend: [["src/big-a.ts", "src/big-b.ts"]], frontend: [] },
+      stacks: { backend: ["src/big-a.ts", "src/big-b.ts"], frontend: [] },
     });
     const retryRes = runCtl(["next", run], repo);
     assert.equal(retryRes.status, 0, retryRes.stderr);
     const retryAction = SliceActionSchema.parse(YAML.parse(retryRes.stdout));
     assert.ok(retryAction.errors.some((e) => e.includes("8000")));
 
-    // Accept split slices and stacks within 8,000 lines
+    // Accept split slices within 8,000 lines while keeping stacks unsplit
     writeYaml(sliceAction.slicesFile, {
       slices: [
         { id: 1, files: ["src/big-a.ts"] },
         { id: 2, files: ["src/big-b.ts"] },
       ],
-      stacks: { backend: [["src/big-a.ts"], ["src/big-b.ts"]], frontend: [] },
+      stacks: { backend: ["src/big-a.ts", "src/big-b.ts"], frontend: [] },
     });
     const spawnRes = runCtl(["next", run], repo);
     assert.equal(spawnRes.status, 0, spawnRes.stderr);
     const spawnAction = SpawnActionSchema.parse(YAML.parse(spawnRes.stdout));
-    assert.equal(spawnAction.subagents.length, 4);
+    assert.equal(spawnAction.subagents.length, 3);
+    const doctrineSubagents = spawnAction.subagents.filter(
+      (s) => s.role === "doctrine-reviewer-backend",
+    );
+    assert.equal(doctrineSubagents.length, 1);
+    assert.equal(path.basename(doctrineSubagents[0]?.report ?? ""), "review-1-backend.yaml");
+    assert.match(doctrineSubagents[0]?.brief ?? "", /stack-backend\.txt/);
+    assert.deepEqual(
+      fs.readFileSync(path.join(run, "stack-backend.txt"), "utf8").trim().split("\n"),
+      ["src/big-a.ts", "src/big-b.ts"],
+    );
   });
 });

@@ -21,8 +21,8 @@ export const SlicesFileSchema = z
     slices: z.array(SliceEntrySchema).min(1),
     stacks: z
       .object({
-        backend: z.array(z.array(z.string().min(1)).min(1).max(MAX_PATHS_PER_LIST)),
-        frontend: z.array(z.array(z.string().min(1)).min(1).max(MAX_PATHS_PER_LIST)),
+        backend: z.array(z.string().min(1)),
+        frontend: z.array(z.string().min(1)),
       })
       .strict(),
   })
@@ -116,8 +116,8 @@ export const autoSlice = (
   return {
     slices: [{ id: 1, files: uniqueScope }],
     stacks: {
-      backend: backend.length > 0 ? [backend] : [],
-      frontend: frontend.length > 0 ? [frontend] : [],
+      backend,
+      frontend,
     },
   };
 };
@@ -186,37 +186,29 @@ export const validateSlices = (
   const seenInStacks = new Map<string, string>();
   const stackGroups: ReadonlyArray<{
     stackName: "backend" | "frontend";
-    lists: ReadonlyArray<ReadonlyArray<string>>;
+    files: ReadonlyArray<string>;
   }> = [
-    { stackName: "backend", lists: data.stacks.backend },
-    { stackName: "frontend", lists: data.stacks.frontend },
+    { stackName: "backend", files: data.stacks.backend },
+    { stackName: "frontend", files: data.stacks.frontend },
   ];
 
-  for (const { stackName, lists } of stackGroups) {
-    for (let i = 0; i < lists.length; i += 1) {
-      const list = lists[i];
-      if (list === undefined) {
+  for (const { stackName, files } of stackGroups) {
+    const stackLabel = `stacks.${stackName}`;
+    for (let i = 0; i < files.length; i += 1) {
+      const filePath = files[i];
+      if (filePath === undefined) {
         continue;
       }
-      const listLabel = `stacks.${stackName}[${i}]`;
-      for (let j = 0; j < list.length; j += 1) {
-        const filePath = list[j];
-        if (filePath === undefined) {
-          continue;
-        }
-        if (!scopeSet.has(filePath)) {
-          errors.push(`${listLabel}[${j}]: path "${filePath}" is not in scope`);
-          continue;
-        }
-        const prevStack = seenInStacks.get(filePath);
-        if (prevStack !== undefined) {
-          errors.push(`${listLabel}[${j}]: path "${filePath}" already appears in ${prevStack}`);
-        } else {
-          seenInStacks.set(filePath, listLabel);
-        }
+      if (!scopeSet.has(filePath)) {
+        errors.push(`${stackLabel}[${i}]: path "${filePath}" is not in scope`);
+        continue;
       }
-
-      checkListLineBudget(listLabel, list, fileLines, errors);
+      const prevStack = seenInStacks.get(filePath);
+      if (prevStack !== undefined) {
+        errors.push(`${stackLabel}[${i}]: path "${filePath}" already appears in ${prevStack}`);
+      } else {
+        seenInStacks.set(filePath, stackLabel);
+      }
     }
   }
 

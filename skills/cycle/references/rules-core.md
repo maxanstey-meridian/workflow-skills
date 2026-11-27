@@ -16,6 +16,7 @@ Each line is one rule: its title, its one sentence, and the file that holds it.
 - **Leave commodity mechanics to the library.** Leave commodity protocol and runtime mechanics to the adopted library while keeping product rules, ports, idempotency, transaction boundaries, failure interpretation, and orchestration in the application; never fork an SDK's job into app code. [`coding/leave-commodity-mechanics-to-the-library.md`]
 - **Keep third-party types inside the adapter.** Put a third-party library behind the owning module's port when the application needs its own terms or isolation, keeping library types and exceptions inside the adapter. [`coding/keep-third-party-types-inside-the-adapter.md`]
 - **Turn off library behaviour that breaks an invariant.** Configure or disable any library behaviour that conflicts with an application invariant, especially hidden retries, transactions, caching, or background execution. [`coding/turn-off-library-behaviour-that-breaks-an-invariant.md`]
+- **Extract shared mechanics, never copy-paste an engine.** Reuse an existing engine or extract shared mechanics into one owner whenever two or more consumers need the same non-trivial behaviour (such as batch stores, persistence or query pipelines, retry or queue runners, or protocol codecs) rather than copy-pasting it across sibling files. [`coding/extract-shared-mechanics-never-copy-paste-an-engine.md`]
 - **Fix the type instead of asserting it.** Never silence the compiler with a type assertion (`x as T`, `<T>x`) or non-null assertion (`x!`); fix the type at its source via a typed template ref, `v-model`, type guard, or better model. [`coding/fix-the-type-instead-of-asserting-it.md`]
 - **State the invariant before choosing enforcement.** State the invariant in plain words naming no mechanism before choosing enforcement or concurrency controls. [`invariants/state-the-invariant-before-choosing-enforcement.md`]
 - **Enforce an invariant at its authoritative boundary.** The domain defines product invariants and an authoritative boundary enforces them; a controller, UI, AI prompt, comment, or test suite never owns an invariant. [`invariants/enforce-an-invariant-at-its-authoritative-boundary.md`]
@@ -214,6 +215,15 @@ Good: Calling the function directly.
 
 Bad: A date formatter used by one page moved to `shared/` "for reuse".
 Good: The formatter left in the page's folder until a second page needs it.
+<!-- rule: coding/extract-shared-mechanics-never-copy-paste-an-engine.md -->
+## Extract shared mechanics, never copy-paste an engine
+
+**Law:** Reuse an existing engine or extract shared mechanics into one owner whenever two or more consumers need the same non-trivial behaviour (such as batch stores, persistence or query pipelines, retry or queue runners, or protocol codecs) rather than copy-pasting it across sibling files.
+
+**When:** Planning, writing, or reviewing code on any stack where a second or third consumer needs the same non-trivial mechanics; ~3-line local snippets stay under `coding/extract-a-helper-only-after-the-pattern-repeats.md`, and single-consumer code stays under `coding/keep-code-local-until-it-is-shared.md`.
+
+Bad: Three batch stores copy-pasting the same cursor, batching, and retry engine across sibling files.
+Good: One shared batch-store engine parameterised by each store's query and codec, called by all three stores.
 <!-- rule: coding/keep-shared-code-with-the-feature-that-owns-it.md -->
 ## Keep shared code with the feature that owns it
 

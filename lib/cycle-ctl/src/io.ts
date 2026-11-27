@@ -301,21 +301,15 @@ export const createRunDir = (mainDir: string): string => {
 export const writeStackLists = (
   runDir: string,
   stacks: {
-    backend: ReadonlyArray<ReadonlyArray<string>>;
-    frontend: ReadonlyArray<ReadonlyArray<string>>;
+    backend: ReadonlyArray<string>;
+    frontend: ReadonlyArray<string>;
   },
 ): void => {
-  for (let i = 0; i < stacks.backend.length; i += 1) {
-    const list = stacks.backend[i];
-    if (list !== undefined) {
-      writeListFile(path.join(runDir, `stack-backend-${i + 1}.txt`), list);
-    }
+  if (stacks.backend.length > 0) {
+    writeListFile(path.join(runDir, "stack-backend.txt"), stacks.backend);
   }
-  for (let i = 0; i < stacks.frontend.length; i += 1) {
-    const list = stacks.frontend[i];
-    if (list !== undefined) {
-      writeListFile(path.join(runDir, `stack-frontend-${i + 1}.txt`), list);
-    }
+  if (stacks.frontend.length > 0) {
+    writeListFile(path.join(runDir, "stack-frontend.txt"), stacks.frontend);
   }
 };
 

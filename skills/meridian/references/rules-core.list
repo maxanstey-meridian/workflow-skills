@@ -20,6 +20,7 @@ coding/add-a-package-only-for-commodity-machinery.md
 coding/wrap-a-dependency-only-when-the-wrapper-adds-meaning.md
 coding/add-an-abstraction-only-at-a-real-boundary.md
 coding/keep-code-local-until-it-is-shared.md
+coding/extract-shared-mechanics-never-copy-paste-an-engine.md
 coding/keep-shared-code-with-the-feature-that-owns-it.md
 coding/register-dependencies-explicitly.md
 coding/import-from-the-file-that-owns-the-code.md
