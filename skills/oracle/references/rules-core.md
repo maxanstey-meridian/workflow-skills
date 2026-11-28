@@ -17,6 +17,7 @@ Each line is one rule: its title, its one sentence, and the file that holds it.
 - **Keep third-party types inside the adapter.** Put a third-party library behind the owning module's port when the application needs its own terms or isolation, keeping library types and exceptions inside the adapter. [`coding/keep-third-party-types-inside-the-adapter.md`]
 - **Turn off library behaviour that breaks an invariant.** Configure or disable any library behaviour that conflicts with an application invariant, especially hidden retries, transactions, caching, or background execution. [`coding/turn-off-library-behaviour-that-breaks-an-invariant.md`]
 - **Extract shared mechanics, never copy-paste an engine.** Reuse an existing engine or extract shared mechanics into one owner whenever two or more consumers need the same non-trivial behaviour (such as batch stores, persistence or query pipelines, retry or queue runners, or protocol codecs) rather than copy-pasting it across sibling files. [`coding/extract-shared-mechanics-never-copy-paste-an-engine.md`]
+- **Generalise the existing path instead of adding a parallel one.** Before adding a new implementation beside an existing one, check whether the old path is just a simpler case of the new requirement — if it is, widen the existing path and delete the special-case version rather than maintaining both. [`coding/generalise-the-existing-path-instead-of-adding-a-parallel-one.md`]
 - **Fix the type instead of asserting it.** Never silence the compiler with a type assertion (`x as T`, `<T>x`) or non-null assertion (`x!`); fix the type at its source via a typed template ref, `v-model`, type guard, or better model. [`coding/fix-the-type-instead-of-asserting-it.md`]
 - **State the invariant before choosing enforcement.** State the invariant in plain words naming no mechanism before choosing enforcement or concurrency controls. [`invariants/state-the-invariant-before-choosing-enforcement.md`]
 - **Enforce an invariant at its authoritative boundary.** The domain defines product invariants and an authoritative boundary enforces them; a controller, UI, AI prompt, comment, or test suite never owns an invariant. [`invariants/enforce-an-invariant-at-its-authoritative-boundary.md`]
@@ -224,6 +225,15 @@ Good: The formatter left in the page's folder until a second page needs it.
 
 Bad: Three batch stores copy-pasting the same cursor, batching, and retry engine across sibling files.
 Good: One shared batch-store engine parameterised by each store's query and codec, called by all three stores.
+<!-- rule: coding/generalise-the-existing-path-instead-of-adding-a-parallel-one.md -->
+## Generalise the existing path instead of adding a parallel one
+
+**Law:** Before adding a new implementation beside an existing one, check whether the old path is just a simpler case of the new requirement — if it is, widen the existing path and delete the special-case version rather than maintaining both.
+
+**When:** Adding a new variant, mode, or capability to a codebase that already handles a narrower version of the same job.
+
+Bad: Duplicating a query or service pipeline for a new variant (such as "with relations" or "admin") beside the original one, copying a create form into a separate edit form, or adding a cycle-safe walker beside a flat-chain walker and leaving both in place.
+Good: Widening the existing query/service pipeline so the original case is the simpler input, widening the form to handle both create and edit, or replacing the flat-chain walker with the cycle-safe one.
 <!-- rule: coding/keep-shared-code-with-the-feature-that-owns-it.md -->
 ## Keep shared code with the feature that owns it
 

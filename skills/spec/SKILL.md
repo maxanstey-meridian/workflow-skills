@@ -30,7 +30,8 @@ Read every file the work touches, yourself, from disk. Find out:
 - everything the code this work skips, replaces, or changes does today, not only the part the work is about;
 - what the ask assumed and what the code shows; a wrong premise changes the spec before anything else does;
 - that each feature, gate, or tool the work relies on does what it claims: run it, or trace it from input to output;
-- what each change reuses: the existing component, flow, pattern, or maintained library. Hand-rolling needs a reason in the spec.
+- what each change reuses: the existing component, flow, pattern, or maintained library. Hand-rolling needs a reason in the spec;
+- what narrower or parallel paths already exist elsewhere in the repo (owning module, shared/common packages, and sibling modules) doing a similar job: when the new case generalises an existing one, plan pieces to widen the existing path and retire the narrow one (or promote shared non-domain mechanics to common across sibling modules without coupling domain internals) rather than adding a parallel copy beside it.
 
 Done when every statement you are about to write about the code comes from a file you read in this run.
 
